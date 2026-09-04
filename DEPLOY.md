@@ -15,23 +15,38 @@ Arsitektur produksi:
 
 ## 2. Buat resource di Coolify
 
-1. **+ New Resource -> Public/Private Repository (GitHub)** -> pilih repo & branch `main`.
-2. **Build Pack: Docker Compose**, compose file: `/docker-compose.yml`.
-3. Di tab **Environment Variables** isi (minimal):
+Ada **dua cara** (pilih salah satu):
+
+### Cara A (paling mudah): Build Pack **Dockerfile** - 1 container (nginx + API)
+
+1. **+ New Resource -> Public Repository / GitHub App** -> repo `daneswara22/daneswara`, branch `main`.
+2. **Build Pack: Dockerfile** (file `Dockerfile` di root repo), **Port: `80`**.
+3. Isi **Environment Variables** (tabel di bawah). Tidak perlu build args.
+4. Set **Domain** (mis. `https://daneswaraprint.com`) -> **Deploy**.
+5. Storage (opsional bila belum pakai R2): tambah **Persistent Volume** `/data/uploads`.
+
+### Cara B: Build Pack **Docker Compose** - 2 service (frontend nginx + backend)
+
+1. Build Pack: **Docker Compose**, compose file `/docker-compose.yml`.
+2. Env sama seperti tabel; domain di-set pada service **frontend** (port 80).
+3. Aktifkan **"Connect To Predefined Network"** agar backend bisa resolve hostname MariaDB.
+
+### Environment Variables (kedua cara)
 
    | Key | Nilai |
    |---|---|
    | `DATABASE_URL` | `mysql://daneswaraprod:<password>@e5t5yllm46db0cnsu9fwv3cv:3306/default` |
    | `JWT_SECRET` | string acak panjang |
    | `OWNER_USERNAME` / `OWNER_PASSWORD` | akun owner pertama |
-   | `PUBLIC_BASE_URL` | `https://daneswaraprint.com` (domain frontend) |
+   | `PUBLIC_BASE_URL` | `https://daneswaraprint.com` (domain situs) |
+   | `TIMEZONE` | `Asia/Makassar` |
    | `SEED_CATALOG` / `SEED_CUSTOMERS` | `false` jika akan migrasi data dari Mongo |
    | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_ENDPOINT`, `R2_BUCKET`, `R2_PUBLIC_BASE_URL` | dari Cloudflare R2 (kosongkan `R2_BUCKET` = simpan di disk) |
 
-4. Service **frontend** -> set **Domain** (mis. `https://daneswaraprint.com`), port `80`.
-   Service **backend** tidak perlu domain (diakses via proxy nginx `/api`).
-5. Aktifkan **"Connect To Predefined Network"** (Advanced) agar `backend` bisa resolve hostname MariaDB Coolify.
-6. **Deploy**. Cek: `https://<domain>/api/health` -> `{"status":"healthy","database":"ok",...}`.
+Cek setelah deploy: `https://<domain>/api/health` -> `{"status":"healthy","database":"ok",...}`.
+
+> Container app harus berada di jaringan Docker yang sama dengan MariaDB Coolify (default: network `coolify`).
+> Jika `DATABASE_URL` internal tidak resolve, pakai URL publik `mysql://daneswaraprod:<password>@103.175.220.31:6796/default` (butuh user `'daneswaraprod'@'%'`, lihat bagian 5b).
 
 ## 3. Migrasi data lama (MongoDB Atlas -> MariaDB)
 
