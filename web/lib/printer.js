@@ -1,4 +1,5 @@
 // Thermal (Bluetooth BLE / ESC-POS) + Desktop (HTML iframe) printing utilities.
+import { canvasSafeUrl } from "@/lib/media";
 
 let btDevice = null;
 let btChar = null;
@@ -297,7 +298,10 @@ async function writeBytes(bytes) {
 async function imageToRaster(src, { maxW = 220, maxH = 150, fullW = 384 } = {}) {
   const img = await new Promise((res, rej) => {
     const i = new Image();
-    i.onload = () => res(i); i.onerror = rej; i.src = src;
+    // Route remote (R2 CDN) logos through our own origin, otherwise the canvas is
+    // tainted and the getImageData() call below throws, dropping the logo silently.
+    i.crossOrigin = "anonymous";
+    i.onload = () => res(i); i.onerror = rej; i.src = canvasSafeUrl(src) || src;
   });
   // Target logo dimensions (keep aspect ratio, cap width AND height).
   let lw = img.width || maxW, lh = img.height || maxH;
@@ -404,7 +408,7 @@ async function buildEscPos(r, settings) {
 
 // Desktop / HTML print via hidden iframe (works on all devices).
 export function printDesktop(r, settings) {
-  const logo = settings.logo || `${window.location.origin}/logo.png`;
+  const logo = canvasSafeUrl(settings.logo) || `${window.location.origin}/logo.png`;
   const line = (l, rr) => `<div class="row"><span>${l}</span><span>${rr}</span></div>`;
   const items = (r.items || [])
     .map((i) => line(`${i.qty}x ${i.name}`, rp(i.price * i.qty)) + `<div class="note">${rp(i.price)} x ${i.qty}</div>` + (i.note ? `<div class="note">* ${i.note}</div>` : ""))

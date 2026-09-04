@@ -1,5 +1,6 @@
 import { forwardRef } from "react";
 import { rupiah } from "@/lib/api";
+import { canvasSafeUrl } from "@/lib/media";
 
 // Offscreen receipt card, shared by the paid receipt (NotaDialog) and the unpaid
 // draft (DraftPreviewDialog). Theme: charcoal + gold to match the brand logo.
@@ -49,7 +50,7 @@ export const ReceiptShareCard = forwardRef(function ReceiptShareCard({ data, set
           )}
           {/* header */}
           <div style={{ position: "relative", zIndex: 1, textAlign: "center" }}>
-            <img src={settings.logo || "/logo.png"} alt="" crossOrigin="anonymous" style={{ maxWidth: "120px", maxHeight: "46px", objectFit: "contain", margin: "0 auto 6px" }} />
+            <img src={canvasSafeUrl(settings.logo) || "/logo.png"} alt="" crossOrigin="anonymous" style={{ maxWidth: "120px", maxHeight: "46px", objectFit: "contain", margin: "0 auto 6px" }} />
             <div style={{ fontSize: "16px", fontWeight: 800, color: DARK, letterSpacing: "0.2px" }}>{settings.business_name || "Daneswara POS"}</div>
             <div style={{ fontSize: "18px", fontWeight: 800, color: DARK, marginTop: "10px" }}>{heading}</div>
             <div style={{ width: "48px", height: "3px", background: GOLD, borderRadius: "2px", margin: "12px auto 0" }} />
