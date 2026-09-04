@@ -1,0 +1,16 @@
+{
+  "summary": "Frontend fix verified: Orders (Pesanan) Pelunasan dialog now mirrors POS payment methods. E2E flow completed order ORD-260805-0001 with BRI TOKO successfully; backend accepted and sale persisted with payment_method='BRI TOKO'.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "Consumed existing unfinished order ORD-260805-0001 → now completed as INV-260811-0008 (payment_method 'BRI TOKO'). No new unfinished orders remain for retest; create new DP order via POS if needed.",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": false,
+  "test_credentials": "admin / Limited0 (from /app/memory/test_credentials.md)",
+  "context_for_next_testing_agent": "Verified in iteration 10: settle-dialog shows Tunai / Bank Transfer / QRIS / E-Wallet (no Kartu). Clicking Bank Transfer reveals settle-bank-options row with BCA TOKO (default-selected), BRI TOKO, BCA ADMIN (ELIS). Nominal prefilled with remaining (Rp46.000). Backend POST /api/orders/{id}/complete returned 200 with body {payment_method:'BRI TOKO',paid_amount:46000}. /api/sales latest entry INV-260811-0008 has from_order='ORD-260805-0001' and payment_method='BRI TOKO'.",
+  "rca_of_the_issue": "Original bug: Orders.jsx METHODS still contained 'Kartu'. Fix (already applied) updated METHODS to ['Tunai','Bank Transfer','QRIS','E-Wallet'] and introduced BANKS sub-picker mirroring POS; setMethod stores selected bank string directly which the backend Literal now accepts."
+}

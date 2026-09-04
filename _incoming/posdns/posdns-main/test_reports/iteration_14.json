@@ -1,0 +1,22 @@
+{
+  "summary": "Frontend-only regression for Daneswara POS: (1) intermittent 'Gagal membuat gambar nota' bug on Pesanan > Nota > Bagikan Nota sebagai Gambar, and (2) new 'Cetak' flow for DRAFT orders. Login as admin/Limited0, navigated to Pesanan. Verified seeded draft ORD-260817-0002 (TEST DRAFT PRINT) and paid order INV-260811-0008 (customer GITA). All 5 repeated share-image attempts on the paid nota succeeded with a PNG download and zero error toasts. Draft card 'Cetak' (print-draft-*), draft-preview-dialog 'Cetak' (draft-print-button), and 'Bagikan Penawaran sebagai Gambar' (draft-share-image-button) all executed without error toasts.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "captureImage.js: shareOrDownload success toast fires only in the mobile Web Share branch; on desktop the download path succeeded but success toast 'Gambar nota diunduh' was not observed during 5 nota attempts (only the draft variant showed 'Gambar penawaran diunduh — tinggal lampirkan di WhatsApp'). Not a defect per acceptance criteria (absence of error toast is the pass signal) but worth aligning UX so the paid-nota flow also confirms success to the user."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "100%"},
+  "seed_data_creation": "None — used pre-seeded draft ORD-260817-0002 (id dfd9b118-1b34-4be1-be97-5d9a203ce77e) and paid order INV-260811-0008 (id 78ef5624-7dbb-4d2e-a372-20a594ba30ed).",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "admin / Limited0 (Owner)",
+  "context_for_next_testing_agent": "Nota share dialog is opened by data-testid='reprint-order-<orderId>' (button label 'Nota') on Selesai order cards. Draft cards expose 'print-draft-<orderId>', 'preview-order-<orderId>'. Inside draft-preview-dialog: 'draft-print-button' and 'draft-share-image-button'. Inside nota-dialog: 'nota-share-image-button'. Desktop headless triggers download (no Web Share). Successful attempts were confirmed by download events and absence of 'Gagal' toasts. Paid nota success toast (Gambar nota diunduh) was NOT observed on any of 5 attempts — verify whether shareOrDownload should always emit the success toast on the download path.",
+  "rca_of_the_issue": "Not applicable — bug appears resolved. captureImage.js waits for fonts and images with retries, which stabilises html-to-image capture. Ran 5/5 sequential attempts without a single 'Gagal membuat gambar nota' occurrence and all triggered a PNG download."
+}

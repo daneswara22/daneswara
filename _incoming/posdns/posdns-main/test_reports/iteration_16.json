@@ -1,0 +1,24 @@
+{
+  "summary": "Frontend-only RE-TEST of the 2 BLE printer gaps from iteration_15 (Layout-level restorePrinterConnection + reconnect/retry on silent write failure). Logged in as admin/Limited0 with an injected fake navigator.bluetooth (requestDevice/getDevices -> device{id,name,gatt{connect,disconnect,getPrimaryServices}} + writable characteristic; window.__connectCount / window.__writes / __failNext / __failAll). RESULTS: GAP FIX 1 PASS — after connecting the BLE printer in Pengaturan (pos_printer_config_v1.last_device_id='FAKE-BT-DEV-1' persisted), a HARD navigation directly to /pesanan (never visiting Pengaturan on that page load) triggered gatt.connect (window.__connectCount = 1) from the new Layout mount effect, and Nota (reprint-order-*) > Cetak wrote 69 chunks / 12,339 ESC-POS bytes with the success toast 'Nota dikirim ke printer Bluetooth' (previously it failed with 'belum terhubung'). GAP FIX 2 PASS — with the fake characteristic forced to throw 'GATT Server is disconnected' once (btChar still cached, no gattserverdisconnected event, gatt.connected flipped false), printReceiptSmart caught the write error, reconnected (connectCount 1 -> 2) and RETRIED the full ESC/POS stream: 70 chunks written and success toast 'Nota dikirim ke printer Bluetooth' — no raw technical toast. With ALL writes forced to fail, the user saw only the friendly Indonesian message 'Gagal mengirim ke printer Bluetooth. Pastikan printer menyala & dekat, lalu coba cetak lagi.' REGRESSIONS PASS — zero console errors / pageerrors on /pengaturan and /pesanan mounts in a browser WITHOUT navigator.bluetooth (Layout's root restorePrinterConnection is safe); desktop-mode Cetak produced no error toast; 'Bagikan Nota sebagai Gambar' downloaded nota-INV-260811-0008.png with success toast; 'Simpan Mode Cetak' merged config correctly (pre-seeded last_device_id 'TEST-DEV-ID' and printers list both preserved). Test-only localStorage printer config removed at the end.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Cosmetic: the final failure toast reads 'lalu coba cetak lagi.' while the spec text was 'lalu coba lagi.' — same meaning, no action needed unless exact copy matters.",
+    "printer.js: the 8s keep-alive NUL write keeps running during a print job; it is serialized by safeWrite so it is safe, but a failing keep-alive can trigger a parallel reconnectPrinter() while printReceiptSmart is also reconnecting (btReconnecting guard makes the second call return false immediately — verified harmless here, but consider awaiting a shared promise).",
+    "No global UI indicator of a lost BLE link outside /pengaturan (status callback is only bound by Settings). A small header badge would help cashiers notice a 'lost' state."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "100% (2/2 gap fixes verified, 4/4 regressions pass)"},
+  "seed_data_creation": "Test-only localStorage printers (TEST_BT_PRINTER, TEST_DESKTOP_PRINTER) created in the test browser profile and removed at the end; used existing paid order INV-260811-0008. No server data created.",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": false,
+  "test_credentials": "admin / Limited0 (Owner)",
+  "context_for_next_testing_agent": "Headless Chromium has NO navigator.bluetooth — inject a fake via page.add_init_script (navigator.bluetooth.requestDevice/getDevices returning {id,name,gatt:{connect,disconnect,getPrimaryServices}} + characteristic with properties.writeWithoutResponse; expose window.__connectCount/__writes and switches __failNext/__failAll to simulate silent link death). Print mode is derived from the ACTIVE printer: add-printer-button > printer-name-input > printer-connection-select > printer-save-button > save-printer-button. BT testids: bt-status, bt-connect-button, bt-disconnect-button. Nota: reprint-order-<id> > nota-dialog > nota-print-button / nota-share-image-button. Toasts auto-dismiss ~4s; read within 2.5s. Only one paid order exists (INV-260811-0008).",
+  "rca_of_the_issue": "Both iteration_15 gaps are closed: (a) Layout.jsx now calls restorePrinterConnection() on mount so the BLE link is re-established on any authenticated route/refresh (verified by gatt.connect firing on a direct /pesanan load); (b) printReceiptSmart wraps writeBytes in try/catch, clears btChar, calls reconnectPrinter(6) and replays the full payload once, mapping BLE failures to Indonesian copy (verified for both single-failure recovery and total-failure messaging)."
+}

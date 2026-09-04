@@ -1,0 +1,16 @@
+{
+  "summary": "Frontend E2E verified for new Draft-order flow. From POS as Owner (admin/Limited0): added items via category tile -> variant-quickadd -> variant-done-button, clicked pos-hold-button, hold-dialog opened, filled hold-name-input, selected hold-type-select=Express, confirmed via hold-confirm-button. Cart cleared and toast 'Draft pesanan disimpan di menu Pesanan' shown. On /pesanan, drafts appear in order-group-Draft with order-type-<id> badges (EXPRESS/REGULER) and status 'Belum Bayar'. Preview dialog (draft-preview-dialog) shows amber DRAFT/BELUM BAYAR badge (draft-status-badge), buttons draft-share-image-button / draft-whatsapp-button / draft-copy-button, and NO payment/change info. Share-image click completed without JS errors and downloaded PNG (toast 'Gambar penawaran diunduh'). copy-order button copies text (toast 'Draft pesanan disalin'). Jadi DP (dp-dialog: Bank Transfer -> BRI TOKO, dp-amount-input=10000) moves draft to order-group-Proses with Deposit & Sisa. Lunasi direct on draft (settle-dialog, Tunai, default paid=total, settle-confirm-button) creates paid receipt (NotaDialog: 'LUNAS VIA Tunai' blue theme) and moves to order-group-Selesai. Selesaikan & Lunasi on Proses order also completes to Selesai. No console/page errors.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (verified via UI-triggered API calls)", "frontend": "100%"},
+  "seed_data_creation": "Created 2 draft orders (TEST_Draft1 EXPRESS, TEST_Draft2 REGULER) via POS Tahan; TEST_Draft1 processed Draft->DP(Rp10k BRI TOKO)->Complete; TEST_Draft2 processed Draft->Lunasi (Tunai). Both orders DELETE-cleaned via /api/orders/{id} (HTTP 200).",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": false,
+  "test_credentials": "Owner admin/Limited0 (from /app/memory/test_credentials.md)",
+  "context_for_next_testing_agent": "New feature verified. Notes for next agent: (1) Backend POST /orders sets status='Draft' when deposit_amount<=0, else 'Proses'; POST /orders/{oid}/deposit converts Draft->Proses; POST /orders/{oid}/complete works for Draft or Proses. (2) The 'ORD-260805-0001 GITA' order in Selesai is pre-existing seed data (kept). (3) POS variant flow: tile -> variant-dialog -> variant-quickadd-<id> (or variant-add-<id>) -> variant-done-button. Manual-price dialog (price-dialog / price-input / price-confirm-button) appears only for products with price 0. (4) DraftPreviewDialog uses amber theme (bg #fef3c7 / border #f59e0b) vs NotaDialog blue theme — visually distinct as required.",
+  "rca_of_the_issue": "N/A - all requested behaviours verified end-to-end."
+}

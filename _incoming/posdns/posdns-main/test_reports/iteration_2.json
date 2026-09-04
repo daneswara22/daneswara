@@ -1,0 +1,35 @@
+{
+  "summary": "Batch feature testing for KasirCloud (Customers/Membership, Suppliers, Purchase Orders + Receive, POS Hold, POS Deposit + Custom Order + Complete, Products cost optional, RBAC nav). Backend: added /app/backend/tests/test_new_features.py (9 tests) - ALL PASSED. Existing /app/backend/tests/backend_test.py (20 tests) still green. Frontend: Owner e2e verified end-to-end via Playwright — Customer create + history dialog, Supplier create, POS product add + Hold (window.prompt label) + resume chip repopulates cart + resume removed, POS Customer select, POS Deposit (Tunai, 5000) creates ORD-, Orders page shows Proses order, Selesaikan & Lunasi -> status Selesai + toast + invoice created + stock decremented on complete, Purchases: create PO with supplier + product item + qty, Terima -> status Diterima. Products dialog shows 'opsional' cost label. Kasir RBAC nav shows only Dashboard/Pelanggan/Pesanan and hides Supplier/Pembelian/Pengguna/Laporan/Produk/Kategori/Inventory/Pengaturan.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Orders.jsx", "issue": "Same bug pattern as previously-fixed Categories/Users: `const load = () => api.get('/orders').then(...)` returned a Promise, then `useEffect(load, [])` treated it as cleanup -> React console warning 'must not return anything besides a function' and potential 'destroy is not a function' on unmount. FIXED by wrapping body in braces.", "selector": "n/a", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_new_features.py",
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_new_features.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Deposit dialog in POS.jsx shares the `method` state with the payment dialog. Acceptable but two independent state variables would be cleaner (a user opening pay then cancelling then opening deposit inherits their pay-method choice).",
+    "server.py complete_order does not verify remaining is fully paid (accepts paid_amount=0). UI blocks it via `Number(paid) < remaining` but backend should also validate to prevent API misuse.",
+    "server.py create_sale + complete_order are non-transactional (stock decrement + sale insert not atomic); already noted in iteration_1.",
+    "server.py invoice/PO/ORD counters use count_documents which is race-prone under concurrent writes; low risk for MVP.",
+    "Orders.jsx page uses window.confirm for delete and POS.jsx uses window.prompt for hold label - fine but not testable via data-testid; already handled in tests via `page.once('dialog', ...)`."
+  ],
+  "updated_files": [
+    "/app/frontend/src/pages/Orders.jsx (fixed useEffect-returning-Promise bug)",
+    "/app/backend/tests/test_new_features.py (new pytest suite for customers/suppliers/purchases/held-orders/orders/cost-optional)"
+  ],
+  "success_rate": {"backend": "100% (29/29 across both test files)", "frontend": "100% (all 10 feature-batch flows verified via Playwright)"},
+  "test_credentials": "Owner: social.surya@gmail.com / Owner#2026. Kasir: kasir1 / kasir123.",
+  "seed_data_creation": "Tests create TEST_-prefixed customers, suppliers, products, PO, and orders. UI test additionally created customer 'Andi_<n>', supplier 'SupTest_<n>', a hold order, a deposit order, and completed an order. Sales/orders are cumulative; no admin cleanup endpoint.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "New endpoints covered: /customers (+/history), /suppliers, /purchases (+/receive), /held-orders, /orders (+/complete). Loyalty points = floor(total/1000) applied on both /sales (with customer_id) and /orders/complete. Custom order stock decrement happens ONLY on complete, not on create. Frontend RBAC nav filter is correct; direct URL access for Kasir still exposes read-only pages (noted in iteration_1). Deposit dialog method shares state with pay dialog (see review comments).",
+  "rca of the issue": "Orders.jsx `const load = () => api.get('/orders').then(setter);` implicitly returns the Promise chain; `useEffect(load, [])` invokes load, gets a Promise, and treats it as the cleanup function. React 18 logs 'must not return anything besides a function...' and on unmount would throw 'destroy is not a function'. Fix: wrap body in braces so useEffect callback returns undefined. Same historical pattern as Categories.jsx/Users.jsx fixed in iteration_1."
+}
