@@ -1,104 +1,85 @@
-# Deploy ke Coolify (VPS self-hosted)
+# Deployment Guide - Daneswara v2 (Next.js 15 fullstack)
 
-Arsitektur produksi:
+## Overview
 
-```
-[Traefik/Coolify] --> frontend (nginx :80)  --/api/-->  backend (FastAPI :8001)  -->  MariaDB (Coolify, internal)
-                                                                  \-->  Cloudflare R2 (media WebP)
-```
+Single-container Next.js 15 App with standalone output. Coolify deploys via **Dockerfile** build pack.
 
-## 1. Persiapan
+## Coolify Setup
 
-- MariaDB sudah ada di project **Daneswara Client / production** (`MariadbSQL`). Internal URL:
-  `mysql://mariadb:<password>@b0vbpdmzlvngrbnqqzfvse5j:3306/default`
-- Repo GitHub berisi `docker-compose.yml`, `backend/Dockerfile`, `frontend/Dockerfile`.
+1. **New Resource -> Docker Image / Dockerfile**
+   - Repository: `https://github.com/daneswara22/daneswara.git`
+   - Branch: `main` (after PR merge)
+   - Build Pack: **Dockerfile**
+   - Dockerfile path: `./Dockerfile` (root)
+   - Build context: `.` (root)
 
-## 2. Buat resource di Coolify
+2. **Environment Variables** (Coolify -> Environment tab):
 
-Ada **dua cara** (pilih salah satu):
+   Required:
+   ```env
+   DATABASE_URL=mysql://mariadb:<password>@b0vbpdmzlvngrbnqqzfvse5j:3306/default
+   JWT_SECRET=<long-random-string>
+   OWNER_USERNAME=admin
+   OWNER_PASSWORD=<strong-password>
+   OWNER_NAME=Owner
+   OWNER_BUSINESS=Daneswara Print
+   TIMEZONE=Asia/Makassar
+   PUBLIC_BASE_URL=https://daneswaraprint.com
 
-### Cara A (paling mudah): Build Pack **Dockerfile** - 1 container (nginx + API)
+   R2_ACCOUNT_ID=74c0281094eec575e203814b144bc86d
+   R2_ACCESS_KEY_ID=<access-key>
+   R2_SECRET_ACCESS_KEY=<secret-key>
+   R2_ENDPOINT=https://74c0281094eec575e203814b144bc86d.r2.cloudflarestorage.com
+   R2_BUCKET=daneswaraobjectr2
+   R2_PUBLIC_BASE_URL=https://cdn.daneswara.com
+   R2_PREFIX=daneswara
 
-1. **+ New Resource -> Public Repository / GitHub App** -> repo `daneswara22/daneswara`, branch `main`.
-2. **Build Pack: Dockerfile** (file `Dockerfile` di root repo), **Port: `80`**.
-3. Isi **Environment Variables** (tabel di bawah). Tidak perlu build args.
-4. Set **Domain** (mis. `https://daneswaraprint.com`) -> **Deploy**.
-5. Storage (opsional bila belum pakai R2): tambah **Persistent Volume** `/data/uploads`.
+   SEED_CATALOG=true
+   SEED_CUSTOMERS=true
+   SEED_GALLERY=true
+   ```
 
-### Cara B: Build Pack **Docker Compose** - 2 service (frontend nginx + backend)
+3. **Ports**
+   - Container port: `3000` (Next.js)
+   - Coolify auto-generates a URL; add custom domain `daneswaraprint.com` if desired
 
-1. Build Pack: **Docker Compose**, compose file `/docker-compose.yml`.
-2. Env sama seperti tabel; domain di-set pada service **frontend** (port 80).
-3. Aktifkan **"Connect To Predefined Network"** agar backend bisa resolve hostname MariaDB.
+4. **Persistent Storage (optional local fallback)**
+   - Volume: `/data/uploads` -> host path (only used when `R2_BUCKET` is empty; R2 is preferred)
 
-### Environment Variables (kedua cara)
+5. **Health Check**
+   - Configured in Dockerfile (`GET /api/health` every 30s)
 
-   | Key | Nilai |
-   |---|---|
-   | `DATABASE_URL` | `mysql://mariadb:<password>@b0vbpdmzlvngrbnqqzfvse5j:3306/default` |
-   | `JWT_SECRET` | string acak panjang |
-   | `OWNER_USERNAME` / `OWNER_PASSWORD` | akun owner pertama |
-   | `PUBLIC_BASE_URL` | `https://daneswaraprint.com` (domain situs) |
-   | `TIMEZONE` | `Asia/Makassar` |
-   | `SEED_CATALOG` / `SEED_CUSTOMERS` | `false` jika akan migrasi data dari Mongo |
-   | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_ENDPOINT`, `R2_BUCKET`, `R2_PUBLIC_BASE_URL` | dari Cloudflare R2 (kosongkan `R2_BUCKET` = simpan di disk) |
+## Database
+- MariaDB is deployed as a separate Coolify resource; already contains 18 tables + seed data.
+- Prisma is used with `db pull` only. **DO NOT** run `prisma migrate` against production - migrations can drop columns.
+- On first boot the app seeds Owner/settings if the `users` table is empty (idempotent).
 
-Cek setelah deploy: `https://<domain>/api/health` -> `{"status":"healthy","database":"ok",...}`.
+## Cloudflare R2
+- Bucket: `daneswaraobjectr2`
+- CDN domain: `https://cdn.daneswara.com`
+- Media uploads (product images, category images, gallery photos, logos) are converted to WebP via `sharp` and stored under `daneswara/<kind>/<uuid>.webp`.
+- If any R2 env var is missing, the app falls back to local disk `/data/uploads` and serves files via `/api/files/<...path>`.
 
-> Container app harus berada di jaringan Docker yang sama dengan MariaDB Coolify (default: network `coolify`).
-> Jika `DATABASE_URL` internal tidak resolve, pakai URL publik `mysql://mariadb:<password>@103.175.220.31:6796/default` (butuh user `'mariadb'@'%'`, lihat bagian 5b).
+## Backups (recommended)
+- **DB**: use Coolify's MariaDB backup schedule.
+- **R2**: enable object versioning + lifecycle policy in Cloudflare dashboard.
 
-## 3. Migrasi data lama (MongoDB Atlas -> MariaDB)
+## Post-deploy checklist
+- [ ] `GET https://<domain>/api/health` returns `{ "status": "healthy", "database": "ok" }`
+- [ ] `POST /api/auth/login` works with your owner credentials
+- [ ] Landing page `/` renders identical to preview
+- [ ] Gallery images load from `cdn.daneswara.com`
 
-Jalankan **sekali** dari terminal container backend (Coolify -> backend -> Terminal), atau dari mesin mana pun yang bisa mengakses Atlas + MariaDB:
-
+## Local development
 ```bash
-# lihat ringkasan koleksi & field yang akan dimigrasi (tanpa menulis)
-python scripts/migrate_mongo_to_mariadb.py --mongo "mongodb+srv://USER:PASS@customer-apps.0vndh7.mongodb.net/?retryWrites=true&w=majority" --dry-run
-
-# migrasi penuh: hapus data seed lalu isi dari Mongo (gambar base64 -> WebP -> R2)
-python scripts/migrate_mongo_to_mariadb.py --mongo "mongodb+srv://..." --wipe
+cd web
+cp .env.example .env  # fill in real values (do not commit)
+yarn install
+npx prisma generate
+yarn dev
 ```
 
-> **Atlas Network Access**: IP server yang menjalankan migrasi harus diizinkan di MongoDB Atlas
-> (Network Access -> Add IP Address). Untuk sandbox preview ini IP-nya `34.7.135.173`; untuk VPS Coolify `103.175.220.31`.
-
-Setelah migrasi, restart backend (seed tidak akan menimpa data yang sudah ada).
-
-## 4. Cloudflare R2
-
-1. Buat bucket (mis. `daneswara`) -> **Settings -> Public access -> Allow (r2.dev)**; catat `R2_PUBLIC_BASE_URL` (`https://pub-xxxx.r2.dev`).
-2. API token dengan izin **Object Read & Write** untuk bucket tersebut.
-3. Isi env `R2_*` di Coolify (dan `backend/.env` untuk lokal), lalu:
-
-```bash
-python scripts/r2_setup.py --check      # tes tulis ke bucket
-python scripts/r2_setup.py --cors       # izinkan GET dari browser (logo struk/canvas)
-python scripts/r2_setup.py --sync-assets ../frontend/public/assets   # opsional: aset statis landing ke R2
-```
-
-Semua upload dari dashboard (galeri, gambar produk/kategori, logo struk) otomatis dikonversi ke **WebP** dan disimpan dengan key `daneswara/<jenis>/<uuid>.webp`.
-
-## 5. phpMyAdmin (Coolify) - akses lokal & via `db.daneswara.com`
-
-Sementara: buka lewat **http://** (bukan https) `http://phpmyadmin-kbs2qh0jspvfjhpmxqzc4zij.103.175.220.31.sslip.io/`.
-Di form login: **Server** = `b0vbpdmzlvngrbnqqzfvse5j` (hostname internal MariaDB), user `mariadb`, password DB.
-
-Pakai domain sendiri **https://db.daneswara.com**:
-
-1. Cloudflare DNS: record **A** `db` -> `103.175.220.31`, **Proxied** (orange) boleh. SSL/TLS mode Cloudflare = **Full** (bukan Flexible).
-2. Coolify -> service **PhpMyAdmin** -> **Settings -> Domains** isi `https://db.daneswara.com` -> **Save** -> **Redeploy**.
-   Traefik Coolify otomatis minta sertifikat Let's Encrypt; jika Cloudflare Proxied gagal issue, matikan proxy (DNS only) sesaat lalu nyalakan lagi.
-3. Di env service phpMyAdmin pastikan `PMA_HOST=b0vbpdmzlvngrbnqqzfvse5j` (atau `PMA_ARBITRARY=1` supaya server bisa diketik di form login).
-4. Opsional keamanan: batasi akses dengan Cloudflare Access (Zero Trust) untuk `db.daneswara.com`.
-
-## 5b. Akses remote MariaDB (port publik 6796)
-
-Database dibuat via Coolify **dengan kredensial diisi sebelum Start**, sehingga user `mariadb@'%'` otomatis ada dan
-URL publik `mysql://mariadb:<password>@103.175.220.31:6796/default` bisa dipakai dari luar (preview/migrasi).
-Jika suatu saat muncul `ERROR 1130 Host ... is not allowed`, artinya tidak ada akun host `%` - buat ulang resource
-DB dengan kredensial diisi sebelum start (jangan ganti user/password lewat UI setelah DB pernah di-init).
-
-## 6. Update
-
-Push ke `main` -> Coolify auto-deploy (aktifkan webhook GitHub di resource). Skema tabel dibuat otomatis (`create_all`) saat backend start.
+## Legacy code
+- `frontend/` (React CRA) and `backend/` (FastAPI Python) remain in the repo temporarily during migration.
+- After parity is confirmed in production, they may be removed in a follow-up PR.
+- The Coolify Docker build does **not** use `frontend/` or `backend/` code - only the root `Dockerfile` + `web/` are used.

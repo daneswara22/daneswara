@@ -1,160 +1,139 @@
-# Development Plan — Daneswara Full Refactor (Landing + DanesPOS)
+# Development Plan — Daneswara v2 → Next.js 15 Fullstack (TS) + Prisma + MariaDB + R2
 
 ## 1) Objectives
-- Merge **Landing UI (zip1, recovered source)** + **DanesPOS UI (zip2)** into **one React app** while keeping both UIs visually identical.
-- Rewrite backend from **FastAPI + Mongo** → **FastAPI + SQLAlchemy (async) + MariaDB (aiomysql)**.
-- Centralize media: convert uploads to **WebP** and store on **Cloudflare R2 (S3 via boto3)** with **local-disk fallback**.
-- Turn **Gallery Manager** into **one menu inside POS dashboard**; landing consumes via `GET /api/public/gallery`.
-- Provide **Coolify-ready Docker**: backend Dockerfile + frontend multi-stage Nginx Dockerfile with `/api` proxy + `docker-compose.yml`.
-- Provide **Mongo Atlas → MariaDB migration tooling** and **R2 setup tooling** for production cutover.
-- Ensure **preview/sandbox resiliency**: local MariaDB under supervisor (wait for binaries) + backend retries DB at startup.
+- Migrasi fullstack dari **CRA React + FastAPI** menjadi **Next.js 15 App Router (TypeScript)**, tanpa mengubah skema DB yang sudah ada.
+- Pertahankan **paritas UI** (Landing + DanesPOS) dan **paritas JSON response** (shape sama persis dengan backend Python) agar logic frontend POS tetap jalan.
+- Pertahankan integrasi **Cloudflare R2**: upload → konversi **WebP** → simpan R2 (fallback disk `/data/uploads`).
+- Siapkan **Docker build (Coolify)** dengan `output: "standalone"`.
+- Atasi constraint preview Emergent: `/api/*` harus lewat **8001** sedangkan Next.js berjalan di **3000**.
 
-**Status:** All core objectives above are **DONE** and **tested** in preview; production cutover depends on user-provided infra inputs (R2 bucket name + Atlas allowlist).
+---
 
 ## 2) Implementation Steps
 
-### Phase 1 — Core POC (prove hardest integrations before building everything)
-**Core risk = (MariaDB async schema + R2 media pipeline + public gallery API + image conversion).**
+### Phase 1 — Core POC (wajib stabil sebelum lanjut)
+**Tujuan POC:** buktikan 3 hal paling risk: *Prisma read existing MariaDB*, *Route Handler /api parity*, *R2+WebP pipeline*, plus *bridge 8001→3000 di preview*.
 
 User stories:
-1. As an admin, I can create/read/update/reorder gallery items via API.
-2. As a public visitor, I can load landing gallery via `GET /api/public/gallery`.
-3. As an admin, I can upload an image and it is stored as WebP (R2 or local fallback).
-4. As an admin, I can seed initial gallery from existing `gallery.json` and images are normalized to WebP.
-5. As a developer, I can run the stack locally and pass a smoke script.
+1. Sebagai dev, saya bisa menjalankan Next.js di preview dan tetap punya `/api/*` yang berfungsi lewat port 8001.
+2. Sebagai dev, saya bisa melakukan `prisma db pull` dari MariaDB existing (18 tabel) tanpa migrate/reset.
+3. Sebagai visitor, `GET /api/public/gallery` mengembalikan JSON identik dengan backend Python.
+4. Sebagai visitor, halaman landing `/` bisa render (SSG/ISR) dan menampilkan data galeri dari API.
+5. Sebagai admin, saya bisa upload gambar → otomatis jadi WebP → tersimpan di R2 dan dapat URL publik.
 
-Steps:
-1. **DB foundation**
-   - Add SQLAlchemy async setup, session management (idempotent `create_all` for MVP).
-   - Define models incl. `tenant_id` for future (single-tenant now).
-2. **Auth seed (minimal)**
-   - Implement login (JWT cookie + Bearer) and seed owner on startup.
-3. **Storage module POC**
-   - Implement `storage.py`: WebP conversion + upload to R2; fallback to `/api/files` when R2 not configured.
-4. **Gallery API POC**
-   - `GET /api/public/gallery` sorted.
-   - POS endpoints: `GET/POST/PUT/DELETE /api/gallery` + `POST /api/gallery/reorder`.
-5. **Seed scripts POC**
-   - Import `gallery.json` (14 items), convert data-URI to WebP, upload.
-6. **Validation**
-   - Smoke script: create → reorder → fetch public.
+Langkah:
+1. **Bootstrap Next.js** di `/app/web` (Next 15, TS, Tailwind).
+2. **Prisma setup**: `prisma init` + `prisma db pull` (pakai `DATABASE_URL_PUBLIC`), generate client; buat `web/lib/db.ts` singleton.
+3. **Core libs**:
+   - `web/lib/storage.ts` (sharp→webp, R2 via `@aws-sdk/client-s3`, fallback disk)
+   - `web/lib/tz.ts` (Asia/Makassar helper untuk reports nanti)
+4. **POC APIs (Next Route Handlers)**:
+   - `GET /api/health`
+   - `GET /api/public/gallery` (urut `sort_order desc`, response shape sama dengan Python)
+   - `POST /api/upload?kind=` (return public URL; gunakan storage module)
+5. **POC Landing**:
+   - `(landing)/page.tsx` ambil data dari `/api/public/gallery` (ISR `revalidate: 60`) + render minimal struktur.
+6. **Preview bridge (wajib untuk sandbox)**:
+   - Ubah `/app/frontend/package.json` → `yarn start` menjalankan `next dev -p 3000` dari `/app/web`.
+   - Ganti `/app/backend/server.py` jadi **FastAPI proxy tipis** yang forward `/api/*` → `http://127.0.0.1:3000/api/*`.
+7. **Script uji core** `web/scripts/test-core.ts`:
+   - konek Prisma & query tabel `gallery_items`
+   - upload sample image → verifikasi WebP & URL
+   - hit `/api/public/gallery` dan validasi shape dasar
+8. Fix sampai lulus: preview URL harus bisa buka `/` dan `/api/public/gallery`.
 
-✅ **Completed**
-- Backend migrated to MariaDB async; schema auto-created.
-- Storage module converts images to WebP; local fallback verified.
-- Gallery API + seed completed and verified.
+Checkpoint (keluar Phase 1):
+- `db pull` sukses, API route jalan via ingress, upload WebP ke R2 jalan.
 
+---
 
-### Phase 2 — V1 App Development (merge UIs; keep visuals identical)
+### Phase 2 — V1 App Development (paritas bertahap)
 User stories:
-1. As a visitor, I see the landing page identical to zip1 at `/`.
-2. As a visitor, `/galeri` shows the full gallery identical to zip1.
-3. As staff, I can login at `/login` with the same UI as zip2.
-4. As staff, I can use POS at `/pos` and dashboard at `/app/*` identical to zip2.
-5. As owner/admin, I can manage gallery inside dashboard and see it reflected on landing.
+1. Sebagai visitor, semua landing route (`/`, `/galeri`, `/gallery`, `/price-list`, `/order`) tampil identik dengan versi lama.
+2. Sebagai staff, saya bisa login di `/login` dan masuk dashboard `/app` dengan guard yang konsisten.
+3. Sebagai kasir, saya bisa membuat transaksi penjualan dan stok berkurang sesuai aturan.
+4. Sebagai owner/manager, saya bisa kelola **Galeri Website** (CRUD + reorder + upload) dan landing ikut berubah.
+5. Sebagai owner, saya bisa melihat laporan utama dengan timezone `Asia/Makassar`.
 
-Steps:
-1. **Frontend merge (single React app)**
-   - Import landing components/pages recovered from sourcemap.
-   - Scope landing theme under `.dp-landing` to prevent bleed into POS.
-   - Mount POS under `/app/*`, cashier at `/pos`.
-   - Map routes:
-     - Landing: `/`, `/galeri`, `/gallery`, `/price-list`, `/price-list-print-only`, `/order`
-     - Redirect `/admin` → `/login`
-     - POS: `/login`, `/pos`, `/app/*`
-     - Legacy POS paths `/produk` etc redirect to `/app/*`
-2. **Unify API client**
-   - Use axios base `${REACT_APP_BACKEND_URL}/api` with credentials; support empty backend URL for same-origin nginx proxy.
-3. **Gallery Manager UI in POS**
-   - Add one new menu entry (Owner/Manager) “Galeri Website”.
-   - CRUD + reorder + upload (WebP) via `/api/upload`.
-4. **Media changes in POS**
-   - Replace base64-in-DB images with upload URLs for products/categories/logo.
-5. **Seed core business data**
-   - Customers 648, catalog 49 categories / 300 products, settings, gallery 14.
-6. **E2E test**
-   - Landing shows dynamic gallery from API.
-   - Login → Dashboard → Galeri Website reflects on landing.
+Langkah:
+1. **Port UI framework**: pindahkan `frontend/src/components/ui` → `web/components/ui` (as-is) + Tailwind/shadcn config + font/CSS scoping `.dp-landing`.
+2. **Port Landing pages** ke App Router group `(landing)/...` + metadata SEO + ISR.
+3. **Port POS pages** (`/login`, `/pos`, `/app/*`) sebagai client components; adapt routing dari React Router.
+4. **Auth & RBAC** (tetap cookie httpOnly + Bearer): port aturan role Owner/Manager/Kasir/Gudang.
+5. **Port API handlers 1:1** mengikuti router Python (prioritas urutan):
+   - auth, users
+   - categories/products (+reorder)
+   - stock movements
+   - sales (+refund, invoice INV-yymmdd-####)
+   - orders (DP, complete → sale from_order)
+   - purchases (receive → add stock, delete received owner-only)
+   - customers, suppliers
+   - finance (expenses, other_income, categories)
+   - settings + user_settings
+   - reports (sales, monthly, P/L, cash-flow)
+   - admin tools, export
+   - gallery + public/gallery, uploads, files fallback
+6. **Zod schemas**: port validasi dari `backend/app/schemas.py`.
+7. **Parity testing incremental**: untuk setiap modul, lakukan curl compare vs FastAPI lama (di repo) sebelum lanjut modul berikutnya.
 
-✅ **Completed**
-- Landing verified via screenshots and test agent.
-- POS routes `/login`, `/pos`, `/app/*` verified.
-- Gallery Manager in dashboard verified (count, CRUD, reorder, website reflection).
-- Product/category/logo image uploads now go through `/api/upload` (no base64 storage).
+Checkpoint (keluar Phase 2):
+- Semua menu inti POS jalan, landing paritas, gallery manager paritas.
 
+---
 
-### Phase 3 — Productionization for Coolify (Docker + Ops)
+### Phase 3 — Migration Tooling + Hardening
 User stories:
-1. As an operator, I can deploy backend+frontend with docker-compose on Coolify.
-2. As an operator, `/api/health` returns healthy behind Nginx proxy.
-3. As an operator, I can configure R2 and DB via env.
-4. As an operator, static caching works for frontend while API remains dynamic.
-5. As an operator, seed runs once safely (idempotent).
+1. Sebagai owner, saya bisa menjalankan migrasi Mongo→MariaDB dari UI `/app/migrasi` dan melihat progres.
+2. Sebagai operator, saya bisa deploy 1 container via Docker di Coolify dan healthcheck lolos.
+3. Sebagai operator, media tetap tersaji baik via R2 atau fallback disk.
+4. Sebagai user, aplikasi tetap responsif saat data besar (customers 648, catalog 300 products).
+5. Sebagai operator, seed tidak menimpa data produksi (idempoten hanya saat tabel kosong).
 
-Steps:
-1. **Docker**
-   - Backend Dockerfile uses `requirements.prod.txt` (lean deps).
-   - Frontend multi-stage build → Nginx serve + `/api` proxy to backend.
-   - `docker-compose.yml` wiring for Coolify.
-2. **Env contract**
-   - DB: `DATABASE_URL`.
-   - R2: `R2_ENDPOINT`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_PUBLIC_BASE_URL`, `R2_PREFIX`.
-3. **Docs**
-   - `README.md` + `DEPLOY.md` for Coolify.
+Langkah:
+1. Port `scripts/migrate_mongo_to_mariadb.py` → `web/lib/migration/mongo.ts` + UI progress.
+2. Port seed idempoten → `web/lib/seed.ts` (jalan di startup bila tabel kosong).
+3. Tambahkan endpoint `GET /api/storage/status` untuk debug R2 vs disk.
+4. Review caching (ISR landing), pagination/list performance, dan error handling API.
 
-✅ **Completed**
-- Dockerfiles + nginx proxy + compose + docs created.
-- Production build validated (`yarn build` succeeded).
+---
 
-
-### Phase 4 — Migration + Cutover (Mongo Atlas → MariaDB, R2 enablement)
+### Phase 4 — Docker + Cutover + Cleanup
 User stories:
-1. As an operator, I can migrate legacy Mongo data to MariaDB safely.
-2. As an operator, I can enable R2 and confirm uploads/public URLs work.
+1. Sebagai operator, saya bisa build image `Dockerfile` root (standalone) dan deploy di Coolify.
+2. Sebagai operator, `/api/health` always green dan logs jelas.
+3. Sebagai user, tidak ada regresi pada flow POS utama.
+4. Sebagai owner, Gallery website stabil setelah redeploy.
+5. Sebagai dev, repo bersih tanpa secrets dan siap maintenance.
 
-Steps:
-1. **Migration tool**
-   - Use `backend/scripts/migrate_mongo_to_mariadb.py`:
-     - `--dry-run` to inspect collections/fields.
-     - `--wipe` to clear seeded transactional tables.
-     - Converts base64 data-URI images to WebP and uploads to storage.
-2. **Atlas allowlist**
-   - Add IP allowlist in Atlas:
-     - Sandbox egress IP: `34.7.135.173`
-     - VPS/Coolify IP: `103.175.220.31`
-3. **R2 setup**
-   - Fill env `R2_BUCKET` (token can’t `ListBuckets`, bucket name must be provided).
-   - Run `backend/scripts/r2_setup.py --check` and `--cors`.
-4. **Post-cutover**
-   - Disable seed (`SEED_* = false`) once production data migrated.
+Langkah:
+1. Buat **root Dockerfile** untuk Next standalone (node:20-alpine, port 3000/80 sesuai kebutuhan Coolify).
+2. Update `DEPLOY.md` untuk Next.js.
+3. Setelah paritas 100%: hapus `frontend/` + `backend/` lama (atau keep sementara sampai user setuju), rapikan.
+4. Testing menyeluruh (lihat bawah), lalu PR.
 
-✅ **Completed (tooling)**
-- Migration script implemented and tested against mock Mongo.
-- R2 helper script implemented.
+---
 
-⏳ **Pending user inputs / infra**
-- R2 bucket name (`R2_BUCKET`).
-- Atlas Network Access allowlist for migration runner IP.
+## 3) Next Actions (immediate focus)
+1. Buat branch `feat/nextjs-fullstack`.
+2. Init Next.js di `/app/web` + Tailwind + TS.
+3. Prisma `db pull` dari `DATABASE_URL_PUBLIC` dan commit schema/client.
+4. Implement POC: `/api/health`, `/api/public/gallery`, `/api/upload` + `storage.ts`.
+5. Implement preview bridge (FastAPI proxy di 8001 + Next dev di 3000).
+6. Jalankan `web/scripts/test-core.ts` sampai lulus.
 
-
-## 3) Next Actions
-1. **Provide R2 bucket name** and confirm `R2_PUBLIC_BASE_URL` policy (r2.dev public domain).
-2. **Atlas allowlist**: add `34.7.135.173` (sandbox) and/or `103.175.220.31` (VPS) so migration can connect.
-3. Run migration on Coolify backend terminal:
-   - `python scripts/migrate_mongo_to_mariadb.py --mongo "mongodb+srv://..." --dry-run`
-   - `python scripts/migrate_mongo_to_mariadb.py --mongo "mongodb+srv://..." --wipe`
-4. Enable R2 in env, run:
-   - `python scripts/r2_setup.py --check`
-   - `python scripts/r2_setup.py --cors`
-5. Coolify ops notes:
-   - phpMyAdmin akses via **http**: `http://phpmyadmin-...sslip.io/`
-   - MariaDB publik `103.175.220.31:7897` menolak user `mariadb` (production recommended pakai internal hostname `b0vbpdmzlvngrbnqqzfvse5j`).
+---
 
 ## 4) Success Criteria
-- Landing routes render pixel-identical to zip1 and load gallery from API.
-- POS routes render identical to zip2; login works with owner credentials from env.
-- Gallery Manager exists as **one dashboard menu**; CRUD + reorder works; landing updates.
-- Uploads are WebP and stored on R2 when configured; otherwise served from local fallback.
-- Coolify deployment works via provided Dockerfiles + compose; `/api/health` ok.
-- Migration script can import legacy Mongo data (incl. base64 images) into MariaDB.
-- Repo pushed to GitHub `ClientSca7452/daneswara` `main` with secrets scrubbed and `.env` ignored.
+**Phase 1 (POC) sukses jika:**
+- `prisma db pull` berhasil tanpa mengubah skema DB.
+- Preview URL:
+  - `GET /api/health` return OK melalui 8001.
+  - `GET /api/public/gallery` return data dari MariaDB dan bentuk JSON sesuai backend Python.
+  - Landing `/` render dan menampilkan data galeri.
+  - Upload menghasilkan file WebP dan URL publik (R2) atau fallback disk.
+
+**Final sukses jika:**
+- Semua route landing + POS identik secara visual.
+- Semua Route Handlers `/api/*` parity dengan FastAPI (shape + business rules).
+- Docker standalone build untuk Coolify berjalan stabil.
+- PR `feat/nextjs-fullstack` siap merge (tanpa `.env`/secrets).

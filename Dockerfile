@@ -1,52 +1,58 @@
-# ===================================================================================
-# Daneswara - SINGLE-CONTAINER image for Coolify "Dockerfile" build pack.
-#   nginx (:80)  ->  static React (landing + DanesPOS)
-#                ->  /api/*  proxied to uvicorn (FastAPI) on 127.0.0.1:8001 (same container)
-# Set the Coolify resource port to 80. Env vars: see backend/.env.example (DATABASE_URL, JWT_SECRET, R2_*...).
-# (docker-compose.yml is the alternative two-service layout.)
-# ===================================================================================
+# Multi-stage Dockerfile for Next.js 15 fullstack (Coolify deploy)
+# ------------------------------------------------------------------
+FROM node:20-alpine AS deps
+RUN apk add --no-cache libc6-compat openssl
+WORKDIR /app
 
-# ---- Stage 1: build frontend ----
-FROM node:20-alpine AS web
-WORKDIR /web
-ARG REACT_APP_BACKEND_URL=""
-ENV REACT_APP_BACKEND_URL=$REACT_APP_BACKEND_URL \
-    GENERATE_SOURCEMAP=false \
-    DISABLE_ESLINT_PLUGIN=true \
-    NODE_OPTIONS=--max-old-space-size=2048
-COPY frontend/package.json frontend/yarn.lock ./
+COPY web/package.json web/yarn.lock ./
 RUN yarn install --frozen-lockfile --network-timeout 600000
-COPY frontend/ ./
+
+# --- builder ---
+FROM node:20-alpine AS builder
+RUN apk add --no-cache libc6-compat openssl python3 make g++
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY web/ ./
+# backend/data is needed for seed CSVs/JSONs on first boot
+COPY backend/data ./data
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_ENV=production
+# Generate Prisma client with correct binary target for Alpine
+RUN npx prisma generate
 RUN yarn build
 
-# ---- Stage 2: runtime (python + nginx) ----
-FROM python:3.11-slim
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1 \
-    UPLOAD_DIR=/data/uploads \
-    API_PORT=8001
+# --- runner ---
+FROM node:20-alpine AS runner
+RUN apk add --no-cache libc6-compat openssl tini
+WORKDIR /app
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV PORT=3000
+ENV HOSTNAME=0.0.0.0
 
-RUN apt-get update && apt-get install -y --no-install-recommends nginx curl \
-    && rm -rf /var/lib/apt/lists/* /etc/nginx/sites-enabled/default
+# Non-root user
+RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 nextjs
 
-WORKDIR /srv
-COPY backend/requirements.prod.txt ./
-RUN pip install --upgrade pip && pip install -r requirements.prod.txt
+# Copy standalone output
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
+# Prisma runtime binaries
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
+# Bring data folder (for seed on first boot) and prisma schema
+COPY --from=builder --chown=nextjs:nodejs /app/data ./data
+COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 
-COPY backend/app ./app
-COPY backend/scripts ./scripts
-COPY backend/data ./data
-COPY backend/server.py ./
-
-COPY --from=web /web/build /usr/share/nginx/html
-COPY deploy/nginx-single.conf /etc/nginx/conf.d/default.conf
-COPY deploy/start.sh /start.sh
-RUN chmod +x /start.sh && mkdir -p /data/uploads
-
+# Upload dir for local fallback (mount a volume here on Coolify)
+RUN mkdir -p /data/uploads && chown -R nextjs:nodejs /data/uploads
 VOLUME ["/data/uploads"]
-EXPOSE 80
-HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
-  CMD curl -fsS http://127.0.0.1/api/health || exit 1
 
-CMD ["/start.sh"]
+USER nextjs
+EXPOSE 3000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+  CMD wget -qO- http://127.0.0.1:3000/api/health || exit 1
+
+ENTRYPOINT ["/sbin/tini", "--"]
+CMD ["node", "server.js"]
