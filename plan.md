@@ -121,7 +121,7 @@ Steps:
 2. **Atlas allowlist**
    - Add IP allowlist in Atlas:
      - Sandbox egress IP: `34.7.135.173`
-     - VPS/Coolify IP: `103.150.190.182`
+     - VPS/Coolify IP: `103.175.220.31`
 3. **R2 setup**
    - Fill env `R2_BUCKET` (token can’t `ListBuckets`, bucket name must be provided).
    - Run `backend/scripts/r2_setup.py --check` and `--cors`.
@@ -139,7 +139,7 @@ Steps:
 
 ## 3) Next Actions
 1. **Provide R2 bucket name** and confirm `R2_PUBLIC_BASE_URL` policy (r2.dev public domain).
-2. **Atlas allowlist**: add `34.7.135.173` (sandbox) and/or `103.150.190.182` (VPS) so migration can connect.
+2. **Atlas allowlist**: add `34.7.135.173` (sandbox) and/or `103.175.220.31` (VPS) so migration can connect.
 3. Run migration on Coolify backend terminal:
    - `python scripts/migrate_mongo_to_mariadb.py --mongo "mongodb+srv://..." --dry-run`
    - `python scripts/migrate_mongo_to_mariadb.py --mongo "mongodb+srv://..." --wipe`
@@ -148,7 +148,7 @@ Steps:
    - `python scripts/r2_setup.py --cors`
 5. Coolify ops notes:
    - phpMyAdmin akses via **http**: `http://phpmyadmin-...sslip.io/`
-   - MariaDB publik `103.150.190.182:7897` menolak user `daneswara` (production recommended pakai internal hostname `9cox2040sfl5xb5docwuqjlc`).
+   - MariaDB publik `103.175.220.31:7897` menolak user `daneswaraprod` (production recommended pakai internal hostname `e5t5yllm46db0cnsu9fwv3cv`).
 
 ## 4) Success Criteria
 - Landing routes render pixel-identical to zip1 and load gallery from API.

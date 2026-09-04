@@ -10,7 +10,7 @@ Arsitektur produksi:
 ## 1. Persiapan
 
 - MariaDB sudah ada di project **Daneswara Client / production** (`MariadbSQL`). Internal URL:
-  `mysql://daneswara:<password>@9cox2040sfl5xb5docwuqjlc:3306/default`
+  `mysql://daneswaraprod:<password>@e5t5yllm46db0cnsu9fwv3cv:3306/default`
 - Repo GitHub berisi `docker-compose.yml`, `backend/Dockerfile`, `frontend/Dockerfile`.
 
 ## 2. Buat resource di Coolify
@@ -21,7 +21,7 @@ Arsitektur produksi:
 
    | Key | Nilai |
    |---|---|
-   | `DATABASE_URL` | `mysql://daneswara:<password>@9cox2040sfl5xb5docwuqjlc:3306/default` |
+   | `DATABASE_URL` | `mysql://daneswaraprod:<password>@e5t5yllm46db0cnsu9fwv3cv:3306/default` |
    | `JWT_SECRET` | string acak panjang |
    | `OWNER_USERNAME` / `OWNER_PASSWORD` | akun owner pertama |
    | `PUBLIC_BASE_URL` | `https://daneswaraprint.com` (domain frontend) |
@@ -46,7 +46,7 @@ python scripts/migrate_mongo_to_mariadb.py --mongo "mongodb+srv://..." --wipe
 ```
 
 > **Atlas Network Access**: IP server yang menjalankan migrasi harus diizinkan di MongoDB Atlas
-> (Network Access -> Add IP Address). Untuk sandbox preview ini IP-nya `34.7.135.173`; untuk VPS Coolify `103.150.190.182`.
+> (Network Access -> Add IP Address). Untuk sandbox preview ini IP-nya `34.7.135.173`; untuk VPS Coolify `103.175.220.31`.
 
 Setelah migrasi, restart backend (seed tidak akan menimpa data yang sudah ada).
 
@@ -64,9 +64,30 @@ python scripts/r2_setup.py --sync-assets ../frontend/public/assets   # opsional:
 
 Semua upload dari dashboard (galeri, gambar produk/kategori, logo struk) otomatis dikonversi ke **WebP** dan disimpan dengan key `daneswara/<jenis>/<uuid>.webp`.
 
-## 5. phpMyAdmin (Coolify)
+## 5. phpMyAdmin (Coolify) - akses lokal & via `db.daneswara.com`
 
-Buka lewat **http://** (bukan https) `http://phpmyadmin-....sslip.io/`. Di form login: **Server** = `9cox2040sfl5xb5docwuqjlc` (hostname internal MariaDB), user `daneswara`, password DB.
+Sementara: buka lewat **http://** (bukan https) `http://phpmyadmin-kbs2qh0jspvfjhpmxqzc4zij.103.175.220.31.sslip.io/`.
+Di form login: **Server** = `e5t5yllm46db0cnsu9fwv3cv` (hostname internal MariaDB), user `daneswaraprod`, password DB.
+
+Pakai domain sendiri **https://db.daneswara.com**:
+
+1. Cloudflare DNS: record **A** `db` -> `103.175.220.31`, **Proxied** (orange) boleh. SSL/TLS mode Cloudflare = **Full** (bukan Flexible).
+2. Coolify -> service **PhpMyAdmin** -> **Settings -> Domains** isi `https://db.daneswara.com` -> **Save** -> **Redeploy**.
+   Traefik Coolify otomatis minta sertifikat Let's Encrypt; jika Cloudflare Proxied gagal issue, matikan proxy (DNS only) sesaat lalu nyalakan lagi.
+3. Di env service phpMyAdmin pastikan `PMA_HOST=e5t5yllm46db0cnsu9fwv3cv` (atau `PMA_ARBITRARY=1` supaya server bisa diketik di form login).
+4. Opsional keamanan: batasi akses dengan Cloudflare Access (Zero Trust) untuk `db.daneswara.com`.
+
+## 5b. Izinkan koneksi remote ke MariaDB (port publik 6796)
+
+Error `Host 'x.x.x.x' is not allowed to connect` berarti user hanya terdaftar untuk host lokal. Jalankan sekali di phpMyAdmin (login sebagai **root** MariaDB, password root ada di Coolify -> MariadbSQL -> Environment Variables `MARIADB_ROOT_PASSWORD`):
+
+```sql
+CREATE USER IF NOT EXISTS 'daneswaraprod'@'%' IDENTIFIED BY '<password>';
+GRANT ALL PRIVILEGES ON `default`.* TO 'daneswaraprod'@'%';
+FLUSH PRIVILEGES;
+```
+
+Setelah itu URL publik `mysql://daneswaraprod:<password>@103.175.220.31:6796/default` bisa dipakai dari luar (misalnya untuk preview/migrasi). Produksi di Coolify tetap pakai URL internal.
 
 ## 6. Update
 
