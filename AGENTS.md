@@ -51,6 +51,35 @@ massal, jangan commit rahasia (repo **publik**), jangan push ke `main`.
 
 ---
 
+## Prompt Baku Pemilik (verbatim — beginilah sesi dimulai & disimpan)
+
+Pemilik memakai **metode token PAT** untuk load & save (BUKAN integrasi "connected Emergent ↔ GitHub").
+Alasannya: lebih rapi & disiplin. Kenali dua prompt ini:
+
+**A. Cara Load from GitHub** (awal sesi):
+> hubungkan Ke Repository GitHub saya. Repo nya: `REPO KAKAK` dan **cek seluruh commit akhir-akhir
+> yang telah saya kerjakan**, instal dependencies, dan jalankan app web saya di live preview Emergent.
+> `github_pat_: ISI TOKEN KAKAK`
+
+→ Artinya agent harus: pakai token 1 baris untuk clone/sync repo, **selalu cek commit/PR TERBARU
+lebih dulu** (pemilik sering sudah merge PR diantara sesi), install deps, sambungkan MariaDB + R2,
+lalu jalankan app di preview. (Lihat "Bootstrap Sesi" di atas.)
+
+**B. Cara Save to GitHub** (akhir sesi / saat mau simpan):
+> Buatkan saya **Pull Request** seluruh perubahan code yang berubah dari sesi chat Emergent ini ke
+> repository GitHub saya. **Mulai dari PR #1; jika sudah ada Pull Request, sesuaikan / lanjutkan di
+> PR terakhir.**
+
+→ Artinya agent harus:
+- Simpan lewat **Pull Request via token PAT**, JANGAN pakai fitur "connected Emergent to GitHub".
+- **Nomori PR berurutan**: jika belum ada, mulai PR #1; jika sudah ada, lanjut mengikuti nomor PR
+  terakhir yang berjalan. Jangan buat cabang yatim yang tumpang tindih.
+- Satu sesi umumnya = satu PR yang koheren (push commit tambahan ke branch PR yang sama selama PR
+  itu masih terbuka, daripada membuka banyak PR kecil terpisah).
+- **Pemilik yang review & MERGE MANUAL.** Agent tidak pernah merge sendiri, tidak pernah push ke `main`.
+
+---
+
 ## TL;DR (baca ini dulu)
 
 1. **Kode hidup di `web/`** — satu app **Next.js 15 fullstack** (halaman + API routes di `web/app/api`).
@@ -131,11 +160,15 @@ URL `https://cdn.daneswara.com/daneswara/<kind>/<uuid>.webp`. Jangan kembalikan 
 
 ## Workflow Git
 
-**Aturan emas: TIDAK pernah commit/push ke `main`. Selalu lewat Pull Request, di-merge MANUAL
-oleh manusia setelah review.**
+**Aturan emas: TIDAK pernah commit/push ke `main`. Selalu lewat Pull Request via token PAT
+(BUKAN integrasi "connected Emergent ↔ GitHub"), di-merge MANUAL oleh pemilik setelah review.**
+Lihat juga [Prompt Baku Pemilik](#prompt-baku-pemilik-verbatim--beginilah-sesi-dimulai--disimpan).
 
 ```bash
-# 1. Sinkron dengan main terlebih dulu
+# 0. Autentikasi via token 1 baris (jangan simpan token ke file yang ter-commit)
+#    remote url = https://x-access-token:<PAT>@github.com/<owner>/<repo>.git
+
+# 1. Sinkron dengan main terlebih dulu (cek commit/PR TERBARU — pemilik sering merge antar sesi)
 git fetch origin main
 
 # 2. Branch fitur bermakna (feat/…, fix/…, docs/…, chore/…)
@@ -147,12 +180,19 @@ git commit -m "fix(web): ringkas apa & kenapa"
 
 # 4. Push branch + buka PR ke main — JANGAN merge sendiri
 git push origin fix/nama-perubahan
-#   lalu buka Pull Request via GitHub; tunggu review & merge manual.
+#   lalu buka Pull Request; tunggu review & merge manual oleh pemilik.
 ```
+
+**Penomoran & jumlah PR (samakan dengan ekspektasi pemilik):**
+- Jika repo belum punya PR, mulai dari **PR #1**; jika sudah ada, **lanjutkan mengikuti PR terakhir**.
+- **Satu sesi = satu PR koheren.** Selama PR sesi ini masih terbuka, **push commit tambahan ke branch
+  PR yang sama** (jangan berhamburan buka banyak PR kecil). Kalau pemilik sudah terlanjur merge PR
+  itu, barulah perubahan berikutnya masuk PR baru (follow-up) dengan nomor berikutnya.
 
 Checklist sebelum buka PR:
 - [ ] `cd web && yarn test:core` hijau, dan `npx tsx` / build tidak error.
-- [ ] Tidak ada rahasia (password, kredensial DB, kunci R2) di diff. Repo ini **publik**.
+- [ ] `npx eslint .` dari root exit 0 (config v9 sudah ada).
+- [ ] Tidak ada rahasia (password, kredensial DB, kunci R2, PAT) di diff. Repo ini **publik**.
 - [ ] `.env`, artefak sandbox, dan file berisi kredensial tidak ikut ter-commit.
 - [ ] Perubahan yang menyentuh struk/media sudah pakai `canvasSafeUrl()`.
 - [ ] Deskripsi PR menjelaskan **apa**, **kenapa**, dan **cara uji**.
