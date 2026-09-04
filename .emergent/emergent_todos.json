@@ -1,74 +1,42 @@
 [
   {
-    "content": "Phase 1: Create branch feat/nextjs-fullstack + backup old code",
+    "content": "Phase 1: POC (Prisma+R2+JWT+API+landing) - COMPLETE",
     "status": "completed"
   },
   {
-    "content": "Phase 1: Bootstrap Next.js 15 in /app/web (TS + Tailwind + shadcn/ui)",
+    "content": "Phase 2A: shadcn/ui + Tailwind + fonts port",
     "status": "completed"
   },
   {
-    "content": "Phase 1: Prisma db pull from MariaDB (18 tables) + generate client + lib/db.ts",
+    "content": "Phase 2B: All API Route Handlers (30+) 1:1 with FastAPI",
     "status": "completed"
   },
   {
-    "content": "Phase 1: Core libs - storage.ts (R2+sharp+fallback), auth.ts (bcryptjs+jose), tz.ts",
+    "content": "Phase 2C: Port landing pages (/, /galeri, /gallery, /price-list, /order)",
     "status": "completed"
   },
   {
-    "content": "Phase 1: Preview bridge - FastAPI proxy 8001→3000, frontend supervisor redirect to next dev",
+    "content": "Phase 2D: Port POS pages + Layout + Login + all menu pages",
     "status": "completed"
   },
   {
-    "content": "Phase 1: POC APIs - /api/health, /api/public/gallery, /api/upload",
-    "status": "completed"
-  },
-  {
-    "content": "Phase 1: POC landing page - / (SSG/ISR) rendering gallery from DB",
-    "status": "completed"
-  },
-  {
-    "content": "Phase 1: Run test-core.ts and verify all POC user stories pass",
-    "status": "completed"
-  },
-  {
-    "content": "Phase 2A: Port shadcn/ui components + Tailwind + fonts from legacy frontend",
+    "content": "Phase 2E: Add sitemap.xml + robots.txt + SSG/ISR revalidate for landing pages",
     "status": "in_progress"
   },
   {
-    "content": "Phase 2B: Port all API Route Handlers 1:1 with FastAPI (auth, users, catalog, sales, orders, purchases, customers, finance, dashboard, reports, settings, admin, export, gallery, upload, health)",
+    "content": "Phase 2F: Seed idempotent on startup + Mongo→MariaDB migration UI (Owner)",
     "status": "pending"
   },
   {
-    "content": "Phase 2C: Port landing pages (/, /galeri, /gallery, /price-list, /price-list-print-only, /order) + SSG/SEO/sitemap/robots + i18n",
+    "content": "Phase 2G: End-to-end testing_agent_v3 - API parity + UI flows",
     "status": "pending"
   },
   {
-    "content": "Phase 2D: Port POS pages (/login, /pos, /app/*) + Layout guard + all menus",
+    "content": "Phase 3: Root Dockerfile standalone + update DEPLOY.md for Coolify",
     "status": "pending"
   },
   {
-    "content": "Phase 2E: Port Gallery Manager + upload WebP UI",
-    "status": "pending"
-  },
-  {
-    "content": "Phase 2F: Port Mongo→MariaDB migration to lib/migration/mongo.ts + /app/migrasi UI",
-    "status": "pending"
-  },
-  {
-    "content": "Phase 2G: Seed idempotent + Zod validation + role guards",
-    "status": "pending"
-  },
-  {
-    "content": "Phase 2H: End-to-end test via testing_agent_v3 + fix all bugs",
-    "status": "pending"
-  },
-  {
-    "content": "Phase 3: Root Dockerfile standalone + update DEPLOY.md",
-    "status": "pending"
-  },
-  {
-    "content": "Phase 3: Commit to feat/nextjs-fullstack + PR to main",
+    "content": "Phase 3: Commit + push branch feat/nextjs-fullstack + create PR to main",
     "status": "pending"
   }
 ]
