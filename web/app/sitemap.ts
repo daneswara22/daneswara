@@ -1,7 +1,7 @@
 import { MetadataRoute } from 'next';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const base = (process.env.PUBLIC_BASE_URL || 'https://daneswaraprint.com').replace(/\/$/, '');
+  const base = (process.env.PUBLIC_BASE_URL || 'https://daneswara.com').replace(/\/$/, '');
   const routes = ['', '/galeri', '/gallery', '/price-list', '/order'];
   const now = new Date();
   return routes.map((r) => ({

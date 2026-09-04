@@ -4,6 +4,7 @@ import { useLang } from "@/landing/i18n/LangContext";
 export const Footer = () => {
   const { t } = useLang();
   const year = new Date().getFullYear();
+  const adminHref = process.env.NEXT_PUBLIC_POS_URL || "/login";
   return (
     <footer data-testid="site-footer" className="bg-foreground text-background">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-10 py-12">
@@ -44,7 +45,7 @@ export const Footer = () => {
             <a href="#pricing" className="block hover:text-primary">Pricing</a>
             <a href="#quote" className="block hover:text-primary">Quote</a>
             <a href="#contact" className="block hover:text-primary">Contact</a>
-            <a href="/login" data-testid="admin-link" className="block hover:text-primary">Admin</a>
+            <a href={adminHref} data-testid="admin-link" className="block hover:text-primary">Admin</a>
           </div>
         </div>
         <div className="mt-10 pt-6 border-t border-background/20 flex flex-col sm:flex-row justify-between gap-2 text-xs uppercase tracking-widest text-background/60">
