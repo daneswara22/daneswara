@@ -1,0 +1,15 @@
+node_modules
+**/node_modules
+frontend/build
+**/.env
+!**/.env.example
+backend/uploads
+backend/__pycache__
+**/__pycache__
+test_reports
+tests
+.emergent
+memory
+plan.md
+test_result.md
+.git
