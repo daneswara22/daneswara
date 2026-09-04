@@ -1,0 +1,34 @@
+[
+  {
+    "content": "Backend core + routers + seed on MariaDB (tested via curl/python flows)",
+    "status": "completed"
+  },
+  {
+    "content": "Frontend: landing + POS merged, routes /, /login, /pos, /app/*, Gallery Manager menu, uploads -> /api/upload (screens verified)",
+    "status": "completed"
+  },
+  {
+    "content": "Mongo Atlas -> MariaDB migration script (scripts/migrate_mongo_to_mariadb.py) + docs; run when Atlas IP allowlist opened",
+    "status": "in_progress"
+  },
+  {
+    "content": "Docker: backend Dockerfile, frontend Dockerfile+nginx (/api proxy), docker-compose.yml, DEPLOY.md for Coolify",
+    "status": "pending"
+  },
+  {
+    "content": "R2 helper scripts (CORS setup, static asset sync) + storage docs",
+    "status": "pending"
+  },
+  {
+    "content": "Git init + push to GitHub main (PAT from DanesProd.txt)",
+    "status": "pending"
+  },
+  {
+    "content": "Testing agent run + fix issues",
+    "status": "pending"
+  },
+  {
+    "content": "Update plan.md + memory/PRD.md",
+    "status": "pending"
+  }
+]

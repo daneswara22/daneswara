@@ -1,0 +1,84 @@
+/* Landing (Daneswara Print) theme - scoped under .dp-landing so it never leaks into the POS dashboard. */
+@import url('https://fonts.googleapis.com/css2?family=Anton&family=Work+Sans:wght@300;400;500;600;700&family=Caveat:wght@600&display=swap');
+
+.dp-landing {
+  /* Vintage / retro print-shop palette */
+  --background: 42 30% 93%;          /* #F4F1EA cream */
+  --foreground: 0 0% 10%;            /* #1A1A1A ink */
+  --card: 44 32% 96%;                /* #F9F7F2 */
+  --card-foreground: 0 0% 10%;
+  --popover: 44 32% 96%;
+  --popover-foreground: 0 0% 10%;
+  --primary: 11 60% 49%;             /* #C84B31 brick */
+  --primary-foreground: 0 0% 100%;
+  --secondary: 215 38% 28%;          /* #2D4263 ink blue */
+  --secondary-foreground: 0 0% 100%;
+  --muted: 45 31% 88%;               /* #EBE7D9 */
+  --muted-foreground: 0 0% 36%;
+  --accent: 45 31% 88%;
+  --accent-foreground: 0 0% 10%;
+  --destructive: 0 75% 42%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 0 0% 10%;
+  --input: 0 0% 10%;
+  --ring: 11 60% 49%;
+  --radius: 0px;
+
+  min-height: 100vh;
+  font-family: 'Work Sans', system-ui, sans-serif;
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.dp-landing h1, .dp-landing h2, .dp-landing h3, .dp-landing h4 { font-family: 'Work Sans', system-ui, sans-serif; }
+.dp-landing .font-display, .dp-landing h1.font-display, .dp-landing h2.font-display, .dp-landing h3.font-display, .dp-landing h4.font-display {
+  font-family: 'Anton', 'Impact', sans-serif;
+  letter-spacing: 0.02em;
+}
+.dp-landing .font-script { font-family: 'Caveat', cursive; }
+.dp-landing ::selection { background: #C84B31; color: #fff; }
+
+/* Vintage paper grain */
+.dp-landing .bg-noise {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.10 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+}
+
+/* Halftone dotted texture */
+.dp-landing .bg-halftone {
+  background-image: radial-gradient(#1A1A1A 1px, transparent 1.2px);
+  background-size: 8px 8px;
+}
+
+/* Sharp offset shadow utilities */
+.dp-landing .shadow-stamp     { box-shadow: 4px 4px 0 0 #1A1A1A; }
+.dp-landing .shadow-stamp-lg  { box-shadow: 8px 8px 0 0 #1A1A1A; }
+.dp-landing .shadow-stamp-red { box-shadow: 6px 6px 0 0 #C84B31; }
+
+/* Marquee */
+@keyframes dp-marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+.dp-landing .animate-marquee { animation: dp-marquee 40s linear infinite; }
+
+/* Hover lift used on tactile cards */
+.dp-landing .lift { transition: transform 200ms ease, box-shadow 200ms ease; }
+.dp-landing .lift:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 8px 8px 0 0 #1A1A1A;
+}
+
+/* Landing scrollbars keep the ink look */
+.dp-landing ::-webkit-scrollbar-thumb { background: #1A1A1A; border-radius: 0; }
+
+/* Toasts fired from landing pages */
+.dp-toaster [data-sonner-toast] {
+  border: 2px solid #1A1A1A !important;
+  border-radius: 0 !important;
+  background: #F9F7F2 !important;
+  color: #1A1A1A !important;
+  font-family: 'Work Sans', sans-serif !important;
+  box-shadow: 4px 4px 0 0 #1A1A1A !important;
+}

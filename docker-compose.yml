@@ -1,0 +1,60 @@
+# Daneswara - Coolify "Docker Compose" deployment.
+# Frontend (nginx, landing + DanesPOS) proxies /api -> backend (FastAPI). Database = existing MariaDB in Coolify.
+# Set the domain on the `frontend` service in Coolify. Enable "Connect To Predefined Network" so `backend`
+# can reach the MariaDB container by its internal hostname.
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL in Coolify env (mysql://user:pass@host:3306/default)}
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in Coolify env}
+      JWT_EXPIRE_DAYS: ${JWT_EXPIRE_DAYS:-7}
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      OWNER_USERNAME: ${OWNER_USERNAME:-admin}
+      OWNER_PASSWORD: ${OWNER_PASSWORD:-ChangeMe123!}
+      OWNER_NAME: ${OWNER_NAME:-Owner}
+      OWNER_BUSINESS: ${OWNER_BUSINESS:-Daneswara Print}
+      SEED_CATALOG: ${SEED_CATALOG:-true}
+      SEED_CUSTOMERS: ${SEED_CUSTOMERS:-true}
+      SEED_GALLERY: ${SEED_GALLERY:-true}
+      TIMEZONE: ${TIMEZONE:-Asia/Makassar}
+      CORS_ORIGINS: ${CORS_ORIGINS:-*}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-https://daneswaraprint.com}
+      R2_ACCOUNT_ID: ${R2_ACCOUNT_ID:-}
+      R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID:-}
+      R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:-}
+      R2_ENDPOINT: ${R2_ENDPOINT:-}
+      R2_BUCKET: ${R2_BUCKET:-}
+      R2_PUBLIC_BASE_URL: ${R2_PUBLIC_BASE_URL:-}
+      R2_PREFIX: ${R2_PREFIX:-daneswara}
+      UPLOAD_DIR: /data/uploads
+    volumes:
+      - daneswara_uploads:/data/uploads
+    expose:
+      - "8001"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8001/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        REACT_APP_BACKEND_URL: ${REACT_APP_BACKEND_URL:-}
+    restart: unless-stopped
+    depends_on:
+      - backend
+    expose:
+      - "80"
+    # Coolify: set your domain (e.g. https://daneswaraprint.com) on this service -> port 80
+
+volumes:
+  daneswara_uploads:

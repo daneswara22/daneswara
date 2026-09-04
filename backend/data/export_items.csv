@@ -1,0 +1,301 @@
+Handle,SKU,Name,Category,Description,Sold by weight,Option 1 name,Option 1 value,Option 2 name,Option 2 value,Option 3 name,Option 3 value,Cost,Barcode,SKU of included item,Quantity of included item,Track stock,Available for sale [DANESWARA PRINTING],Price [DANESWARA PRINTING],In stock [DANESWARA PRINTING],Low stock [DANESWARA PRINTING],"Modifier - ""EXTRA LARGE"""
+apron,10117,APRON,,,N,APRON,Drill SS,,,,,62000,,,,N,Y,variable,,,Y
+apron,10158,,,,,,Gold K,,,,,65000,,,,,Y,75000,,,
+apron,10111,,,,,,SERIES,,,,,130000,,,,,Y,variable,,,
+apron,10108,,,,,,WP,,,,,70000,,,,,Y,variable,,,
+art-paper,10036,Art Paper,,,N,Art Paper dan BW,A4 AP 120,,,,,2500,,,,N,Y,8000,,,N
+art-paper,10035,,,,,,A4 AP 260,,,,,1400,,,,,Y,variable,,,N
+art-paper,10037,,,,,,A4 AP 310,,,,,2500,,,,,Y,8000,,,N
+art-paper,10038,,,,,,A4 BW 310,,,,,2500,,,,,Y,8000,,,N
+art-paper,10028,,,,,,AP 120,,,,,5000,,,,,Y,variable,,,N
+art-paper,10279,,,,,,AP 150 A5 1SS,,,,,825,,,,,Y,1700,,,N
+art-paper,10027,,,,,,AP 260,,,,,4000,,,,,Y,variable,,,N
+art-paper,10029,,,,,,AP 310,,,,,5000,,,,,Y,variable,,,N
+art-paper,10263,,,,,,AP 310 A5 Laminasi,,,,,1000,,,,,Y,8500,,,N
+art-paper,10097,,,,,,AP 310+Die Cut (PC),,,,,8700,,,,,Y,15000,,,N
+art-paper,10294,,,,,,AP210 LARGE 4060,,,,,28000,,,,,Y,variable,,,N
+art-paper,10290,,,,,,AntrianA7+Laminating,,,,,1900,,,,,Y,variable,,,N
+art-paper,10030,,,,,,BW 310,,,,,5000,,,,,Y,variable,,,N
+art-paper,10258,,,,,,HVS A4,,,,,800,,,,,Y,2000,,,N
+art-paper,10238,,,,,,POSTER 40X60,,,,,19000,,,,,Y,25000,,,N
+art-paper,10254,,,,,,UNDANGAN 14x22 260g,,,,,3500,,,,,Y,5500,,,N
+banner,10148,BANNER,,,N,Frontlight,380GSM (LB 1Mtr),,,,,25000,,,,Y,Y,40000,-5.000,,N
+banner,10236,,,,,,BANNER SEGITIGA KAYU,,,,,150000,,,,,Y,180000,-1.000,,N
+banner,10284,,,,,,BL bahan 2 Meter,,,,,60000,,,,,Y,85000,-4.000,,N
+banner,10283,,,,,,FL 440,,,,,50000,,,,,Y,60000,-3.000,,N
+banner,10264,,,,,,FL 440Gsm Hi-Ress,,,,,32500,,,,,Y,47500,-2.000,,N
+banner,10293,,,,,,GERMAN 510gr,,,,,60000,,,,,Y,variable,-24.000,,N
+banner,10150,,,,,,Jergam Doff (LB 2mt),,,,,60000,,,,,Y,120000,0.000,,N
+banner,10272,,,,,,KOREA 325 Lbr,,,,,97500,,,,,Y,variable,-2.000,,N
+banner,10149,,,,,,Korea (LB 2mt),,,,,40000,,,,,Y,80000,-4.000,,N
+banner,10147,,,,,,STD (LB 1 Mtr),,,,,18000,,,,,Y,28000,-3.000,,N
+banner,10167,,,,,,X - BANNER Standar,,,,,65000,,,,,Y,variable,-2.000,,N
+banner,10168,,,,,,X- BANNER PREMIUM,,,,,85000,,,,,Y,variable,0.000,,N
+banner,10253,,,,,,X-BANNER MINI,,,,,25000,,,,,Y,40000,-2.000,,N
+oversize-bsa,10100,Basic Stuff,,,N,BASIC APP,LONGSLEEVE,,,,,55000,,,,N,N,65000,,,N
+oversize-bsa,10096,,,,,,OVERSIZE ER,,,,,55000,,,,,N,60000,,,N
+oversize-bsa,10003,,,,,,OVERSIZE HR,,,,,55000,,,,,Y,variable,,,N
+oversize-bsa,10261,,,,,,OVS BOXY,,,,,79000,,,,,Y,85000,,,N
+oversize-bsa,10014,,,,,,OVS STONE WASH,,,,,65000,,,,,Y,75000,,,N
+oversize-bsa,10265,,,,,,SINGLET,,,,,40000,,,,,Y,variable,,,N
+bendera,10104,Bendera,,,N,Bahan Satin 1 Sisi,Lebar Bahan 1M,,,,,45000,,,,N,Y,variable,,,N
+bordir,10289,Bordir,,<p>1 warna Ukuran Logo 10 x 10 cm</p>,N,Bordir Logo,PATCH Bordir CL 24p,,,,,12000,,,,N,Y,variable,,,N
+bordir,10287,,,,,,PATCH Bordir Ecer,,,,,20000,,,,,Y,25000,,,N
+bordir,10256,,,,,,Reg 1 Warna 1 Baris,,,,,12000,,,,,Y,18000,,,N
+bordir,10257,,,,,,Setting FILM,,,,,50000,,,,,Y,50000,,,N
+bordir,10121,,,,,,WP 1 Baris 1 Warna,,,,,15000,,,,,Y,20000,,,N
+bordir,10122,,,,,,WP LOGO 3 Warna,,,,,20000,,,,,Y,25000,,,N
+celana,10020,Celana,,,N,Celana,Panjang B#,,,,,20000,,,,Y,N,35000,94.000,,N
+celana,10107,,,,,,Panjang BH,,,,,28000,,,,,N,55000,-11.000,,N
+celana,10071,,,,,,Panjang CB,,,,,32000,,,,,Y,60000,11.000,,N
+celana,10095,,,,,,Panjang CB/CC,,,,,32000,,,,,N,55000,100.000,,N
+celana,10124,,,,,,Panjang Cg,,,,,37000,,,,,N,75000,17.000,,N
+celana,10102,,,,,,Pendek #BD,,,,,24000,,,,,N,variable,47.000,,N
+celana,10091,,,,,,Pendek AB,,,,,12000,,,,,Y,20000,-85.000,,N
+celana,10151,,,,,,Pendek AD,,,,,14000,,,,,N,variable,-3.000,,N
+celana,10010,,,,,,Pendek B,,,,,20000,,,,,Y,35000,-44.000,,N
+celana,10011,,,,,,Pendek BV,,,,,25000,,,,,Y,40000,72.000,,N
+celana,10094,,,,,,Pendek BV#,,,,,25000,,,,,N,variable,90.000,,N
+celana,10012,,,,,,Pendek C#,,,,,30000,,,,,N,48000,90.000,,N
+celana,10140,,,,,,Pendek IC,,,,,13000,,,,,Y,28000,12.000,,N
+celana,10088,,,,,,Pendek IG#,,,,,17000,,,,,N,35000,58.000,,N
+celana,10146,,,,,,Pendek IJ,,,,,10000,,,,,N,variable,-2.000,,N
+celana,10072,,,,,,Pendek IV,,,,,15000,,,,,Y,30000,25.000,,N
+celana,10145,,,,,,Pendek Jumbo,,,,,27000,,,,,Y,60000,27.000,,N
+celana,10125,,,,,,pendek IB,,,,,12000,,,,,N,20000,-73.000,,N
+ctn,10219,CTN - STATE,,<p>NEW STATE APPAREL</p>,N,CTN,20s Heavy,,,,,65000,,,,Y,Y,70000,0.000,,Y
+ctn,10204,,,,,,24s Local,,,,,44000,,,,,Y,55000,-864.000,,
+ctn,10206,,,,,,24s Panjang,,,,,56000,,,,,Y,65000,-15.000,,
+ctn,10205,,,,,,30s Local,,,,,45000,,,,,Y,50000,-142.000,,
+ctn,10291,,,,,,Cerwneck,,,,,102000,,,,,Y,variable,-1.000,,
+ctn,10211,,,,,,Extra 2XL Panjang,,,,,7000,,,,,Y,12000,0.000,,
+ctn,10220,,,,,,Extra 2XL Pendek,,,,,5000,,,,,Y,10000,-16.000,,
+ctn,10214,,,,,,Extra 2XL Polo,,,,,10000,,,,,Y,15000,-2.000,,
+ctn,10212,,,,,,Extra 3XL Panjang,,,,,14000,,,,,Y,19000,0.000,,
+ctn,10213,,,,,,Extra 3XL Pendek,,,,,10000,,,,,Y,15000,-9.000,,
+ctn,10215,,,,,,Extra 3XL Polo,,,,,20000,,,,,Y,25000,-1.000,,
+ctn,10210,,,,,,Hoodie Premium,,,,,140000,,,,,Y,160000,-1.000,,
+ctn,10218,,,,,,Jersey,,,,,42000,,,,,Y,50000,-3.000,,
+ctn,10207,,,,,,Kids 24s,,,,,40000,,,,,Y,45000,-184.000,,
+ctn,10228,,,,,,LONGSLEEVE20S,,,,,84000,,,,,Y,95000,-1.000,,
+ctn,10247,,,,,,POLO EASY 65/35,,,,,60000,,,,,Y,variable,-68.000,,
+ctn,10208,,,,,,Polo Premium,,,,,80000,,,,,Y,90000,-45.000,,
+ctn,10209,,,,,,Sweater Premium,,,,,130000,,,,,Y,140000,0.000,,
+custom-project,10115,Custom Project,,<p>Semua Item Dengan orderan khusus</p>,N,CUTOM ORDER,BANJAR GLUMPANG,,,,,40000,,,,N,Y,78000,,,N
+custom-project,10251,,,,,,BRI GATSU Polo Putih,,,,,62500,,,,,Y,105000,,,N
+custom-project,10237,,,,,,DEK BROTHER,,,,,65000,,,,,Y,80000,,,N
+custom-project,10116,,,,,,LPM_SANUR,,,,,13000,,,,,Y,30000,,,N
+custom-project,10266,,,,,,MR ZACK VOLT,,,,,9551000,,,,,Y,15410000,,,N
+custom-project,10268,,,,,,No Antrian CS TELLER,,,,,50000,,,,,Y,125000,,,N
+custom-project,10234,,,,,,PAYUNG BLACK COFFEE,,,,,60000,,,,,Y,90000,,,N
+custom-project,10277,,,,,,Paket ID Card,,,,,32000,,,,,Y,35000,,,N
+custom-project,10216,,,,,,SPUNBOND BAGI,,,,,5400,,,,,Y,7000,,,N
+custom-project,10166,,,,,,SPUNBOND BRI,,,,,3000,,,,,Y,4800,,,N
+custom-project,10249,,,,,,Sablon Plastik,,,,,550,,,,,Y,variable,,,N
+desain,10172,Desain,,,N,Cutting,11-34 Bagian,,,,,5000,,,,N,N,8000,,,N
+design,10179,DESIGN,,,N,,,,,,,5000,,,,N,Y,variable,,,N
+extra,10173,EXTRA CUTTING,,,N,Cutting,Putus 1-10,,,,,4000,,,,N,Y,5000,,,N
+extra,10174,,,,,,Putus 11-34,,,,,5000,,,,,Y,5000,,,N
+extra,10235,,,,,,remove dtf,,,,,3000,,,,,N,15000,,,N
+extra-large,10058,Extra Large,,,N,Extra Large Size,2XL,,,,,5000,,,,N,N,variable,,,N
+extra-large,10063,,,,,,3XL,,,,,10000,,,,,N,variable,,,N
+extra-large,10154,,,,,,CN 2XL,,,,,5000,,,,,N,6000,,,N
+extra-large,10155,,,,,,CN 3XL,,,,,12000,,,,,N,15000,,,N
+extra-lengan-panjang,10084,Extra Lengan Panjang,Kaos Polos,<p>NSA</p>,N,,,,,,,10000,,,,N,N,variable,,,N
+gildan,10139,GILDAN,,,N,GILDAN,ABU MISTY L,,,,,38000,,,,Y,Y,variable,-3.000,,N
+gildan,10138,,,,,,ABU MISTY M,,,,,38000,,,,,Y,variable,-3.000,,N
+gildan,10137,,,,,,ABU MISTY S,,,,,38000,,,,,Y,variable,-2.000,,N
+gildan,10157,,,,,,Abu Misty XL,,,,,0,,,,,Y,variable,-3.000,,N
+gildan,10133,,,,,,HITAM L,,,,,38000,,,,,Y,variable,-13.000,,N
+gildan,10134,,,,,,HITAM M,,,,,38000,,,,,Y,variable,-4.000,,N
+gildan,10135,,,,,,HITAM S,,,,,38000,,,,,Y,variable,-2.000,,N
+gildan,10132,,,,,,HITAM XL,,,,,38000,,,,,Y,variable,0.000,,N
+gildan,10184,,,,,,KUNING L,,,,,38000,,,,,Y,variable,-1.000,,N
+gildan,10182,,,,,,KUNING S,,,,,38000,,,,,Y,variable,-1.000,,N
+gildan,10185,,,,,,MAGENTA L,,,,,38000,,,,,Y,variable,-3.000,,N
+gildan,10141,,,,,,NAVY L,,,,,37000,,,,,Y,45000,-2.000,,N
+gildan,10181,,,,,,NAVY S,,,,,38000,,,,,Y,variable,-1.000,,N
+gildan,10169,,,,,,NAVY XL,,,,,38000,,,,,Y,variable,-8.000,,N
+gildan,10183,,,,,,ORANGE L,,,,,38000,,,,,Y,variable,-1.000,,N
+gildan,10129,,,,,,PUTIH L,,,,,38000,,,,,Y,variable,-5.000,,N
+gildan,10130,,,,,,PUTIH M,,,,,38000,,,,,Y,variable,-3.000,,N
+gildan,10131,,,,,,PUTIH S,,,,,38000,,,,,Y,variable,-2.000,,N
+gildan,10128,,,,,,PUTIH XL,,,,,38000,,,,,Y,variable,0.000,,N
+hot-press,10064,HOT PRESS,,,N,,,,,,,2000,,,,N,Y,variable,,,N
+id-card,10045,ID CARD,,,N,PVC,(11 dst ),,,,,7000,,,,N,Y,28000,,,N
+id-card,10043,,,,,,(4-5 PCS),,,,,15000,,,,,Y,35000,,,N
+id-card,10044,,,,,,(6-10 PCS),,,,,15000,,,,,Y,30000,,,N
+id-card,10046,,,,,,BRIZZI,,,,,30000,,,,,Y,80000,,,N
+id-card,10042,,,,,,ID CARD STANDARD,,,,,25000,,,,,Y,50000,,,N
+maxim-driver,10113,INSTAN SEND,,,N,,,,,,,0,,,,N,Y,variable,,,N
+jaket,10171,Jaket,Kaos Polos,,N,BASIC,Basic HOODIE CT,,,,,170000,,,,N,N,variable,,,N
+jaket,10005,,,,,,HODDIE,,,,,150000,,,,,N,variable,,,N
+jaket,10123,,,,,,HODDIE KODE WP,,,,,100000,,,,,N,variable,,,N
+jaket,10002,,,,,,SWEATER,,,,,135000,,,,,N,variable,,,N
+jaket,10004,,,,,,ZIPPER,,,,,150000,,,,,N,variable,,,N
+jersey,10144,Jersey,,,N,Jersey Dryfit,CT Jersey,,,,,42000,,,,N,Y,variable,,,N
+jersey,10057,,,,,,Extra Size,,,,,5000,,,,,Y,5000,,,N
+jersey,10066,,,,,,Jersey Premium Full,,,,,70000,,,,,Y,120000,,,N
+jersey,10054,,,,,,Lengan Panjang,,,,,80000,,,,,Y,125000,,,N
+jersey,10052,,,,,,Lengan pendek,,,,,70000,,,,,Y,110000,,,N
+jersey,10065,,,,,,Ukuran Anak,,,,,70000,,,,,Y,85000,,,N
+merchons,10170,Kaos 24S MRC,,,N,Merchons Apparel,Black 3XL,,,,,57000,,,,N,N,variable,,,N
+merchons,10076,,,,,,Black L,,,,,40000,,,,,N,variable,,,N
+merchons,10075,,,,,,Black M,,,,,40000,,,,,N,variable,,,N
+merchons,10074,,,,,,Black S,,,,,40000,,,,,N,variable,,,N
+merchons,10077,,,,,,Black XL,,,,,45000,,,,,N,variable,,,N
+merchons,10078,,,,,,Black XXL,,,,,45000,,,,,N,variable,,,N
+merchons,10081,,,,,,White L,,,,,40000,,,,,N,variable,,,N
+merchons,10080,,,,,,White M,,,,,40000,,,,,N,variable,,,N
+merchons,10079,,,,,,White S,,,,,40000,,,,,N,variable,,,N
+merchons,10082,,,,,,White XL,,,,,45000,,,,,N,variable,,,N
+merchons,10083,,,,,,White XXL,,,,,45000,,,,,N,variable,,,N
+kaos-anak,10053,Kaos Anak,,,N,Kaos Anak,Kids WP,,,,,25000,,,,N,N,35000,,,N
+kaos-anak,10050,,,,,,KidsKBN,,,,,35000,,,,,N,45000,,,N
+kaos-motif,10034,KAOS KONSINYASI,,<p>Terdiri dari kaos - kaos titipan&nbsp;</p><p>1. Kaos PUJA</p><p>2. Kaos Bli Dunk</p><p>3. Kaos Barong&nbsp;</p><p>4. Kaos Kationik Wipra</p><p>5. Singlet Risna</p>,N,BIGS,Bali Lonto,,,,,40000,,,,Y,N,55000,-2.000,,N
+kaos-motif,10007,,,,,,DEWASA,,,,,37500,,,,,N,50000,100.000,,N
+kaos-motif,10008,,,,,,KIDS,,,,,26250,,,,,N,35000,100.000,,N
+kaos-motif,10009,,,,,,Kaos PUJA,,,,,35000,,,,,Y,40000,73.000,,N
+kaos-motif,10227,,,,,,Muscle HOHC,,,,,55000,,,,,Y,60000,25.000,,N
+kaos-motif,10226,,,,,,Singlet HOHC,,,,,55000,,,,,Y,60000,19.000,,N
+kaos-pe,10017,Kaos PE,Kaos Polos,<p>coklat l panjang</p>,N,,,,,,,25000,,,,N,N,variable,,,N
+kaos-polo,10087,Kaos POLO,,,N,POLO Lacoste,BN-Catoon,,,,,75000,,,,N,N,85000,,,N
+kaos-polo,10118,,,,,,NA Premium,,,,,80000,,,,,N,90000,,,N
+kaos-polo,10120,,,,,,WD-BTG Pori Kecil,,,,,70000,,,,,N,variable,,,N
+kaos-polo,10086,,,,,,WP PE,,,,,55000,,,,,N,65000,,,N
+kaos-polos-20s,10073,Kaos Polos 20s,Kaos Polos,<p>Adi Jaya + Sari Rajut</p>,N,,,,,,,50000,,,,N,N,60000,,,N
+kaos-polos-30's,10196,Kaos WP,Kaos Polos,<p>Cotton Combed 30 &#39;s</p>,N,Kaos Promo,Hoodie,,,,,100000,,,,Y,Y,130000,-23.000,,Y
+kaos-polos-30's,10101,,,,,,KIDS 32s,,,,,35000,,,,,Y,variable,18.000,,
+kaos-polos-30's,10000,,,,,,Kaos 30s,,,,,35000,,,,,Y,variable,-322.000,0.000,
+kaos-polos-30's,10056,,,,,,Kaos Premium 32s,,,,,45000,,,,,Y,55000,-1169.000,,
+kaos-polos-30's,10197,,,,,,Lengan Panjang 32s,,,,,55000,,,,,Y,variable,-47.000,,
+kaos-polos-30's,10203,,,,,,Polo,,,,,55000,,,,,Y,65000,-86.000,,
+kartu-nama,10085,Kartu Nama,,<p>Arp 260 atau Blueswhite</p>,N,,,,,,,17500,,,,N,Y,variable,,,N
+laminating,10033,LAMINATING,,,N,Laminasi Stiker,Doff,,,,,3500,,,,N,Y,4500,,,N
+laminating,10032,,,,,,Glosy,,,,,3500,,,,,Y,4500,,,N
+laminating,10241,,,,,,LAMINATING A3,,,,,10000,,,,,Y,15000,,,N
+laminating,10013,,,,,,Laminating A4,,,,,4000,,,,,Y,7000,,,N
+laminating,10047,,,,,,Serat Jeruk (EP),,,,,4000,,,,,Y,variable,,,N
+lonceng-bambu,10055,LONCENG BAMBU,,<p>Lonceng Bambu</p>,N,,,,,,,24000,,,,N,N,40000,,,N
+merchendice,10297,Merchendice,,,N,Visual,GANCI AKRELIK 2SS,,,,,8000,,,,N,Y,19000,,,N
+merchendice,10022,,,,,,Lanyard (satuan),,,,,11000,,,,,Y,25000,,,N
+merchendice,10156,,,,,,MUG Standar,,,,,20000,,,,,Y,variable,,,N
+merchendice,10106,,,,,,Name Desk Panjang,,,,,110000,,,,,Y,150000,,,N
+merchendice,10105,,,,,,Name Desk Sedang,,,,,90000,,,,,Y,130000,,,N
+merchendice,10143,,,,,,Name Tag akrelik,,,,,16000,,,,,Y,variable,,,N
+merchendice,10001,,,,,,"PIN GANCI 5,8mm",,,,,7000,,,,,Y,9000,,,N
+merchendice,10153,,,,,,Paket Stemp + Tinta,,,,,50000,,,,,Y,variable,,,N
+merchendice,10006,,,,,,Plat Saja,,,,,80000,,,,,Y,100000,,,N
+merchendice,10152,,,,,,Stemp Flash Sedang,,,,,40000,,,,,Y,variable,,,N
+merchendice,10109,,,,,,Tent Akrelik A4,,,,,50000,,,,,Y,variable,,,N
+merchendice,10110,,,,,,Tent Akrelik A5,,,,,25000,,,,,Y,variable,,,N
+name-desk-stainless,10092,Name Desk Stainless,,,N,Paket,Plat Saja,,,,,50000,,,,N,N,100000,,,N
+name-desk-stainless,10093,,,,,,Plat dan Dudukan,,,,,90000,,,,,N,150000,,,N
+nota,10119,Nota,,,N,NOTA,1 RIM 2 PLY,,,,,190000,,,,N,Y,variable,,,N
+nota,10269,,,,,,1 RIM 3 PLY A6,,,,,345000,,,,,Y,370000,,,N
+nota,10288,,,,,,1RIM 3PLY A5,,,,,325000,,,,,Y,variable,,,N
+nota,10270,,,,,,Tambah Nomor Urut,,,,,20000,,,,,Y,20000,,,N
+nota,10271,,,,,,Tambah porporasi,,,,,20000,,,,,Y,25000,,,N
+print-dtg,10178,PRINT DTG,,<p>DTG (Direct To Garment) White</p>,N,White Base,A3,,,,,31000,,,,N,Y,40000,,,N
+print-dtg,10177,,,,,,A4,,,,,25000,,,,,Y,30000,,,N
+print-dtg,10176,,,,,,A5,,,,,20000,,,,,Y,25000,,,N
+print-dtg,10175,,,,,,A6,,,,,12000,,,,,Y,18000,,,N
+print-dtf,10059,SABLON,Sablon,<p>Cetak DTF Cutting</p>,N,DTF Lebar 56 Cm,A2 (Lebar 47cm),,,,,33000,,,,Y,Y,variable,-374.000,,N
+print-dtf,10061,,,,,,A6 / A5,,,,,6000,,,,,N,variable,99.000,,N
+print-dtf,10060,,,,,,DTF A4 Dispay,,,,,10000,,,,,Y,20000,64.000,,N
+print-dtf,10062,,,,,,DTF LOGO Display,,,,,3000,,,,,Y,10000,32.000,,N
+print-dtf,10103,,,,,,DTF Meteran,,,,,300,,,,,Y,variable,-7204.000,,N
+print-dtf,10225,,,,,,DTF Meteran <1M,,,,,300,,,,,Y,600,-732.000,,N
+print-dtf,10136,,,,,,Polyflex A4,,,,,18000,,,,,N,35000,-3.000,,N
+print-dtf,10127,,,,,,Polyflex A5,,,,,9000,,,,,N,20000,-23.000,,N
+print-dtf,10126,,,,,,Polyflex LOGO,,,,,5000,,,,,N,15000,-18.000,,N
+print-dtf,10240,,,,,,Sablon Size / Label,,,,,1150,,,,,Y,variable,-578.000,,N
+print-dtf,10068,,,,,,Ukuran A3#,,,,,11000,,,,,Y,variable,-4566.000,1.000,N
+print-dtf,10069,,,,,,Ukuran A4#,,,,,6500,,,,,Y,variable,-4817.000,,N
+print-dtf,10089,,,,,,Ukuran A5 / A6#,,,,,4500,,,,,Y,variable,-2585.000,,N
+print-dtf,10070,,,,,,Ukuran Logo#,,,,,3000,,,,,Y,variable,-4557.000,,N
+sablon-material,10159,Sablon Material,,,N,Plastik,Plastik Ukuran 15x15,,,,,500,,,,N,N,variable,,,N
+sampling,10285,SAMPLING,,,N,SCREEN,SCREEN MASTER,,,,,150000,,,,N,Y,variable,,,N
+sampling,10286,,,,,,UP2COLOR SDT,,,,,15000,,,,,Y,30000,,,N
+softess-dns,10161,SOFTESS DNS,,,N,SOFTEES,HITAM 2XL,,,,,37000,,,,Y,Y,variable,-92.000,,N
+softess-dns,10160,,,,,,HITAM 3XL,,,,,37000,,,,,Y,variable,-9.000,,N
+softess-dns,10259,,,,,,HITAM 4XL,,,,,37000,,,,,Y,variable,-4.000,,N
+softess-dns,10163,,,,,,HITAM L,,,,,37000,,,,,Y,variable,-287.000,,N
+softess-dns,10164,,,,,,HITAM M,,,,,37000,,,,,Y,variable,-92.000,,N
+softess-dns,10165,,,,,,HITAM S,,,,,37000,,,,,Y,variable,-46.000,,N
+softess-dns,10162,,,,,,HITAM XL,,,,,37000,,,,,Y,variable,-224.000,,N
+softess-dns,10262,,,,,,PUTIH 3XL,,,,,37000,,,,,Y,variable,-3.000,,N
+softess-dns,10260,,,,,,PUTIH 4XL,,,,,37000,,,,,Y,variable,-2.000,,N
+softess-dns,10222,,,,,,PUTIH L,,,,,37000,,,,,Y,variable,-82.000,,N
+softess-dns,10221,,,,,,PUTIH M,,,,,37000,,,,,Y,variable,-42.000,,N
+softess-dns,10217,,,,,,PUTIH S,,,,,37000,,,,,Y,variable,-31.000,,N
+softess-dns,10223,,,,,,PUTIH XL,,,,,37000,,,,,Y,variable,-57.000,,N
+softess-dns,10224,,,,,,PUTIH XXL,,,,,37000,,,,,Y,variable,-29.000,,N
+spunbond,10298,SPUNBOND,,<p>Minimal Order 100 Pcs</p>,N,Spunbond,UK 25x35 1SS,,,,,4200,,,,N,Y,10000,,,N
+spunbond,10041,,,,,,UK 30x40 (2 Sisi),,,,,8000,,,,,Y,11500,,,N
+spunbond,10039,,,,,,UK 30x40 (>500 PC),,,,,3000,,,,,Y,5000,,,N
+spunbond,10299,,,,,,UK 30x40 1SS,,,,,4500,,,,,Y,11500,,,N
+spunbond,10040,,,,,,UK 40x50 (>500 PC),,,,,4000,,,,,Y,6000,,,N
+spunbond,10016,,,,,,Ukuran 38x45,,,,,2000,,,,,Y,variable,,,N
+spunbond-(grosir),10090,Spunbond (grosir),,,N,Spunbond,ukuran 30 x 40,,,,,1700,,,,N,N,variable,,,N
+spunbond-(grosir),10067,,,,,,ukuran 38x45,,,,,2500,,,,,N,variable,,,N
+stc-heavy-16s,10246,STC HEAVY 16S,,,N,SIZE,2XL,,,,,55000,,,,Y,Y,68000,-11.000,,N
+stc-heavy-16s,10244,,,,,,L,,,,,50000,,,,,Y,65000,-10.000,,N
+stc-heavy-16s,10243,,,,,,M,,,,,48000,,,,,Y,65000,-13.000,,N
+stc-heavy-16s,10242,,,,,,S,,,,,48000,,,,,Y,65000,-4.000,,N
+stc-heavy-16s,10245,,,,,,XL,,,,,55000,,,,,Y,68000,-10.000,,N
+stc-24s,10188,STC PREMIUM 24S,,<p>stitch apparel</p>,N,STC 24s,Black L,,,,,45000,,,,Y,Y,60000,-246.000,,N
+stc-24s,10187,,,,,,Black M,,,,,42000,,,,,Y,55000,-153.000,,N
+stc-24s,10186,,,,,,Black S,,,,,42000,,,,,Y,55000,-66.000,,N
+stc-24s,10189,,,,,,Black XL,,,,,48000,,,,,Y,60000,-265.000,,N
+stc-24s,10190,,,,,,Black XXL,,,,,48000,,,,,Y,60000,-101.000,,N
+stc-24s,10248,,,,,,Merch 3XL,,,,,55000,,,,,Y,65000,-21.000,,N
+stc-24s,10193,,,,,,White L,,,,,45000,,,,,Y,60000,-150.000,,N
+stc-24s,10192,,,,,,White M,,,,,42000,,,,,Y,55000,-117.000,,N
+stc-24s,10191,,,,,,White S,,,,,42000,,,,,Y,55000,-41.000,,N
+stc-24s,10194,,,,,,White XL,,,,,48000,,,,,Y,60000,-93.000,,N
+stc-24s,10195,,,,,,White XXL,,,,,48000,,,,,Y,60000,-56.000,,N
+stc-ultra,10233,STC ULTRA 20S,,,N,ULTRA,HITAM 2XL,,,,,49000,,,,N,Y,65000,,,N
+stc-ultra,10231,,,,,,HITAM L,,,,,49000,,,,,Y,60000,,,N
+stc-ultra,10230,,,,,,HITAM M,,,,,49000,,,,,Y,60000,,,N
+stc-ultra,10229,,,,,,HITAM S,,,,,46000,,,,,Y,60000,,,N
+stc-ultra,10232,,,,,,HITAM XL,,,,,49000,,,,,Y,65000,,,N
+stempel,10273,STEMPEL,,<p>STEMPEL</p>,N,STEMP,40-50,,,,,40000,,,,Y,Y,55000,99.000,,N
+stempel,10274,,,,,,51-55,,,,,60000,,,,,Y,75000,-1.000,,N
+stempel,10275,,,,,,56-75,,,,,85000,,,,,Y,70000,0.000,,N
+stempel,10276,,,,,,>75,,,,,125000,,,,,Y,110000,0.000,,N
+stempel,10281,,,,,,Kayu STD,,,,,40000,,,,,Y,variable,-5.000,,N
+stempel,10295,,,,,,TINTA,,,,,10000,,,,,Y,10000,-1.000,,N
+stiker-bontax,10023,Stiker,,<p>stiker ini dikerjakan sendiri</p>,N,Bontax dan Vinil,Bontax A3,,,,,5000,,,,N,Y,variable,,,N
+stiker-bontax,10024,,,,,,Bontax A4,,,,,3000,,,,,N,8000,,,N
+stiker-bontax,10255,,,,,,Label Phonix 103,,,,,6500,,,,,Y,13000,,,N
+stiker-bontax,10142,,,,,,Oracel Cutting,,,,,1500,,,,,Y,variable,,,N
+stiker-bontax,10296,,,,,,STIKER DTF UV,,,,,45000,,,,,Y,58000,,,N
+stiker-bontax,10051,,,,,,Stiker A5,,,,,1500,,,,,Y,variable,,,N
+stiker-bontax,10099,,,,,,Stiker A6,,,,,900,,,,,Y,variable,,,N
+stiker-bontax,10025,,,,,,Vinil A3 + Cut,,,,,11500,,,,,Y,variable,,,N
+stiker-bontax,10026,,,,,,Vinil A3 Print Only,,,,,8000,,,,,Y,variable,,,N
+stiker-bontax,10250,,,,,,Vinil A4 Cut+L.Cold,,,,,8000,,,,,Y,20000,,,N
+stuby-holder,10180,Stuby Holder,,,N,,,,,,,12000,,,,Y,Y,20000,-30.000,,N
+topi-polos,10292,Topi,,,N,Topi,Cst Hats Polos,,,,,70000,,,,N,Y,variable,,,N
+topi-polos,10019,,,,,,Custom Pramuka Hijau,,,,,12000,,,,,Y,variable,,,N
+topi-polos,10280,,,,,,Drill + Bordir 2 CLR,,,,,34000,,,,,Y,variable,,,N
+topi-polos,10021,,,,,,Drill Premium Polos,,,,,16000,,,,,Y,variable,,,N
+topi-polos,10282,,,,,,FILM BORDIR,,,,,50000,,,,,Y,variable,,,N
+topi-polos,10200,,,,,,Jaring Med + Print,,,,,15000,,,,,Y,variable,,,N
+topi-polos,10018,,,,,,Jaring Polos,,,,,10000,,,,,Y,15000,,,N
+topi-polos,10201,,,,,,Jaring Premium,,,,,28000,,,,,Y,45000,,,N
+topi-polos,10202,,,,,,Jaring Premium Print,,,,,35000,,,,,Y,55000,,,N
+topi-polos,10278,,,,,,SAMPLING TOPI TYGR,,,,,190000,,,,,Y,195000,,,N
+topi-polos,10098,,,,,,Snap Back,,,,,18000,,,,,Y,35000,,,N
+topi-polos,10199,,,,,,Topi Drill + Sablon,,,,,22000,,,,,Y,45000,,,N
+topi-polos,10198,,,,,,Topi Jaring + Sablon,,,,,17000,,,,,Y,variable,,,N
+topi-sablon,10049,Topi Sablon,,,N,Paket,1 PCS,,,,,25000,,,,N,N,35000,,,N
+topi-sablon,10048,,,,,,2 PCS,,,,,20000,,,,,N,30000,,,N
+tote-bag-blacu,10031,Tote Bag,,,N,Tote Blacu Natural,Blacu 30x40 EKDG,,,,,15000,,,,N,Y,variable,,,N
+tote-bag-blacu,10252,,,,,,Blacu 30x40 dns,,,,,9000,,,,,Y,12000,,,N
+tote-bag-blacu,10114,,,,,,Blacu 40x40,,,,,10000,,,,,Y,variable,,,N
+tote-bag-blacu,10239,,,,,,CANVAS POLOS,,,,,30000,,,,,Y,variable,,,N
+tote-bag-blacu,10112,,,,,,CANVAS+A4 1 Sisi,,,,,35000,,,,,Y,55000,,,N
+tote-bag-blacu,10267,,,,,,DRILL 40*40,,,,,20000,,,,,Y,variable,,,N
+tote-bag-blacu,10015,,,,,,DRILL Polos 30*40,,,,,20000,,,,,Y,35000,,,N
