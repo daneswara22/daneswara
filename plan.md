@@ -148,7 +148,7 @@ Steps:
    - `python scripts/r2_setup.py --cors`
 5. Coolify ops notes:
    - phpMyAdmin akses via **http**: `http://phpmyadmin-...sslip.io/`
-   - MariaDB publik `103.175.220.31:7897` menolak user `daneswaraprod` (production recommended pakai internal hostname `e5t5yllm46db0cnsu9fwv3cv`).
+   - MariaDB publik `103.175.220.31:7897` menolak user `mariadb` (production recommended pakai internal hostname `b0vbpdmzlvngrbnqqzfvse5j`).
 
 ## 4) Success Criteria
 - Landing routes render pixel-identical to zip1 and load gallery from API.

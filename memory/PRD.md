@@ -30,4 +30,4 @@ Stack baru total: FastAPI + SQLAlchemy async + **MariaDB**, media **Cloudflare R
 ## Status / Pending (butuh user)
 - R2: nama bucket belum diketahui (token tidak bisa ListBuckets) -> isi `R2_BUCKET` di backend/.env & Coolify
 - Migrasi Mongo Atlas: IP sandbox 34.7.135.173 / VPS 103.175.220.31 harus diizinkan di Atlas Network Access
-- MariaDB baru (VPS 103.175.220.31): internal `e5t5yllm46db0cnsu9fwv3cv:3306`, publik `:6796`; remote ditolak (1130 host not allowed) sampai user `daneswaraprod`@`%` dibuat - lihat DEPLOY.md 5b
+- MariaDB baru (VPS 103.175.220.31): internal `b0vbpdmzlvngrbnqqzfvse5j:3306`, publik `:6796`; remote ditolak (1130 host not allowed) sampai user `mariadb`@`%` dibuat - lihat DEPLOY.md 5b
