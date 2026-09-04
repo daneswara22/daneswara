@@ -1,0 +1,304 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model activities {
+  id         String   @id @db.VarChar(36)
+  tenant_id  String   @db.VarChar(36)
+  user_id    String?  @db.VarChar(36)
+  user_name  String?
+  action     String
+  detail     String?  @db.Text
+  created_at DateTime @db.DateTime(0)
+
+  @@index([created_at], map: "ix_activities_created_at")
+  @@index([tenant_id], map: "ix_activities_tenant_id")
+}
+
+model categories {
+  id         String   @id @db.VarChar(36)
+  tenant_id  String   @db.VarChar(36)
+  name       String
+  color      String?  @db.VarChar(20)
+  image      String?  @db.Text
+  sort_order Int?
+  created_at DateTime @db.DateTime(0)
+
+  @@index([tenant_id], map: "ix_categories_tenant_id")
+}
+
+model customers {
+  id          String   @id @db.VarChar(36)
+  tenant_id   String   @db.VarChar(36)
+  name        String
+  phone       String?  @db.VarChar(40)
+  email       String?
+  address     String?  @db.Text
+  total_spent Float    @db.Float
+  visits      Int
+  created_at  DateTime @db.DateTime(0)
+
+  @@index([name], map: "ix_customers_name")
+  @@index([tenant_id], map: "ix_customers_tenant_id")
+}
+
+model expenses {
+  id         String   @id @db.VarChar(36)
+  tenant_id  String   @db.VarChar(36)
+  category   String
+  amount     Float    @db.Float
+  note       String?  @db.Text
+  date       DateTime @db.Date
+  user_name  String?
+  created_at DateTime @db.DateTime(0)
+
+  @@index([date], map: "ix_expenses_date")
+  @@index([tenant_id], map: "ix_expenses_tenant_id")
+}
+
+model finance_categories {
+  id         String   @id @db.VarChar(36)
+  tenant_id  String   @db.VarChar(36)
+  type       String   @db.VarChar(20)
+  name       String
+  created_at DateTime @db.DateTime(0)
+
+  @@index([tenant_id], map: "ix_finance_categories_tenant_id")
+}
+
+model gallery_items {
+  id         String   @id @db.VarChar(36)
+  tenant_id  String   @db.VarChar(36)
+  src        String   @db.Text
+  label      String
+  tag        String?  @db.VarChar(100)
+  span       String?  @db.VarChar(100)
+  sort_order Int
+  created_at DateTime @db.DateTime(0)
+
+  @@index([sort_order], map: "ix_gallery_items_sort_order")
+  @@index([tenant_id], map: "ix_gallery_items_tenant_id")
+}
+
+model held_orders {
+  id         String   @id @db.VarChar(36)
+  tenant_id  String   @db.VarChar(36)
+  label      String
+  items      String   @db.LongText
+  discount   Float    @db.Float
+  cashier    String?
+  created_at DateTime @db.DateTime(0)
+
+  @@index([tenant_id], map: "ix_held_orders_tenant_id")
+}
+
+model orders {
+  id             String    @id @db.VarChar(36)
+  tenant_id      String    @db.VarChar(36)
+  order_number   String    @db.VarChar(40)
+  customer_id    String?   @db.VarChar(36)
+  customer_name  String?
+  items          String    @db.LongText
+  subtotal       Float     @db.Float
+  discount       Float     @db.Float
+  tax_rate       Float     @db.Float
+  tax            Float     @db.Float
+  total          Float     @db.Float
+  deposit_amount Float     @db.Float
+  deposit_method String?   @db.VarChar(40)
+  remaining      Float     @db.Float
+  note           String?   @db.Text
+  order_type     String?   @db.VarChar(40)
+  channel        String?   @db.VarChar(40)
+  status         String    @db.VarChar(20)
+  cashier        String?
+  invoice        String?   @db.VarChar(40)
+  payment_method String?   @db.VarChar(40)
+  settle_paid    Float?    @db.Float
+  completed_at   DateTime? @db.DateTime(0)
+  created_at     DateTime  @db.DateTime(0)
+
+  @@index([created_at], map: "ix_orders_created_at")
+  @@index([order_number], map: "ix_orders_order_number")
+  @@index([status], map: "ix_orders_status")
+  @@index([tenant_id, created_at], map: "ix_orders_tenant_created")
+  @@index([tenant_id], map: "ix_orders_tenant_id")
+}
+
+model other_income {
+  id         String   @id @db.VarChar(36)
+  tenant_id  String   @db.VarChar(36)
+  category   String
+  amount     Float    @db.Float
+  note       String?  @db.Text
+  date       DateTime @db.Date
+  user_name  String?
+  created_at DateTime @db.DateTime(0)
+
+  @@index([date], map: "ix_other_income_date")
+  @@index([tenant_id], map: "ix_other_income_tenant_id")
+}
+
+model products {
+  id          String   @id @db.VarChar(36)
+  tenant_id   String   @db.VarChar(36)
+  name        String
+  sku         String?  @db.VarChar(100)
+  barcode     String?  @db.VarChar(100)
+  category_id String?  @db.VarChar(36)
+  price       Float    @db.Float
+  cost        Float    @db.Float
+  stock       Int
+  min_stock   Int
+  unit        String?  @db.VarChar(30)
+  image       String?  @db.Text
+  description String?  @db.Text
+  active      Boolean
+  sort_order  Int?
+  created_at  DateTime @db.DateTime(0)
+
+  @@index([category_id], map: "ix_products_category_id")
+  @@index([sku], map: "ix_products_sku")
+  @@index([tenant_id], map: "ix_products_tenant_id")
+  @@index([tenant_id, sort_order], map: "ix_products_tenant_sort")
+}
+
+model purchases {
+  id            String    @id @db.VarChar(36)
+  tenant_id     String    @db.VarChar(36)
+  po_number     String    @db.VarChar(40)
+  supplier_id   String?   @db.VarChar(36)
+  supplier_name String?
+  items         String    @db.LongText
+  total         Float     @db.Float
+  note          String?   @db.Text
+  customer_name String?
+  order_id      String?   @db.VarChar(36)
+  order_number  String?   @db.VarChar(40)
+  status        String    @db.VarChar(20)
+  cashier       String?
+  received_at   DateTime? @db.DateTime(0)
+  created_at    DateTime  @db.DateTime(0)
+
+  @@index([created_at], map: "ix_purchases_created_at")
+  @@index([order_id], map: "ix_purchases_order_id")
+  @@index([po_number], map: "ix_purchases_po_number")
+  @@index([status], map: "ix_purchases_status")
+  @@index([tenant_id], map: "ix_purchases_tenant_id")
+}
+
+model sales {
+  id             String    @id @db.VarChar(36)
+  tenant_id      String    @db.VarChar(36)
+  invoice        String    @db.VarChar(40)
+  items          String    @db.LongText
+  subtotal       Float     @db.Float
+  discount       Float     @db.Float
+  tax_rate       Float     @db.Float
+  tax            Float     @db.Float
+  total          Float     @db.Float
+  cost           Float     @db.Float
+  profit         Float     @db.Float
+  payment_method String    @db.VarChar(40)
+  paid_amount    Float     @db.Float
+  change         Float     @db.Float
+  customer_name  String?
+  customer_id    String?   @db.VarChar(36)
+  customer_phone String?   @db.VarChar(40)
+  channel        String?   @db.VarChar(40)
+  from_order     String?   @db.VarChar(40)
+  cashier        String?
+  cashier_id     String?   @db.VarChar(36)
+  refunded       Boolean
+  refunded_at    DateTime? @db.DateTime(0)
+  created_at     DateTime  @db.DateTime(0)
+
+  @@index([created_at], map: "ix_sales_created_at")
+  @@index([customer_id], map: "ix_sales_customer_id")
+  @@index([invoice], map: "ix_sales_invoice")
+  @@index([refunded], map: "ix_sales_refunded")
+  @@index([tenant_id, created_at], map: "ix_sales_tenant_created")
+  @@index([tenant_id], map: "ix_sales_tenant_id")
+}
+
+model settings {
+  tenant_id      String  @id @db.VarChar(36)
+  business_name  String?
+  address        String? @db.Text
+  phone          String? @db.VarChar(40)
+  currency       String? @db.VarChar(10)
+  tax_rate       Float?  @db.Float
+  receipt_footer String? @db.Text
+  logo           String? @db.Text
+  print_mode     String? @db.VarChar(20)
+  paper_width    String? @db.VarChar(10)
+  printers       String? @db.LongText
+  active_printer String? @db.VarChar(100)
+}
+
+model stock_movements {
+  id           String   @id @db.VarChar(36)
+  tenant_id    String   @db.VarChar(36)
+  product_id   String   @db.VarChar(36)
+  product_name String
+  type         String   @db.VarChar(20)
+  qty          Int
+  before       Int
+  after        Int
+  note         String?  @db.Text
+  user_name    String?
+  created_at   DateTime @db.DateTime(0)
+
+  @@index([created_at], map: "ix_stock_movements_created_at")
+  @@index([product_id], map: "ix_stock_movements_product_id")
+  @@index([tenant_id], map: "ix_stock_movements_tenant_id")
+}
+
+model suppliers {
+  id         String   @id @db.VarChar(36)
+  tenant_id  String   @db.VarChar(36)
+  name       String
+  phone      String?  @db.VarChar(40)
+  email      String?
+  address    String?  @db.Text
+  created_at DateTime @db.DateTime(0)
+
+  @@index([tenant_id], map: "ix_suppliers_tenant_id")
+}
+
+model tenants {
+  id         String   @id @db.VarChar(36)
+  name       String
+  created_at DateTime @db.DateTime(0)
+}
+
+model user_settings {
+  id             String  @id @db.VarChar(36)
+  tenant_id      String  @db.VarChar(36)
+  user_id        String  @db.VarChar(36)
+  print_mode     String? @db.VarChar(20)
+  paper_width    String? @db.VarChar(10)
+  printers       String? @db.LongText
+  active_printer String? @db.VarChar(100)
+
+  @@index([tenant_id], map: "ix_user_settings_tenant_id")
+  @@index([user_id], map: "ix_user_settings_user_id")
+}
+
+model users {
+  id            String   @id @db.VarChar(36)
+  tenant_id     String   @db.VarChar(36)
+  username      String   @unique(map: "ix_users_username") @db.VarChar(100)
+  password_hash String   @db.VarChar(255)
+  name          String
+  role          String   @db.VarChar(20)
+  active        Boolean
+  created_at    DateTime @db.DateTime(0)
+
+  @@index([tenant_id], map: "ix_users_tenant_id")
+}

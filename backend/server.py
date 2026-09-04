@@ -1,97 +1,70 @@
-"""Daneswara API - FastAPI + SQLAlchemy(async) + MariaDB + Cloudflare R2.
-
-Run (dev):  uvicorn server:app --host 0.0.0.0 --port 8001 --reload
+"""Preview bridge: minimal FastAPI proxy that forwards /api/* -> Next.js on port 3000.
+Supervisor keeps this running as 'backend' program. Used ONLY in the Emergent sandbox
+where ingress routes /api -> 8001 while Next.js runs on 3000. Not used in Coolify prod
+(the standalone Next.js Dockerfile serves both pages and API on the same port).
 """
+import os
+import asyncio
 import logging
-from contextlib import asynccontextmanager
+import httpx
+from fastapi import FastAPI, Request, Response
+from fastapi.responses import StreamingResponse
 
-from fastapi import APIRouter, FastAPI
-from fastapi.staticfiles import StaticFiles
-from sqlalchemy import text
-from starlette.middleware.cors import CORSMiddleware
+logging.basicConfig(level=logging.INFO)
+log = logging.getLogger('bridge')
 
-from app.config import settings
-from app.db import SessionLocal, engine, init_db
-from app.routers import admin, auth, catalog, customers, finance, gallery, orders, purchases, reports, sales, settings as settings_router, uploads, users
-from app.seed import run_seed
-from app.storage import storage
+NEXT_URL = os.environ.get('NEXT_URL', 'http://127.0.0.1:3000')
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-logger = logging.getLogger("daneswara")
+app = FastAPI(title='Daneswara Preview Bridge')
 
-
-async def wait_for_db(max_seconds: int = 120) -> None:
-    """Retry schema init until MariaDB is reachable (container/DB may start after the API)."""
-    import asyncio
-
-    deadline = asyncio.get_running_loop().time() + max_seconds
-    attempt = 0
-    while True:
+# Wait for Next.js to be up before starting to serve.
+@app.on_event('startup')
+async def wait_for_next():
+    log.info('Waiting for Next.js at %s ...', NEXT_URL)
+    for i in range(60):
         try:
-            await init_db()
-            return
-        except Exception as e:
-            attempt += 1
-            if asyncio.get_running_loop().time() > deadline:
-                logger.error("Database still unreachable after %ss: %s", max_seconds, e)
-                raise
-            logger.warning("Database not ready (attempt %d): %s - retrying in 3s", attempt, str(e).splitlines()[0][:160])
-            await asyncio.sleep(3)
+            async with httpx.AsyncClient(timeout=2.0) as c:
+                r = await c.get(NEXT_URL + '/api/health')
+                if r.status_code < 500:
+                    log.info('Next.js reachable (status=%s) after %ds', r.status_code, i)
+                    return
+        except Exception:
+            pass
+        await asyncio.sleep(1)
+    log.warning('Next.js did not respond within 60s; bridge will still try to forward.')
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    await wait_for_db()
-    async with SessionLocal() as db:
-        try:
-            await run_seed(db)
-        except Exception as e:  # never block startup on seed problems
-            logger.exception("Seed failed: %s", e)
-    logger.info("Daneswara API ready | storage=%s | tz=%s", storage.backend, settings.TIMEZONE)
-    yield
-    await engine.dispose()
+@app.get('/health')
+async def bridge_health():
+    return {'status': 'ok', 'proxy_to': NEXT_URL}
 
 
-app = FastAPI(title="Daneswara API", version="2.0.0", lifespan=lifespan)
-
-api = APIRouter(prefix="/api")
-for r in (auth.router, users.router, catalog.router, sales.router, orders.router, purchases.router, customers.router,
-          finance.router, reports.router, settings_router.router, admin.router, gallery.router, uploads.router):
-    api.include_router(r)
-
-
-@api.get("/")
-async def api_root():
-    return {"message": "Daneswara API", "version": "2.0.0", "storage": storage.backend}
-
-
-@api.get("/health")
-async def api_health():
+async def proxy(request: Request, path: str) -> Response:
+    url = f"{NEXT_URL}/api/{path}"
+    method = request.method
+    body = await request.body()
+    hop_by_hop = {'host', 'content-length', 'connection', 'accept-encoding'}
+    headers = {k: v for k, v in request.headers.items() if k.lower() not in hop_by_hop}
+    params = dict(request.query_params)
     try:
-        async with engine.connect() as conn:
-            await conn.execute(text("SELECT 1"))
-        db_ok = True
-    except Exception:
-        db_ok = False
-    return {"status": "healthy" if db_ok else "degraded", "database": "ok" if db_ok else "error", "storage": storage.backend}
+        async with httpx.AsyncClient(timeout=120.0, follow_redirects=False) as c:
+            r = await c.request(method, url, content=body, headers=headers, params=params)
+        resp_headers = {k: v for k, v in r.headers.items() if k.lower() not in {'content-length', 'transfer-encoding', 'connection'}}
+        return Response(content=r.content, status_code=r.status_code, headers=resp_headers, media_type=r.headers.get('content-type'))
+    except httpx.ConnectError:
+        return Response(content='{"detail":"Backend Next.js not reachable"}', status_code=502, media_type='application/json')
+    except Exception as e:
+        log.exception('proxy error')
+        return Response(content=f'{{"detail":"proxy error: {e}"}}', status_code=500, media_type='application/json')
 
 
-app.include_router(api)
-
-# Local storage fallback (only used when R2 is not configured)
-settings.UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-app.mount("/api/files", StaticFiles(directory=str(settings.UPLOAD_DIR)), name="files")
-
-
-@app.get("/health")
-async def health():
-    return {"status": "healthy"}
+# Wildcard route to forward everything /api/* to Next.js
+@app.api_route('/api/{path:path}', methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'])
+async def api_proxy(request: Request, path: str):
+    return await proxy(request, path)
 
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_credentials=True,
-    allow_origins=settings.CORS_ORIGINS or ["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Root - useful for supervisor readiness probes
+@app.get('/')
+async def root():
+    return {'service': 'daneswara-preview-bridge', 'proxy_to': NEXT_URL}
