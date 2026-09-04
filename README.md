@@ -34,6 +34,9 @@
 13. [FAQ Operasional](#13--faq-operasional)
 14. [Lisensi](#14--lisensi)
 
+> **AI agent / kontributor baru?** Baca **[`AGENTS.md`](./AGENTS.md)** dulu — arsitektur, cara
+> menjalankan, jebakan yang sudah diketahui, dan **workflow Git wajib (selalu PR, merge manual)**.
+
 ---
 
 ## 1 · Apa itu Daneswara
@@ -194,7 +197,10 @@ OWNER_BUSINESS=Daneswara Print
 
 # App
 TIMEZONE=Asia/Makassar
-PUBLIC_BASE_URL=https://daneswaraprint.com
+PUBLIC_BASE_URL=https://daneswara.com
+# URL dashboard POS (dipakai link "Admin" di footer landing bila POS ada di subdomain terpisah,
+# mis. https://pos.daneswara.com). NEXT_PUBLIC_* di-"bake" saat `next build`, set SEBELUM build.
+NEXT_PUBLIC_POS_URL=https://pos.daneswara.com
 UPLOAD_DIR=/data/uploads
 
 # Cloudflare R2 (kosongkan R2_BUCKET untuk fallback disk)
@@ -260,6 +266,7 @@ GET/POST      /api/categories       PUT/DELETE /api/categories/[cid]
 POST          /api/categories/reorder
 POST          /api/stock            GET /api/stock/movements
 POST          /api/upload           GET /api/files/[...path]
+GET           /api/media?url=...    # proxy media same-origin (CORS-safe untuk canvas/struk)
 ```
 </details>
 
@@ -305,7 +312,23 @@ yarn prisma:generate   # generate Prisma client
 yarn prisma:pull       # introspeksi ulang skema dari DB
 yarn test:core         # sanity check koneksi DB + R2 (tsx scripts/test-core.ts)
 node scripts/verify-bcrypt.ts   # cek hash password
+
+# Buat / reset akun Owner (idempotent). Password via argumen atau env OWNER_PASSWORD.
+npx tsx scripts/ensure-admin.ts admin 'PasswordBaru123!'
 ```
+
+```bash
+cd backend
+# Pasang kebijakan CORS bucket R2 (butuh token R2 "Admin Read & Write").
+# Wajib supaya logo pada struk/voucher (html2canvas + ESC/POS) tidak ke-taint saat
+# di-load dari cdn.daneswara.com. Origin diambil dari daftar di skrip + PUBLIC_BASE_URL.
+python scripts/r2_cors.py          # apply + verifikasi
+python scripts/r2_cors.py --show   # lihat kebijakan aktif saja
+```
+
+> **Catatan CORS:** meski bucket sudah ber-CORS, aplikasi tetap merutekan gambar remote lewat
+> proxy same-origin `GET /api/media?url=...` (lihat `web/lib/media.ts`). Ini fix utama yang tidak
+> bergantung pada cache CDN; skrip R2 CORS adalah lapis pengaman tambahan.
 
 ---
 
