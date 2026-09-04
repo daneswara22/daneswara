@@ -34,6 +34,25 @@ export function useSearchParamsCompat() {
   return useSearchParams();
 }
 
+// react-router-dom compatible: returns [searchParams, setSearchParams] tuple.
+// `searchParams` is Next.js ReadonlyURLSearchParams (has .get/.getAll/.has/etc).
+export function useSearchParams_rr(): [ReturnType<typeof useSearchParams>, (next: any, opts?: { replace?: boolean }) => void] {
+  const params = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const setSearchParams = useCallback((next: any, opts?: { replace?: boolean }) => {
+    const usp = new URLSearchParams(
+      typeof next === 'function' ? next(new URLSearchParams(params?.toString() || '')) : next,
+    );
+    const qs = usp.toString();
+    const url = qs ? `${pathname}?${qs}` : pathname;
+    if (opts?.replace) router.replace(url);
+    else router.push(url);
+  }, [params, router, pathname]);
+  return [params, setSearchParams];
+}
+export { useSearchParams_rr as useSearchParams };
+
 interface NavLinkProps {
   to: string;
   end?: boolean;
