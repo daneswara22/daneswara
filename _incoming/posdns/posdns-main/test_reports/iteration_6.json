@@ -1,0 +1,60 @@
+{
+  "summary": "Re-tested Produk + Supplier pages after crash fixes (Products.jsx useViewMode, Suppliers.jsx ViewToggle import) + product NumberInput save + POS Tunai checkout regression. ALL scenarios pass. Neither page shows a blank/crash screen, view toggles + persistence work, NumberInput saves raw number correctly, POS Tunai checkout with 1.000.000 paid produces correct Kembalian.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "detailed_results": {
+    "produk_page": {
+      "loads_without_crash": true,
+      "product_search_filters": "PASS (empty state 'Belum ada produk.' shown for nomatch)",
+      "view_toggle_default_list": "PASS (localStorage key 'view-products' unset -> list active; useViewMode default is 'list')",
+      "view_besar_renders_grid": "PASS (product-grid + 300 product-card-<id> nodes)",
+      "view_kecil_renders_grid": "PASS",
+      "view_list_restores_table": "PASS",
+      "persistence_after_reload": "PASS (localStorage 'view-products' = 'besar' persists; grid still shown after reload)"
+    },
+    "produk_numberinput_save": {
+      "displayed_price_while_typing_1500000": "1.500.000 (correct id-ID separators)",
+      "displayed_stock_while_typing_25": "25",
+      "saved_row_displays": "Rp1.500.000 / 25 pcs",
+      "reload_persistence": "PASS - Rp1.500.000 still shown after reload",
+      "api_verification": "GET /api/products returned price=1500000 (typeof number), stock=25 -> raw numeric stored correctly"
+    },
+    "supplier_page": {
+      "loads_without_crash": true,
+      "supplier_search_filters": "PASS (0 supplier-<id> nodes for 'zzz_nomatch')",
+      "view_besar_persist": "3 supplier-<id> items, ls='besar'",
+      "view_kecil_persist": "3 items, ls='kecil'",
+      "view_list_persist": "3 items, ls='list'",
+      "default_mode_when_ls_missing": "PASS - view-besar button is active (bg-primary) after localStorage.removeItem('view-suppliers')"
+    },
+    "pos_regression": {
+      "cart_added": "APRON - Drill SS 1x Rp62.000 via variant modal + Selesai",
+      "pay_cash_input_formatting": "typed 1000000 -> displayed 1.000.000",
+      "receipt_total": "Rp62.000",
+      "receipt_tunai_paid": "Rp1.000.000",
+      "receipt_kembalian": "Rp938.000 (=1.000.000 - 62.000, arithmetic correct; NumberInput separator formatting NOT breaking numeric value)",
+      "invoice_created": "INV-260805-0002 (verified in dashboard Aktivitas Terbaru)"
+    }
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "NumberInput: emits Number for non-empty and '' for empty; parent Produk save coerces via Number(form.price) - safe. Good.",
+    "ViewToggle useViewMode: default arg used only when localStorage key missing. Products default 'list', Suppliers default 'besar' - matches spec.",
+    "Suppliers.jsx has data-testid=\"supplier-list\" on container AND data-testid=\"supplier-<id>\" on each item; note that `Array.from(...).filter(/^supplier-[0-9a-fA-F-]{8,}/)` was needed to differentiate. Not a bug, just worth knowing for future tests.",
+    "Products.jsx Dialog manually resets document.body.style.pointerEvents on close - kept from prior fix, working correctly (no overlay blocking observed)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (frontend-only run)", "frontend": "100% (5/5 scenarios pass)"},
+  "test_credentials": "admin / Limited0 (from /app/memory/test_credentials.md — note request said 'Limited0.' with trailing dot which is WRONG; correct password has no dot)",
+  "seed_data_creation": "Created 1 TEST_NumInput_<ts> product to validate save flow; DELETED via API after verification (status 200). One POS sale INV-260805-0002 (Rp62.000) was created and NOT reversed — main agent may reset transaction data if needed.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iteration_5 crashes on /produk and /supplier are fully resolved. All view toggle + NumberInput + POS pay-cash-input regression scenarios pass. Password is 'Limited0' (no dot). If retesting POS, note that clicking a POS category tile opens a variant selection modal - must add a variant with + then click 'Selesai — Tambah N item' before Bayar; use data-testid pos-cat-tile-<id>, pos-pay-button, pay-cash-input, pay-confirm-button.",
+  "rca of the issue": "N/A - previous crashes already fixed. Verified fixes: Products.jsx line 26 now has useViewMode('view-products','list'); Suppliers.jsx imports ViewToggle+useViewMode from '@/components/ViewToggle'."
+}

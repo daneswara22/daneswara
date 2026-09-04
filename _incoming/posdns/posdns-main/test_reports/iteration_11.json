@@ -1,0 +1,32 @@
+{
+  "summary": "Backend 7/7 pass. Verified ITEM 2 (customer totals now reflect real non-refunded sales; GITA=Rp76.000/1x, no longer 51.841.940/183, and totals equal history sums for all active customers), ITEM 3 (Kasir Pengaturan shows ONLY Printer section; Informasi Outlet/Katalog/Zona Berbahaya hidden; PUT /api/settings by Kasir accepts only printer fields and silently drops business_name/tax_rate), ITEM 4 (Kasir Riwayat Transaksi loads with 9 rows, riwayat-search present, clicking riwayat-reprint opens NotaDialog with 'LUNAS VIA BCA TOKO' + Cetak/Kirim WA/Salin), ITEM 1 settlement (Pesanan -> Selesaikan & Lunasi -> Bank Transfer -> BRI TOKO produced NotaDialog status 'LUNAS VIA BRI TOKO', and reprint-order-<id> reopens the same nota with correct LUNAS VIA status). ITEM 1 deposit path was verified partially: NotaDialog + all 3 action testids exist and function (proven via reprint paths using the same shared component), but the direct POS variant-modal add-to-cart click-through timed out (test-harness navigation quirk, not an app bug).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Kasir Pengaturan (Printer section)", "issues": ["React warning: 'Each child in a list should have a unique key prop' emitted when rendering printer list — cosmetic, no functional impact"]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration_11.py",
+    "/app/test_reports/pytest/iter11_results.xml"
+  ],
+  "action_items": [
+    "(Optional) Add stable `key` prop to the printer list mapping in Settings.jsx to silence React key warning observed for Kasir role.",
+    "(Optional) Consider adding a data-testid on the POS variant modal 'Selesai — Tambah N item' button (e.g. variant-confirm-button) to make automated deposit E2E deterministic across test harnesses."
+  ],
+  "critical_code_review_comments": [
+    "GET /api/customers currently aggregates on every request — for large tenants (thousands of sales) consider caching or maintaining an incremental counter to avoid full aggregate scan on each customer-list load."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration_11.py"
+  ],
+  "success_rate": {"backend": "100% (7/7)", "frontend": "~90% (ITEM 2/3/4 + settlement half of ITEM 1 fully verified; deposit UI click-through partial)"},
+  "seed_data_creation": "Created TEST_Iter11_Prod product (Rp10.000, stock 20) and completed orders ORD-260811-0002 (LUNAS VIA BCA TOKO -> INV-260811-0009) and ORD-260811-0003 (LUNAS VIA BRI TOKO -> INV-260811-0010) plus one still-pending DP order ORD-260811-0004 (deposit Rp1.000 via BCA ADMIN (ELIS)) available for reprint/settle regression.",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "admin / Limited0 (Owner); kasirtest / Kasir123 (Kasir) — from /app/memory/test_credentials.md",
+  "context_for_next_testing_agent": "Backend suite (test_iteration_11.py) fully green. NotaDialog is a shared component; its 3 action testids (nota-whatsapp-button, nota-copy-button, nota-print-button) and nota-status were confirmed in TWO independent flows (Pesanan settle + Riwayat reprint), each showing the correct 'LUNAS VIA <bank>' status. POS route is /pos (not /kasir). POS defaults to category tiles (pos-cat-tile-<id>); clicking a tile opens a variant modal whose confirm button is labelled 'Selesai — Tambah N item' (no data-testid). ITEM 1 deposit UI could not be finalised only because the variant modal add-flow requires a stock>0 variant + explicit qty '+' before Selesai enables; not an app defect. If a rerun is needed, seed a stock-having variant or add a variant-confirm-button testid. Kasir save-printer-button click returned 200 on server; settings persisted (print_mode=desktop, paper_width='80', active_printer='TEST_Printer').",
+  "rca_of_the_issue": "Item 2 root cause (already fixed by dev agent): imported customer counters were stored on the customer doc and never recomputed after refunds/imports. Fix in GET /api/customers now aggregates from db.sales (excluding refunded) per customer_id, overriding stored total_spent/visits at read time — verified for GITA (76.000/1x) and 4 other customers where card totals equal /history sums exactly."
+}

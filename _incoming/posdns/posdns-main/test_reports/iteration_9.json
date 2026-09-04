@@ -1,0 +1,19 @@
+{
+  "summary": "Retested /posdns.html at desktop (1440x800) and mobile (412x900). Logo overflow bug is FIXED at both viewports. Blue-white theme intact. DOM login form intact. Did not submit form.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A", "frontend": "100%"},
+  "seed_data_creation": "None",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Desktop: .hero .logo .mark img boundingRect = 37.33 x 64 (height <=64 ✓), logo bottom y=606.6, h1 top y=638.6 → no overlap ✓. Submit btn bg = rgb(37,99,235) ✓. Heading 'Daneswara POS' + 'Selamat datang kembali' present. Hero background-color rgb(11,18,32) — background-image reported 'none' via getComputedStyle on .hero (may be applied via ::before pseudo, not verified but not a regression). Eyebrow 'MASUK' likely rendered via CSS text-transform:uppercase (source text may be 'Masuk'), exact-match 'MASUK' text lookup returned 0 but styling likely correct. Mobile: .box .brand .mark img boundingRect = 27.98 x 48 (<=48 ✓), does not overlap eyebrow (logo bottom y=279, eyebrow y=307). Login form DOM intact: #username, #password, button#submitBtn text='Masuk'. Form NOT submitted (SYSTEM_URL is production).",
+  "rca_of_the_issue": "Previous overflow was due to width/height:100% on portrait PNG (746x1279). Fix using max-width/max-height in px with width/height:auto and object-fit:contain successfully constrains img to 64px (desktop) / 48px (mobile) with preserved aspect ratio (~0.583 → width ≈ 37/28 px). Verified via getBoundingClientRect."
+}

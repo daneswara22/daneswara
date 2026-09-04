@@ -1,0 +1,39 @@
+{
+  "summary": "Frontend-only verification of the BLE printer keep-alive / auto-reconnect refactor (printer.js + Settings.jsx). Logged in as admin/Limited0. Verified: (1) /pengaturan renders fully with ZERO console errors, ZERO pageerrors and ZERO unhandled promise rejections on mount (restorePrinterConnection runs safely even when navigator.bluetooth/getDevices are absent). (2) Bluetooth status UI: after activating a printer with connection 'Bluetooth Thermal (BLE)', the status block shows data-testid='bt-status' = 'Belum terhubung', the keep-alive helper copy 'Koneksi dijaga otomatis (keep-alive) dan akan tersambung ulang sendiri...' and 'Hubungkan Printer' (bt-connect-button). Clicking Connect with no hardware (NotFoundError) is swallowed silently with no crash. (3) Using an injected fake BLE device (test-side navigator.bluetooth mock) the new logic was exercised end-to-end: connect -> status 'Terhubung · <name>'; watchdog sends the 0x00 keep-alive every ~8s; a gattserverdisconnected drop auto-reconnects (gatt.connect called again, status back to 'Terhubung', keep-alive resumes); 'Putuskan' stops the watchdog (no further writes, no reconnect attempts); after a FULL page reload of /pengaturan, restorePrinterConnection silently re-established the link (status 'Terhubung' without user gesture). (4) BLE print via Pesanan > Nota > Cetak wrote 70 chunks / 12,340 ESC-POS bytes and toasted 'Nota dikirim ke printer Bluetooth'. (5) Regressions pass: desktop-mode Cetak produced no error toast; 'Bagikan Nota sebagai Gambar' downloaded nota-INV-260811-0008.png with success toast; 'Simpan Mode Cetak' toasted 'Pengaturan printer disimpan di perangkat ini' and setDevicePrinterConfig correctly MERGED (pre-seeded last_device_id 'TEST-DEV-ID' and printers list both preserved). Two real gaps in the fix were found (see frontend_issues).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "BLE link restore after page reload on any page except Pengaturan",
+        "issue": "restorePrinterConnection() is called ONLY in Settings.jsx. Reproduced: connect BLE printer (persisted last_device_id in pos_printer_config_v1), then hard-load /pesanan directly -> no reconnect attempt at all (mock gatt.connect count = 0) and Nota > Cetak fails with 'Printer Bluetooth belum terhubung di perangkat ini. Hubungkan dulu lewat menu Pengaturan...'. A cashier who refreshes the POS/Pesanan tab therefore loses printing until they visit Pengaturan, which contradicts the goal of an always-alive link. Fix: call restorePrinterConnection() once at app root (App.jsx / authenticated layout) so the link is restored regardless of the landing route.",
+        "affected_selectors": ["nota-print-button", "bt-status"]
+      },
+      {
+        "flow": "Print while the BLE link has silently died (idle GATT death, disconnect event not yet delivered)",
+        "issue": "printReceiptSmart only pre-emptively reconnects when isPrinterConnected() is false (btChar === null). If the GATT link is dead but btChar is still cached (no gattserverdisconnected event yet - the exact race in the reported bug), writeBytes throws and the user gets a RAW technical toast 'GATT disconnected' with a partially/never printed receipt and NO retry. Fix: wrap the writeBytes call in printReceiptSmart with a catch that calls reconnectPrinter(6) and retries the full ESC/POS stream once, and map raw BLE errors to an Indonesian message.",
+        "affected_selectors": ["nota-print-button"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Call restorePrinterConnection() (and setPrinterStatusCallback) at app root so the BLE link is restored on every page/refresh, not only on /pengaturan.",
+    "Add reconnect-and-retry around the BLE write in printReceiptSmart so a silently-dead link does not surface a raw 'GATT disconnected' toast and lose the receipt.",
+    "Optional: the print-mode UI has no standalone 'Mode Cetak' select anymore (mode is derived from the ACTIVE printer in 'Daftar Printer'); update any docs/QA steps that still reference a Mode Cetak dropdown."
+  ],
+  "critical_code_review_comments": [
+    "printer.js: watchdog keep-alive writes 0x00 every 8s indefinitely while connected; harmless for ESC/POS but consider pausing while a print job is in flight beyond the safeWrite mutex to avoid interleaving delays on slow printers.",
+    "Settings.jsx unmount does setPrinterStatusCallback(null): a drop that happens after leaving Pengaturan produces no UI signal anywhere in the app (silent). Consider a global status store/badge.",
+    "printer.js reconnectPrinter is module-private; exporting it (or a 'ensurePrinterReady()') would let print call sites recover explicitly."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "85% (all requested acceptance checks passed; 2 auto-reconnect coverage gaps found)"},
+  "seed_data_creation": "None persistent. Test-only localStorage printers (TEST_BT_PRINTER / TEST_DESKTOP_PRINTER) were created and deleted at the end of each run; used existing paid order INV-260811-0008.",
+  "should_call_test_agent_after_fix": true,
+  "should_main_agent_self_test": false,
+  "test_credentials": "admin / Limited0 (Owner)",
+  "context_for_next_testing_agent": "Headless Chromium has NO navigator.bluetooth. To exercise BLE logic, inject a fake device via page.add_init_script defining navigator.bluetooth.requestDevice/getDevices returning an object with {id,name,gatt:{connect,disconnect,getPrimaryServices}} and a fake characteristic with properties.writeWithoutResponse; record writes to window.__writes and connects to window.__connectCount. Print mode is NOT a select anymore: add a printer via add-printer-button > printer-name-input > printer-connection-select ('Bluetooth Thermal (BLE)' / 'USB / Desktop') > printer-save-button, then save-printer-button. BT block testids: bt-status, bt-connect-button, bt-disconnect-button, bt-unsupported. Nota flow: reprint-order-<id> > nota-dialog > nota-print-button / nota-share-image-button. Sonner toasts auto-dismiss in ~4s so read toasts within ~2.5s of the action.",
+  "rca_of_the_issue": "The keep-alive (8s NUL write) + gattserverdisconnected auto-reconnect with backoff + getDevices-based silent restore all work as designed (verified with a mocked BLE device). Remaining exposure: (a) restore is bound to the Settings page mount only, so a refresh on any other route leaves the printer unconnected; (b) a link that dies without the disconnect event still yields a hard failure on print because the reconnect pre-check keys off a cached btChar."
+}
