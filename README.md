@@ -34,8 +34,7 @@
 13. [FAQ Operasional](#13--faq-operasional)
 14. [Lisensi](#14--lisensi)
 
-> **AI agent / kontributor baru?** Baca **[`AGENTS.md`](./AGENTS.md)** dulu — arsitektur, cara
-> menjalankan, jebakan yang sudah diketahui, dan **workflow Git wajib (selalu PR, merge manual)**.
+> Baru pertama kali masuk, baik sebagai AI agent maupun kontributor? Baca [`AGENTS.md`](./AGENTS.md) lebih dulu. Di sana ada gambaran arsitektur, cara menjalankan, hal-hal yang pernah bikin masalah, dan aturan Git yang dipakai proyek ini (selalu lewat pull request, dan pemilik yang merge).
 
 ---
 
@@ -198,8 +197,9 @@ OWNER_BUSINESS=Daneswara Print
 # App
 TIMEZONE=Asia/Makassar
 PUBLIC_BASE_URL=https://daneswara.com
-# URL dashboard POS (dipakai link "Admin" di footer landing bila POS ada di subdomain terpisah,
-# mis. https://pos.daneswara.com). NEXT_PUBLIC_* di-"bake" saat `next build`, set SEBELUM build.
+# URL dashboard POS. Dipakai untuk link "Admin" di footer landing kalau POS berada di
+# subdomain terpisah, misalnya https://pos.daneswara.com. Nilai NEXT_PUBLIC ikut ditanam
+# saat next build, jadi set dulu sebelum build, bukan saat aplikasi jalan.
 NEXT_PUBLIC_POS_URL=https://pos.daneswara.com
 UPLOAD_DIR=/data/uploads
 
@@ -218,7 +218,7 @@ SEED_CUSTOMERS=true
 SEED_GALLERY=true
 ```
 
-> **Catatan produksi Coolify:** dari dalam VPS gunakan host internal MariaDB; dari luar gunakan TCP proxy publik `HOST:6796`.
+Catatan untuk produksi di Coolify: dari dalam VPS pakai alamat MariaDB yang internal, sedangkan dari luar VPS pakai proxy TCP publik `HOST:6796`.
 
 ---
 
@@ -266,7 +266,7 @@ GET/POST      /api/categories       PUT/DELETE /api/categories/[cid]
 POST          /api/categories/reorder
 POST          /api/stock            GET /api/stock/movements
 POST          /api/upload           GET /api/files/[...path]
-GET           /api/media?url=...    # proxy media same-origin (CORS-safe untuk canvas/struk)
+GET           /api/media?url=...    # proxy media satu domain, aman untuk canvas/struk
 ```
 </details>
 
@@ -319,16 +319,15 @@ npx tsx scripts/ensure-admin.ts admin 'PasswordBaru123!'
 
 ```bash
 cd backend
-# Pasang kebijakan CORS bucket R2 (butuh token R2 "Admin Read & Write").
-# Wajib supaya logo pada struk/voucher (html2canvas + ESC/POS) tidak ke-taint saat
-# di-load dari cdn.daneswara.com. Origin diambil dari daftar di skrip + PUBLIC_BASE_URL.
-python scripts/r2_cors.py          # apply + verifikasi
-python scripts/r2_cors.py --show   # lihat kebijakan aktif saja
+# Pasang kebijakan CORS bucket R2 (butuh token R2 dengan izin Admin baca tulis).
+# Ini penting supaya logo pada struk dan voucher tidak hilang saat digambar ke canvas
+# (html2canvas dan ESC/POS) padahal gambarnya diambil dari cdn.daneswara.com. Daftar
+# origin diambil dari isi skrip ditambah PUBLIC_BASE_URL.
+python scripts/r2_cors.py          # pasang lalu verifikasi
+python scripts/r2_cors.py --show   # cuma lihat kebijakan yang aktif
 ```
 
-> **Catatan CORS:** meski bucket sudah ber-CORS, aplikasi tetap merutekan gambar remote lewat
-> proxy same-origin `GET /api/media?url=...` (lihat `web/lib/media.ts`). Ini fix utama yang tidak
-> bergantung pada cache CDN; skrip R2 CORS adalah lapis pengaman tambahan.
+Catatan soal CORS: meski bucket sudah punya CORS, aplikasi tetap mengalihkan gambar dari luar lewat proxy satu domain di `GET /api/media?url=...` (lihat `web/lib/media.ts`). Proxy inilah perbaikan utamanya karena tidak bergantung pada cache CDN, sedangkan CORS bucket hanya lapis pengaman tambahan.
 
 ---
 
