@@ -10,7 +10,7 @@ Arsitektur produksi:
 ## 1. Persiapan
 
 - MariaDB sudah ada di project **Daneswara Client / production** (`MariadbSQL`). Internal URL:
-  `mysql://daneswaraprod:<password>@e5t5yllm46db0cnsu9fwv3cv:3306/default`
+  `mysql://mariadb:<password>@b0vbpdmzlvngrbnqqzfvse5j:3306/default`
 - Repo GitHub berisi `docker-compose.yml`, `backend/Dockerfile`, `frontend/Dockerfile`.
 
 ## 2. Buat resource di Coolify
@@ -35,7 +35,7 @@ Ada **dua cara** (pilih salah satu):
 
    | Key | Nilai |
    |---|---|
-   | `DATABASE_URL` | `mysql://daneswaraprod:<password>@e5t5yllm46db0cnsu9fwv3cv:3306/default` |
+   | `DATABASE_URL` | `mysql://mariadb:<password>@b0vbpdmzlvngrbnqqzfvse5j:3306/default` |
    | `JWT_SECRET` | string acak panjang |
    | `OWNER_USERNAME` / `OWNER_PASSWORD` | akun owner pertama |
    | `PUBLIC_BASE_URL` | `https://daneswaraprint.com` (domain situs) |
@@ -46,7 +46,7 @@ Ada **dua cara** (pilih salah satu):
 Cek setelah deploy: `https://<domain>/api/health` -> `{"status":"healthy","database":"ok",...}`.
 
 > Container app harus berada di jaringan Docker yang sama dengan MariaDB Coolify (default: network `coolify`).
-> Jika `DATABASE_URL` internal tidak resolve, pakai URL publik `mysql://daneswaraprod:<password>@103.175.220.31:6796/default` (butuh user `'daneswaraprod'@'%'`, lihat bagian 5b).
+> Jika `DATABASE_URL` internal tidak resolve, pakai URL publik `mysql://mariadb:<password>@103.175.220.31:6796/default` (butuh user `'mariadb'@'%'`, lihat bagian 5b).
 
 ## 3. Migrasi data lama (MongoDB Atlas -> MariaDB)
 
@@ -82,27 +82,22 @@ Semua upload dari dashboard (galeri, gambar produk/kategori, logo struk) otomati
 ## 5. phpMyAdmin (Coolify) - akses lokal & via `db.daneswara.com`
 
 Sementara: buka lewat **http://** (bukan https) `http://phpmyadmin-kbs2qh0jspvfjhpmxqzc4zij.103.175.220.31.sslip.io/`.
-Di form login: **Server** = `e5t5yllm46db0cnsu9fwv3cv` (hostname internal MariaDB), user `daneswaraprod`, password DB.
+Di form login: **Server** = `b0vbpdmzlvngrbnqqzfvse5j` (hostname internal MariaDB), user `mariadb`, password DB.
 
 Pakai domain sendiri **https://db.daneswara.com**:
 
 1. Cloudflare DNS: record **A** `db` -> `103.175.220.31`, **Proxied** (orange) boleh. SSL/TLS mode Cloudflare = **Full** (bukan Flexible).
 2. Coolify -> service **PhpMyAdmin** -> **Settings -> Domains** isi `https://db.daneswara.com` -> **Save** -> **Redeploy**.
    Traefik Coolify otomatis minta sertifikat Let's Encrypt; jika Cloudflare Proxied gagal issue, matikan proxy (DNS only) sesaat lalu nyalakan lagi.
-3. Di env service phpMyAdmin pastikan `PMA_HOST=e5t5yllm46db0cnsu9fwv3cv` (atau `PMA_ARBITRARY=1` supaya server bisa diketik di form login).
+3. Di env service phpMyAdmin pastikan `PMA_HOST=b0vbpdmzlvngrbnqqzfvse5j` (atau `PMA_ARBITRARY=1` supaya server bisa diketik di form login).
 4. Opsional keamanan: batasi akses dengan Cloudflare Access (Zero Trust) untuk `db.daneswara.com`.
 
-## 5b. Izinkan koneksi remote ke MariaDB (port publik 6796)
+## 5b. Akses remote MariaDB (port publik 6796)
 
-Error `Host 'x.x.x.x' is not allowed to connect` berarti user hanya terdaftar untuk host lokal. Jalankan sekali di phpMyAdmin (login sebagai **root** MariaDB, password root ada di Coolify -> MariadbSQL -> Environment Variables `MARIADB_ROOT_PASSWORD`):
-
-```sql
-CREATE USER IF NOT EXISTS 'daneswaraprod'@'%' IDENTIFIED BY '<password>';
-GRANT ALL PRIVILEGES ON `default`.* TO 'daneswaraprod'@'%';
-FLUSH PRIVILEGES;
-```
-
-Setelah itu URL publik `mysql://daneswaraprod:<password>@103.175.220.31:6796/default` bisa dipakai dari luar (misalnya untuk preview/migrasi). Produksi di Coolify tetap pakai URL internal.
+Database dibuat via Coolify **dengan kredensial diisi sebelum Start**, sehingga user `mariadb@'%'` otomatis ada dan
+URL publik `mysql://mariadb:<password>@103.175.220.31:6796/default` bisa dipakai dari luar (preview/migrasi).
+Jika suatu saat muncul `ERROR 1130 Host ... is not allowed`, artinya tidak ada akun host `%` - buat ulang resource
+DB dengan kredensial diisi sebelum start (jangan ganti user/password lewat UI setelah DB pernah di-init).
 
 ## 6. Update
 
