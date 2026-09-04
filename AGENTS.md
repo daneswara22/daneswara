@@ -5,6 +5,52 @@
 
 ---
 
+## Bootstrap Sesi (RITUAL SETIAP SESI — kerjakan berurutan sebelum apa pun)
+
+Pemilik selalu memulai sesi vibe-coding dengan memberi **3 input** ini (kadang dalam satu file `.txt`):
+
+1. **GitHub PAT** + **nama repo** (mis. `daneswara22/daneswara`).
+2. **Env produksi** (`DATABASE_URL` MariaDB, `JWT_SECRET`, `OWNER_*`, semua `R2_*`, `PUBLIC_BASE_URL`,
+   `NEXT_PUBLIC_POS_URL`, dst.) — sering ada varian **host DB internal** (Coolify) *dan* **host DB publik**
+   (`HOST:6796`) untuk dev di luar VPS.
+3. Baru setelah itu: **permintaan fitur** (tambah/ubah fitur).
+
+**Yang HARUS dilakukan agent, berurutan:**
+
+```text
+Langkah 1 — Clone & sinkron
+  git clone https://<PAT>@github.com/<owner>/<repo>.git   (atau update remote yang ada)
+  git fetch origin && cek commit/branch/PR TERBARU  ->  selaraskan ke `main` terakhir
+  (sering ada PR yang di-merge pemilik di antara sesi; jangan bangun di atas kode basi)
+
+Langkah 2 — Pasang env (JANGAN commit)
+  Tulis env ke `web/.env` (bukan ke repo).
+  DI SANDBOX (di luar jaringan Coolify) WAJIB pakai host MariaDB PUBLIK `HOST:6796`,
+  BUKAN host internal Docker. Sisipkan tuning pool bila latensi tinggi:
+    ...@HOST:6796/default?connection_limit=20&pool_timeout=30&connect_timeout=20&socket_timeout=60
+  SEED_* = false untuk DB produksi yang sudah berisi data.
+
+Langkah 3 — Sambungkan & BUKTIKAN MariaDB + Cloudflare R2 dulu (POC), sebelum sentuh fitur
+  cd web && yarn install && npx prisma generate
+  cd web && yarn test:core          # HARUS hijau: Prisma+18 tabel, tenants/users, bcrypt, JWT, sharp WebP, backend=r2
+  curl -s $PUBLIC_URL/api/health     # database: ok
+  (opsional) cd backend && python scripts/r2_cors.py   # pasang CORS bucket R2 (butuh token R2 Admin R/W)
+  Restart layanan: sudo supervisorctl restart backend frontend
+
+Langkah 4 — Login owner utk uji
+  Password user lama (hasil migrasi) TIDAK diketahui -> JANGAN tebak.
+  Buat/reset Owner: cd web && npx tsx scripts/ensure-admin.ts admin '<password>'
+
+Langkah 5 — BARU kerjakan fitur
+  Verifikasi dgn testing agent (skip drag-drop/kamera/bluetooth-printer).
+  Setiap perubahan -> branch -> Pull Request -> pemilik REVIEW & MERGE MANUAL (lihat Workflow Git).
+```
+
+**Aturan mutlak selama bootstrap:** data = **produksi & hidup** → utamakan read-only, jangan seed/hapus
+massal, jangan commit rahasia (repo **publik**), jangan push ke `main`.
+
+---
+
 ## TL;DR (baca ini dulu)
 
 1. **Kode hidup di `web/`** — satu app **Next.js 15 fullstack** (halaman + API routes di `web/app/api`).
