@@ -27,3 +27,6 @@ test_reports/
 frontend/node_modules/.cache/default-development/1.pack
 web/node_modules/@next/swc-linux-arm64-gnu/next-swc.linux-arm64-gnu.node
 web/node_modules/@next/swc-linux-arm64-musl/next-swc.linux-arm64-musl.node
+
+# Emergent sandbox artefacts (never commit)
+plugins/

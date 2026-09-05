@@ -12,7 +12,7 @@ Setiap kali mulai kerja, pemilik biasanya memberi tiga hal, kadang digabung dala
 
 Kalau ketiga hal itu sudah ada, kerjakan berurutan seperti ini:
 
-Pertama, clone reponya lalu sinkronkan ke kondisi terbaru. Selalu cek dulu commit dan pull request paling akhir, karena pemilik sering sudah merge sesuatu di sela-sela sesi. Jangan membangun di atas kode yang sudah basi.
+Pertama, clone reponya lalu sinkronkan ke kondisi terbaru. Selalu cek dulu commit dan pull request paling akhir, karena pemilik sering sudah merge sesuatu di sela-sela sesi. Jangan membangun di atas kode yang sudah basi. Kalau sinkronisasi dilakukan langsung di `/app` sandbox Emergent, jangan pakai `git clean -fd` tanpa pengecualian: folder `plugins/` (berisi `.eslintrc.cjs` yang dipakai linter pra-selesai Emergent), `.emergent/`, serta berkas `.env` adalah artefak sandbox yang harus tetap ada di disk tapi tidak boleh ikut di-commit. Bila `plugins/.eslintrc.cjs` terhapus, `finish` akan gagal dengan "linter engine error"; pulihkan dengan `cp /opt/plugins-venv/lib/python3.11/site-packages/plugins/.eslintrc.cjs /app/plugins/`. Berkas env dari pemilik kadang membawa anotasi seperti ` (bisa diganti)` di belakang nilai dan line ending CRLF; bersihkan dulu sebelum dipakai, kalau tidak login `admin` akan gagal.
 
 Kedua, pasang env ke `web/.env`, jangan pernah dimasukkan ke repo. Di sandbox, karena posisinya di luar jaringan Coolify, wajib pakai alamat MariaDB yang publik (`HOST:6796`), bukan yang internal. Kalau koneksi database terasa lambat, tambahkan parameter pool di ujung `DATABASE_URL` seperti `?connection_limit=20&pool_timeout=30&connect_timeout=20&socket_timeout=60`. Untuk database produksi yang sudah berisi data, set semua `SEED_` ke false supaya datanya tidak tertimpa.
 
