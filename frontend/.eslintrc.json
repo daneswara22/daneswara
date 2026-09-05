@@ -1,0 +1,6 @@
+{
+  "root": true,
+  "parserOptions": { "ecmaVersion": 2023, "sourceType": "module", "ecmaFeatures": { "jsx": true } },
+  "ignorePatterns": ["node_modules/", ".next/", "build/", "dist/", "public/", "**/*.ts", "**/*.tsx", "**/*.d.ts", "backend/", "tests/", "**/plugins/**"],
+  "rules": {}
+}
