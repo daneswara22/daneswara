@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import api, { rupiah, formatApiError } from "@/lib/api";
@@ -19,13 +19,51 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Command, CommandInput, CommandList, CommandEmpty, CommandItem } from "@/components/ui/command";
 import { toast } from "sonner";
-import { Search, Plus, Minus, Trash2, X, ArrowLeft, ShoppingCart, ScanLine, CheckCircle2, PauseCircle, PlayCircle, HandCoins, Copy, MessageCircle, UserPlus, Check, ChevronsUpDown, Grid2x2, Grid3x3, LayoutGrid, Pencil } from "lucide-react";
+import { Search, Plus, Minus, Trash2, X, ArrowLeft, ShoppingCart, ScanLine, CheckCircle2, PauseCircle, PlayCircle, HandCoins, Copy, MessageCircle, UserPlus, Check, ChevronsUpDown, Grid2x2, Grid3x3, LayoutGrid, Pencil, History, ChevronDown, ChevronRight, Phone, Loader2 } from "lucide-react";
 
 const METHODS = ["Tunai", "Bank Transfer", "QRIS", "E-Wallet"];
 const CHANNELS = ["Toko", "Shopee", "Tokopedia", "WhatsApp", "Lainnya"];
 const BANKS = ["BCA TOKO", "BRI TOKO", "BCA ADMIN (ELIS)"];
 const ORDER_TYPES = ["Reguler", "Express", "Custom", "Lainnya"];
 const isBank = (m) => BANKS.includes(m);
+
+const CUSTOMER_RESULT_LIMIT = 60;
+const HISTORY_PREVIEW = 5;
+const normalize = (s) => String(s || "").toLowerCase().trim();
+
+// Ranking pencarian pelanggan: awalan nama > awalan kata dalam nama > mengandung teks > cocok nomor telepon.
+// Hasil selalu terurut dari yang paling relevan, jadi item teratas adalah tebakan terbaik.
+function rankCustomers(customers, query, limit = CUSTOMER_RESULT_LIMIT) {
+  const q = normalize(query);
+  if (!q) return customers.slice(0, limit);
+  const qDigits = q.replace(/\D/g, "");
+  const scored = [];
+  for (const c of customers) {
+    const name = normalize(c.name);
+    const phone = String(c.phone || "").replace(/\D/g, "");
+    let rank = -1;
+    if (name.startsWith(q)) rank = 0;
+    else if (name.split(/[\s\-_.,/()]+/).some((w) => w.startsWith(q))) rank = 1;
+    else if (name.includes(q)) rank = 2;
+    else if (qDigits && phone.includes(qDigits)) rank = 3;
+    if (rank >= 0) scored.push({ c, rank, idx: name.indexOf(q) });
+  }
+  scored.sort((a, b) => a.rank - b.rank || a.idx - b.idx || normalize(a.c.name).localeCompare(normalize(b.c.name)));
+  return scored.slice(0, limit).map((s) => s.c);
+}
+
+const fmtShortDate = (iso) => {
+  if (!iso) return "";
+  try {
+    return new Date(iso).toLocaleString("id-ID", { day: "2-digit", month: "short", year: "2-digit", hour: "2-digit", minute: "2-digit" });
+  } catch { return ""; }
+};
+const summarizeItems = (items) => {
+  const list = Array.isArray(items) ? items : [];
+  const text = list.slice(0, 3).map((i) => `${i.qty}x ${i.name}`).join(", ");
+  return list.length > 3 ? `${text}, +${list.length - 3} lainnya` : text;
+};
+const itemNotes = (items) => (Array.isArray(items) ? items : []).filter((i) => i.note).map((i) => `${i.name}: ${i.note}`);
 
 const POS_GRID = {
   besar: "grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6",
@@ -82,6 +120,13 @@ export default function POS() {
   const [settings, setSettings] = useState({});
   const [customers, setCustomers] = useState([]);
   const [customerId, setCustomerId] = useState("");
+  const [custQuery, setCustQuery] = useState("");
+  const [custHighlight, setCustHighlight] = useState("");
+  const custListRef = useRef(null);
+  const [custHistory, setCustHistory] = useState(null); // { customerId, sales }
+  const [custHistLoading, setCustHistLoading] = useState(false);
+  const [custHistExpanded, setCustHistExpanded] = useState(false);
+  const [custHistCollapsed, setCustHistCollapsed] = useState(false);
   const [holdOpen, setHoldOpen] = useState(false);
   const [holdName, setHoldName] = useState("");
   const [holdType, setHoldType] = useState("Reguler");
@@ -120,6 +165,36 @@ export default function POS() {
     api.get("/customers").then((r) => setCustomers(r.data));
   };
   useEffect(load, []);
+
+  // Pencarian pelanggan: hasil terurut relevansi, item teratas otomatis ter-highlight & list di-scroll ke atas.
+  const filteredCustomers = useMemo(() => rankCustomers(customers, custQuery), [customers, custQuery]);
+  const hasCustQuery = normalize(custQuery).length > 0;
+  useEffect(() => {
+    const top = hasCustQuery ? filteredCustomers[0]?.id : "__none__";
+    setCustHighlight(top || "");
+    if (custListRef.current) custListRef.current.scrollTop = 0;
+  }, [custQuery, filteredCustomers, hasCustQuery]);
+  useEffect(() => { if (!custOpen) setCustQuery(""); }, [custOpen]);
+
+  const selectedCustomer = useMemo(() => customers.find((c) => c.id === customerId) || null, [customers, customerId]);
+
+  // Riwayat pembelian pelanggan yang dipilih (read-only), tampil di bawah pemilih pelanggan.
+  useEffect(() => {
+    if (!customerId) { setCustHistory(null); setCustHistLoading(false); return; }
+    let cancelled = false;
+    setCustHistLoading(true); setCustHistExpanded(false); setCustHistCollapsed(false);
+    api.get(`/customers/${customerId}/history`)
+      .then((r) => { if (!cancelled) setCustHistory({ customerId, sales: Array.isArray(r.data) ? r.data : [] }); })
+      .catch((e) => { if (!cancelled) { setCustHistory({ customerId, sales: [], error: formatApiError(e) }); } })
+      .finally(() => { if (!cancelled) setCustHistLoading(false); });
+    return () => { cancelled = true; };
+  }, [customerId]);
+
+  const custHistStats = useMemo(() => {
+    const sales = custHistory?.sales || [];
+    const total = sales.reduce((a, s) => a + (Number(s.total) || 0), 0);
+    return { count: sales.length, total, last: sales[0]?.created_at || null };
+  }, [custHistory]);
 
   const openHold = () => {
     if (cart.length === 0) return toast.error("Keranjang kosong");
@@ -470,33 +545,126 @@ export default function POS() {
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-            <Command>
-              <CommandInput placeholder="Cari nama / nomor..." data-testid="pos-customer-search" />
-              <CommandList>
+            <Command shouldFilter={false} value={custHighlight} onValueChange={setCustHighlight} loop>
+              <CommandInput
+                placeholder="Cari nama / nomor..."
+                value={custQuery}
+                onValueChange={setCustQuery}
+                data-testid="pos-customer-search"
+              />
+              <CommandList ref={custListRef} data-testid="pos-customer-list">
                 <CommandEmpty>Pelanggan tidak ditemukan.</CommandEmpty>
-                <CommandItem
-                  value="tanpa pelanggan"
-                  onSelect={() => { setCustomerId(""); setCustOpen(false); }}
-                  data-testid="pos-customer-none"
-                >
-                  <Check className={`mr-2 h-4 w-4 ${!customerId ? "opacity-100" : "opacity-0"}`} />
-                  Tanpa pelanggan
-                </CommandItem>
-                {customers.map((c) => (
+                {!hasCustQuery && (
+                  <CommandItem
+                    value="__none__"
+                    onSelect={() => { setCustomerId(""); setCustOpen(false); }}
+                    data-testid="pos-customer-none"
+                  >
+                    <Check className={`mr-2 h-4 w-4 ${!customerId ? "opacity-100" : "opacity-0"}`} />
+                    Tanpa pelanggan
+                  </CommandItem>
+                )}
+                {filteredCustomers.map((c, idx) => (
                   <CommandItem
                     key={c.id}
-                    value={`${c.name} ${c.phone || ""}`}
+                    value={c.id}
                     onSelect={() => { setCustomerId(c.id); setCustOpen(false); }}
                     data-testid={`pos-customer-option-${c.id}`}
+                    data-rank={idx}
                   >
                     <Check className={`mr-2 h-4 w-4 ${customerId === c.id ? "opacity-100" : "opacity-0"}`} />
-                    <span className="truncate">{c.name}{c.phone ? ` · ${c.phone}` : ""}</span>
+                    <span className="min-w-0 flex-1 truncate">{c.name}{c.phone ? ` · ${c.phone}` : ""}</span>
+                    {hasCustQuery && idx === 0 && (
+                      <span className="ml-2 shrink-0 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">Teratas</span>
+                    )}
                   </CommandItem>
                 ))}
+                {hasCustQuery && filteredCustomers.length >= CUSTOMER_RESULT_LIMIT && (
+                  <p className="px-3 py-2 text-center text-xs text-muted-foreground">Menampilkan {CUSTOMER_RESULT_LIMIT} teratas — ketik lebih spesifik.</p>
+                )}
               </CommandList>
             </Command>
           </PopoverContent>
         </Popover>
+        {selectedCustomer && (
+          <div className="rounded-md border border-border bg-secondary/40 text-sm" data-testid="pos-customer-history-panel">
+            <button
+              type="button"
+              onClick={() => setCustHistCollapsed((v) => !v)}
+              className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left"
+              data-testid="pos-customer-history-toggle"
+            >
+              <div className="flex min-w-0 items-center gap-2">
+                <History className="h-4 w-4 shrink-0 text-primary" />
+                <div className="min-w-0">
+                  <p className="truncate font-medium leading-tight">
+                    {selectedCustomer.name}
+                    {selectedCustomer.phone && <span className="ml-1.5 text-xs font-normal text-muted-foreground"><Phone className="mr-0.5 inline h-3 w-3" />{selectedCustomer.phone}</span>}
+                  </p>
+                  <p className="truncate text-xs text-muted-foreground" data-testid="pos-customer-history-stats">
+                    {custHistLoading ? "Memuat riwayat..." : custHistStats.count === 0
+                      ? "Belum ada riwayat pembelian"
+                      : `${custHistStats.count} transaksi · ${rupiah(custHistStats.total)}${custHistStats.last ? ` · terakhir ${fmtShortDate(custHistStats.last)}` : ""}`}
+                  </p>
+                </div>
+              </div>
+              <div className="flex shrink-0 items-center gap-1">
+                {custHistLoading ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /> : (custHistCollapsed ? <ChevronRight className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />)}
+              </div>
+            </button>
+            {!custHistCollapsed && !custHistLoading && (
+              <div className="border-t border-border px-2 py-2">
+                {custHistory?.error && <p className="px-1 text-xs text-destructive" data-testid="pos-customer-history-error">{custHistory.error}</p>}
+                {!custHistory?.error && custHistStats.count === 0 && (
+                  <p className="px-1 text-xs text-muted-foreground">Pelanggan ini belum pernah bertransaksi.</p>
+                )}
+                {custHistStats.count > 0 && (
+                  <>
+                    <p className="px-1 pb-1 text-[11px] text-muted-foreground">Ketuk transaksi untuk melihat nota.</p>
+                    <div className="max-h-56 space-y-1 overflow-y-auto pr-0.5">
+                      {(custHistExpanded ? custHistory.sales : custHistory.sales.slice(0, HISTORY_PREVIEW)).map((s) => {
+                        const notes = itemNotes(s.items);
+                        return (
+                          <button
+                            key={s.id}
+                            type="button"
+                            onClick={() => setNota(s)}
+                            className="w-full rounded-md bg-background px-2.5 py-2 text-left transition-colors hover:bg-accent"
+                            data-testid={`pos-customer-history-item-${s.id}`}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="truncate text-xs font-semibold">{s.invoice}</span>
+                              <span className="shrink-0 text-xs font-semibold">{rupiah(s.total)}</span>
+                            </div>
+                            <div className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+                              <span className="truncate">{summarizeItems(s.items) || "-"}</span>
+                              <span className="shrink-0">{fmtShortDate(s.created_at)}</span>
+                            </div>
+                            {notes.length > 0 && (
+                              <p className="mt-0.5 truncate text-[11px] italic text-muted-foreground" title={notes.join(" | ")}>
+                                <Pencil className="mr-1 inline h-3 w-3" />{notes.join(" | ")}
+                              </p>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {custHistStats.count > HISTORY_PREVIEW && (
+                      <button
+                        type="button"
+                        onClick={() => setCustHistExpanded((v) => !v)}
+                        className="mt-1 w-full py-1 text-center text-xs font-medium text-primary hover:underline"
+                        data-testid="pos-customer-history-more"
+                      >
+                        {custHistExpanded ? "Tampilkan lebih sedikit" : `Lihat semua (${custHistStats.count})`}
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
       <div className="flex-1 overflow-y-auto p-4">
         <AnimatePresence>
