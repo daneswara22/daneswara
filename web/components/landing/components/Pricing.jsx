@@ -1,5 +1,5 @@
 import { Check } from "lucide-react";
-import { useLang } from "@/landing/i18n/LangContext";
+import { useLang } from "@/components/landing/i18n/LangContext";
 
 export const Pricing = ({ onSelectPackage }) => {
   const { t } = useLang();
@@ -88,7 +88,7 @@ export const Pricing = ({ onSelectPackage }) => {
               </div>
               <p className="mt-3 text-sm text-muted-foreground leading-relaxed">{p.desc}</p>
               <ul className="mt-5 space-y-2.5">
-                {p.bullets.map((b, i) => (
+                {(p.bullets || []).map((b, i) => (
                   <li key={i} className="flex items-start gap-2 text-sm">
                     <Check size={16} className="text-primary shrink-0 mt-0.5" strokeWidth={3} />
                     <span>{b}</span>

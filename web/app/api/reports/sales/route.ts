@@ -27,10 +27,10 @@ export const GET = handle(async (req: NextRequest) => {
   }
   return {
     count: sales.length,
-    total: sales.reduce((a, s) => a + s.total, 0),
-    profit: sales.reduce((a, s) => a + (s.profit || 0), 0),
+    total: (sales || []).reduce((a, s) => a + s.total, 0),
+    profit: (sales || []).reduce((a, s) => a + (s.profit || 0), 0),
     by_method: Object.entries(byMethod).map(([method, v]) => ({ method, total: v.total, count: v.count })),
     by_channel: Object.entries(byChannel).map(([channel, v]) => ({ channel, ...v })).sort((a, b) => b.total - a.total),
-    sales: sales.map(serializeSale),
+    sales: (sales || []).map(serializeSale),
   };
 });

@@ -11,7 +11,7 @@ export async function GET() {
     const rows = await prisma.gallery_items.findMany({
       orderBy: [{ sort_order: 'desc' }, { created_at: 'desc' }],
     });
-    return NextResponse.json(rows.map(serializePublicGallery));
+    return NextResponse.json((rows || []).map(serializePublicGallery));
   } catch (e) {
     return errorResponse(e);
   }

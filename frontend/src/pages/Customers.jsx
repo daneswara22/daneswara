@@ -64,14 +64,14 @@ export default function Customers() {
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari nama atau nomor telepon..." className="pl-10" data-testid="customer-search" />
         </div>
-        <ViewToggle mode={view} onChange={setView} />
+        <ViewToggle data-testid="customers-view-toggle-1" mode={view} onChange={setView} />
       </div>
       <p className="text-xs text-muted-foreground" data-testid="customer-count">
         {term ? `${filtered.length} hasil` : `${list.length} pelanggan`}{filtered.length > 200 ? " · menampilkan 200 teratas, persempit pencarian" : ""}
       </p>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {shown.map((c) => (
+        {(shown || []).map((c) => (
           <div key={c.id} className="rounded-lg border border-border bg-card p-4" data-testid={`customer-${c.id}`}>
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
@@ -83,8 +83,8 @@ export default function Customers() {
               </div>
               <div className="flex gap-1">
                 <Button variant="ghost" size="icon" onClick={() => showHistory(c)} data-testid={`history-${c.id}`}><History className="h-4 w-4" /></Button>
-                <Button variant="ghost" size="icon" onClick={() => { setForm(c); setEditId(c.id); setOpen(true); }}><Pencil className="h-4 w-4" /></Button>
-                <Button variant="ghost" size="icon" onClick={() => del(c.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                <Button data-testid="customers-button-1" variant="ghost" size="icon" onClick={() => { setForm(c); setEditId(c.id); setOpen(true); }}><Pencil className="h-4 w-4" /></Button>
+                <Button data-testid="customers-button-2" variant="ghost" size="icon" onClick={() => del(c.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
               </div>
             </div>
             <div className="mt-3 flex items-center justify-between rounded-md bg-secondary px-3 py-2 text-sm">
@@ -103,8 +103,8 @@ export default function Customers() {
           <div className="space-y-3">
             <div className="space-y-1"><Label>Nama</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} data-testid="customer-name-input" /></div>
             <div className="space-y-1"><Label>Telepon</Label><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} data-testid="customer-phone-input" /></div>
-            <div className="space-y-1"><Label>Email</Label><Input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
-            <div className="space-y-1"><Label>Alamat</Label><Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></div>
+            <div className="space-y-1"><Label>Email</Label><Input data-testid="customers-input-1" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
+            <div className="space-y-1"><Label>Alamat</Label><Input data-testid="customers-input-2" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></div>
           </div>
           <DialogFooter><Button onClick={save} className="w-full" data-testid="save-customer-button">Simpan</Button></DialogFooter>
         </DialogContent>

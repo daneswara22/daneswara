@@ -61,7 +61,7 @@ export default function Purchases() {
     const payload = {
       supplier_id: supplierId || null,
       supplier_name: suppliers.find((s) => s.id === supplierId)?.name || "",
-      items: valid.map((i) => ({ product_id: i.product_id, name: products.find((p) => p.id === i.product_id)?.name || i.name || "", qty: Number(i.qty), cost: Number(i.cost) })),
+      items: (valid || []).map((i) => ({ product_id: i.product_id, name: products.find((p) => p.id === i.product_id)?.name || i.name || "", qty: Number(i.qty), cost: Number(i.cost) })),
       note,
     };
     try {
@@ -109,7 +109,7 @@ export default function Purchases() {
             <tr><th className="px-4 py-3 text-left">No. PO</th><th className="px-4 py-3 text-left">Supplier</th><th className="px-4 py-3 text-right">Total</th><th className="px-4 py-3 text-left">Status</th><th></th></tr>
           </thead>
           <tbody>
-            {filtered.map((po) => (
+            {(filtered || []).map((po) => (
               <tr key={po.id} className="border-t border-border" data-testid={`po-row-${po.id}`}>
                 <td className="px-4 py-3 font-medium">{po.po_number}</td>
                 <td className="px-4 py-3 text-muted-foreground">{po.supplier_name || "—"}</td>
@@ -136,9 +136,9 @@ export default function Purchases() {
           <div className="space-y-4">
             <div className="space-y-1">
               <Label>Supplier <span className="text-destructive">*</span></Label>
-              <Select value={supplierId} onValueChange={setSupplierId}>
+              <Select data-testid="purchases-select-1" value={supplierId} onValueChange={setSupplierId}>
                 <SelectTrigger data-testid="po-supplier-select"><SelectValue placeholder="Pilih supplier" /></SelectTrigger>
-                <SelectContent>{suppliers.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
+                <SelectContent>{suppliers.map((s) => <SelectItem data-testid="purchases-select-item-1" key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
@@ -146,7 +146,7 @@ export default function Purchases() {
               {items.map((it, idx) => (
                 <div key={idx} className="grid grid-cols-12 items-end gap-2">
                   <div className="col-span-6">
-                    <ProductCombobox
+                    <ProductCombobox data-testid="purchases-product-combobox-1"
                       products={products}
                       value={it.product_id}
                       onChange={(v) => setItem(idx, { product_id: v, cost: products.find((p) => p.id === v)?.cost || 0 })}
@@ -156,11 +156,11 @@ export default function Purchases() {
                   </div>
                   <div className="col-span-2"><NumberInput placeholder="Qty" value={it.qty} onValueChange={(v) => setItem(idx, { qty: v })} data-testid={`po-item-qty-${idx}`} /></div>
                   <div className="col-span-3"><NumberInput placeholder="Modal" value={it.cost} onValueChange={(v) => setItem(idx, { cost: v })} /></div>
-                  <div className="col-span-1"><Button variant="ghost" size="icon" onClick={() => removeItem(idx)}><Trash2 className="h-4 w-4 text-destructive" /></Button></div>
+                  <div className="col-span-1"><Button data-testid="purchases-button-1" variant="ghost" size="icon" onClick={() => removeItem(idx)}><Trash2 className="h-4 w-4 text-destructive" /></Button></div>
                 </div>
               ))}
             </div>
-            <div className="space-y-1"><Label>Catatan</Label><Input value={note} onChange={(e) => setNote(e.target.value)} /></div>
+            <div className="space-y-1"><Label>Catatan</Label><Input data-testid="purchases-input-1" value={note} onChange={(e) => setNote(e.target.value)} /></div>
             <div className="flex justify-between font-display text-lg font-bold"><span>Total</span><span>{rupiah(total)}</span></div>
           </div>
           <DialogFooter><Button onClick={save} className="w-full" data-testid="save-po-button">{editId ? "Simpan Perubahan" : "Simpan PO"}</Button></DialogFooter>

@@ -1,3 +1,3 @@
 'use client';
-import Login from '@/pages/Login';
+import Login from '@/src_pages/Login';
 export default function Page() { return <Login />; }

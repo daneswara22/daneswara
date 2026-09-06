@@ -41,7 +41,7 @@ export const POST = handle(async (req: NextRequest) => {
   const name = data.name.trim();
   if (!name) throw new HttpError(400, 'Nama kategori wajib diisi');
   const existing = await mergedNames(user.tenant_id, data.type);
-  if (existing.some((n) => n.toLowerCase() === name.toLowerCase())) throw new HttpError(400, 'Kategori sudah ada');
+  if ((existing || []).some((n) => n.toLowerCase() === name.toLowerCase())) throw new HttpError(400, 'Kategori sudah ada');
   const c = await prisma.finance_categories.create({
     data: {
       id: newId(), tenant_id: user.tenant_id, type: data.type, name, created_at: new Date(),

@@ -39,7 +39,7 @@ export const GET = handle(async (req: NextRequest) => {
     orderBy: { created_at: 'desc' },
     take: limit,
   });
-  return rows.map(serializeSale);
+  return (rows || []).map(serializeSale);
 });
 
 export const POST = handle(async (req: NextRequest) => {
@@ -48,8 +48,8 @@ export const POST = handle(async (req: NextRequest) => {
   if (!data.items || data.items.length === 0) throw new HttpError(400, 'Keranjang kosong');
   const tid = user.tenant_id;
   const items = data.items;
-  const subtotal = items.reduce((s, i) => s + i.price * i.qty, 0);
-  const totalCost = items.reduce((s, i) => s + i.cost * i.qty, 0);
+  const subtotal = (items || []).reduce((s, i) => s + i.price * i.qty, 0);
+  const totalCost = (items || []).reduce((s, i) => s + i.cost * i.qty, 0);
   const taxed = (subtotal - data.discount) * (data.tax_rate / 100);
   const total = subtotal - data.discount + taxed;
   await decrementStock(tid, user, items, 'Penjualan POS');

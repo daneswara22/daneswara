@@ -43,10 +43,10 @@ export function SupplierPickerDialog({ open, onOpenChange, onConfirm, title = "P
           ) : (
             <div className="space-y-1">
               <Label>Supplier <span className="text-destructive">*</span></Label>
-              <Select value={supplierId} onValueChange={setSupplierId}>
+              <Select data-testid="supplier-picker-dialog-select-1" value={supplierId} onValueChange={setSupplierId}>
                 <SelectTrigger data-testid="supplier-picker-select"><SelectValue placeholder="Pilih supplier..." /></SelectTrigger>
                 <SelectContent>
-                  {suppliers.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                  {suppliers.map((s) => <SelectItem data-testid="supplier-picker-dialog-select-item-1" key={s.id} value={s.id}>{s.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>

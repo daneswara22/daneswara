@@ -90,7 +90,7 @@ export default function Reports() {
 
   const exportExcel = () => {
     const header = [["Invoice", "Sumber", "Metode", "Subtotal", "Diskon", "Pajak", "Total", "Waktu"]];
-    const rows = rep.sales.map((s) => [
+    const rows = (rep.sales || []).map((s) => [
       s.invoice, s.channel || "Toko", s.payment_method, s.subtotal || 0, s.discount || 0, s.tax || 0, s.total,
       new Date(s.created_at).toLocaleString("id-ID"),
     ]);
@@ -115,7 +115,7 @@ export default function Reports() {
     autoTable(doc, {
       startY: 38,
       head: [["Invoice", "Metode", "Total", "Waktu"]],
-      body: rep.sales.map((s) => [s.invoice, s.payment_method, `Rp ${s.total.toLocaleString("id-ID")}`, new Date(s.created_at).toLocaleString("id-ID")]),
+      body: (rep.sales || []).map((s) => [s.invoice, s.payment_method, `Rp ${s.total.toLocaleString("id-ID")}`, new Date(s.created_at).toLocaleString("id-ID")]),
       styles: { fontSize: 8 },
       headStyles: { fillColor: [37, 99, 235] },
     });
@@ -217,8 +217,8 @@ export default function Reports() {
                 })}
                 <tr className="border-t-2 border-border bg-secondary/30">
                   <td className="py-2 font-semibold">Total Transfer Bank</td>
-                  <td className="py-2 text-right text-muted-foreground" data-testid="account-bank-count">{rep.by_method.filter((m) => BANK_METHODS.includes(m.method)).reduce((a, m) => a + m.count, 0)}x</td>
-                  <td className="py-2 text-right font-bold text-primary" data-testid="account-bank-total">{rupiah(rep.by_method.filter((m) => BANK_METHODS.includes(m.method)).reduce((a, m) => a + m.total, 0))}</td>
+                  <td className="py-2 text-right text-muted-foreground" data-testid="account-bank-count">{(rep.by_method || []).filter((m) => BANK_METHODS.includes(m.method)).reduce((a, m) => a + m.count, 0)}x</td>
+                  <td className="py-2 text-right font-bold text-primary" data-testid="account-bank-total">{rupiah((rep.by_method || []).filter((m) => BANK_METHODS.includes(m.method)).reduce((a, m) => a + m.total, 0))}</td>
                 </tr>
               </tbody>
             </table>
@@ -245,7 +245,7 @@ export default function Reports() {
                 </tr>
               </thead>
               <tbody>
-                {rep.by_channel.map((c) => (
+                {(rep.by_channel || []).map((c) => (
                   <tr key={c.channel} className="border-b border-border/60" data-testid={`channel-row-${c.channel}`}>
                     <td className="py-2"><span className="rounded-full bg-secondary px-2 py-0.5 text-xs font-semibold">{c.channel}</span></td>
                     <td className="py-2 text-right text-muted-foreground">{c.count}x</td>
@@ -255,9 +255,9 @@ export default function Reports() {
                 ))}
                 <tr className="border-t-2 border-border bg-secondary/30">
                   <td className="py-2 font-semibold">Total</td>
-                  <td className="py-2 text-right text-muted-foreground">{rep.by_channel.reduce((a, c) => a + c.count, 0)}x</td>
-                  <td className="py-2 text-right font-bold text-primary">{rupiah(rep.by_channel.reduce((a, c) => a + c.total, 0))}</td>
-                  <td className="py-2 text-right font-bold text-emerald-600">{rupiah(rep.by_channel.reduce((a, c) => a + c.profit, 0))}</td>
+                  <td className="py-2 text-right text-muted-foreground">{(rep.by_channel || []).reduce((a, c) => a + c.count, 0)}x</td>
+                  <td className="py-2 text-right font-bold text-primary">{rupiah((rep.by_channel || []).reduce((a, c) => a + c.total, 0))}</td>
+                  <td className="py-2 text-right font-bold text-emerald-600">{rupiah((rep.by_channel || []).reduce((a, c) => a + c.profit, 0))}</td>
                 </tr>
               </tbody>
             </table>
@@ -282,7 +282,7 @@ export default function Reports() {
                   <span>Pendapatan Lain-lain</span>
                   <span data-testid="pl-other-income">Total: {rupiah(pl.other_income_total)}</span>
                 </div>
-                {pl.other_income_by_category.map((e) => (
+                {(pl.other_income_by_category || []).map((e) => (
                   <div key={e.category} className="flex items-center justify-between py-0.5">
                     <span className="text-muted-foreground">{e.category}</span>
                     <span className="text-emerald-600">+ {rupiah(e.amount)}</span>
@@ -298,7 +298,7 @@ export default function Reports() {
               {pl.expenses_by_category.length === 0 ? (
                 <p className="py-1 text-xs text-muted-foreground">Belum ada pengeluaran pada periode ini.</p>
               ) : (
-                pl.expenses_by_category.map((e) => (
+                (pl.expenses_by_category || []).map((e) => (
                   <div key={e.category} className="flex items-center justify-between py-0.5">
                     <span className="text-muted-foreground">{e.category}</span>
                     <span className="text-destructive">- {rupiah(e.amount)}</span>
@@ -347,7 +347,7 @@ export default function Reports() {
       <div className="rounded-lg border border-border bg-card p-5">
         <div className="mb-3 flex items-center justify-between">
           <h3 className="font-display font-semibold">Tren Omzet Bulanan {year}</h3>
-          <span className="text-xs text-muted-foreground">Total setahun: {rupiah(trendData.reduce((a, m) => a + m.total, 0))}</span>
+          <span className="text-xs text-muted-foreground">Total setahun: {rupiah((trendData || []).reduce((a, m) => a + m.total, 0))}</span>
         </div>
         <div className="h-72" data-testid="yearly-trend-chart">
           <ResponsiveContainer width="100%" height="100%">
@@ -365,7 +365,7 @@ export default function Reports() {
       <div className="rounded-lg border border-border bg-card p-5">
         <div className="mb-3 flex items-center justify-between">
           <h3 className="font-display font-semibold">Tren Laba Bersih &amp; Pengeluaran {year}</h3>
-          <span className="text-xs text-muted-foreground">Laba Bersih setahun: {rupiah(trendData.reduce((a, m) => a + (m.net || 0), 0))}</span>
+          <span className="text-xs text-muted-foreground">Laba Bersih setahun: {rupiah((trendData || []).reduce((a, m) => a + (m.net || 0), 0))}</span>
         </div>
         <div className="h-72" data-testid="net-profit-trend-chart">
           <ResponsiveContainer width="100%" height="100%">
@@ -391,7 +391,7 @@ export default function Reports() {
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie data={rep.by_method} dataKey="total" nameKey="method" cx="50%" cy="50%" outerRadius={70} label={(e) => e.method}>
-                    {rep.by_method.map((_, i) => <Cell key={i} fill={PIE[i % PIE.length]} />)}
+                    {(rep.by_method || []).map((_, i) => <Cell key={i} fill={PIE[i % PIE.length]} />)}
                   </Pie>
                   <Tooltip formatter={(v) => rupiah(v)} contentStyle={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} />
                 </PieChart>
@@ -408,7 +408,7 @@ export default function Reports() {
                 <tr><th className="py-2 text-left">Invoice</th><th className="py-2 text-left">Metode</th><th className="py-2 text-right">Total</th><th className="py-2 text-right">Waktu</th><th></th></tr>
               </thead>
               <tbody>
-                {rep.sales.map((s) => (
+                {(rep.sales || []).map((s) => (
                   <tr key={s.id} className="cursor-pointer border-t border-border transition-colors hover:bg-secondary/50" data-testid={`sale-row-${s.id}`} onClick={() => setDetailSale(s)}>
                     <td className="py-2 font-medium">{s.invoice}</td>
                     <td className="py-2 text-muted-foreground">{s.payment_method}</td>

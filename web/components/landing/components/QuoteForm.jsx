@@ -1,7 +1,7 @@
 import { forwardRef, useImperativeHandle, useState } from "react";
 import { toast } from "sonner";
 import { Send } from "lucide-react";
-import { useLang } from "@/landing/i18n/LangContext";
+import { useLang } from "@/components/landing/i18n/LangContext";
 
 const PACKAGES = ["screen", "dtg", "bulk"];
 

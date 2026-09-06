@@ -1,4 +1,4 @@
-import { useLang } from "@/landing/i18n/LangContext";
+import { useLang } from "@/components/landing/i18n/LangContext";
 import { PenTool, MonitorSmartphone, Printer, Truck } from "lucide-react";
 
 export const Process = () => {

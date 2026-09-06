@@ -88,7 +88,7 @@ export default function Users() {
             <tr><th className="px-4 py-3 text-left">Nama</th><th className="px-4 py-3 text-left">Username</th><th className="px-4 py-3 text-left">Peran</th><th className="px-4 py-3 text-left">Status</th><th></th></tr>
           </thead>
           <tbody>
-            {filtered.map((u) => (
+            {(filtered || []).map((u) => (
               <tr key={u.id} className="border-t border-border" data-testid={`user-row-${u.id}`}>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-3">
@@ -120,9 +120,9 @@ export default function Users() {
             <div className="space-y-1"><Label>{editId ? "Password baru (kosongkan jika tetap)" : "Password"}</Label><Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} data-testid="user-password-input" /></div>
             <div className="space-y-1">
               <Label>Peran</Label>
-              <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
+              <Select data-testid="users-select-1" value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
                 <SelectTrigger data-testid="user-role-select"><SelectValue /></SelectTrigger>
-                <SelectContent>{ROLES.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
+                <SelectContent>{ROLES.map((r) => <SelectItem data-testid="users-select-item-1" key={r} value={r}>{r}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             {editId && <div className="flex items-center justify-between"><Label>Akun Aktif</Label><Switch checked={form.active !== false} onCheckedChange={(v) => setForm({ ...form, active: v })} data-testid="user-active-switch" /></div>}

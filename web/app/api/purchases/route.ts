@@ -28,7 +28,7 @@ export const GET = handle(async (req: NextRequest) => {
     orderBy: { created_at: 'desc' },
     take: 1000,
   });
-  return rows.map(serializePurchase);
+  return (rows || []).map(serializePurchase);
 });
 
 export const POST = handle(async (req: NextRequest) => {
@@ -37,7 +37,7 @@ export const POST = handle(async (req: NextRequest) => {
   if (!data.items || data.items.length === 0) throw new HttpError(400, 'Item pembelian kosong');
   const tid = user.tenant_id;
   const { supplier_id, supplier_name } = await resolveSupplier(data.supplier_id, tid);
-  const total = data.items.reduce((s, i) => s + i.qty * i.cost, 0);
+  const total = (data.items || []).reduce((s, i) => s + i.qty * i.cost, 0);
   const po = await prisma.purchases.create({
     data: {
       id: newId(), tenant_id: tid, po_number: await nextPoNumber(tid), supplier_id, supplier_name,

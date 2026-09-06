@@ -13,7 +13,7 @@ export const GET = handle(async (req: NextRequest) => {
     where: { tenant_id: user.tenant_id },
     orderBy: [{ sort_order: 'desc' }, { created_at: 'desc' }],
   });
-  return rows.map(serializeGallery);
+  return (rows || []).map(serializeGallery);
 });
 
 export const POST = handle(async (req: NextRequest) => {

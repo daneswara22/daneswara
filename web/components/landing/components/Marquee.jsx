@@ -1,4 +1,4 @@
-import { useLang } from "@/landing/i18n/LangContext";
+import { useLang } from "@/components/landing/i18n/LangContext";
 
 export const Marquee = () => {
   const { t } = useLang();

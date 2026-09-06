@@ -15,7 +15,7 @@ function sortKey(row: any) {
 export const GET = handle(async (req: NextRequest) => {
   const user = await getCurrentUser(req);
   const rows = await prisma.categories.findMany({ where: { tenant_id: user.tenant_id } });
-  const out = rows.map(serializeCategory);
+  const out = (rows || []).map(serializeCategory);
   out.sort((a: any, b: any) => {
     const [as, an] = sortKey(a), [bs, bn] = sortKey(b);
     return as !== bs ? (as as number) - (bs as number) : String(an).localeCompare(String(bn));

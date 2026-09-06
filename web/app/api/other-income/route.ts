@@ -19,7 +19,7 @@ export const GET = handle(async (req: NextRequest) => {
   const rows = await prisma.other_income.findMany({
     where, orderBy: [{ date: 'desc' }, { created_at: 'desc' }], take: 5000,
   });
-  return rows.map(serializeOtherIncome);
+  return (rows || []).map(serializeOtherIncome);
 });
 
 export const POST = handle(async (req: NextRequest) => {

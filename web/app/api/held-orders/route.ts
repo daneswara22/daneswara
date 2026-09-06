@@ -13,7 +13,7 @@ export const GET = handle(async (req: NextRequest) => {
     orderBy: { created_at: 'desc' },
     take: 200,
   });
-  return rows.map(serializeHeldOrder);
+  return (rows || []).map(serializeHeldOrder);
 });
 
 export const POST = handle(async (req: NextRequest) => {

@@ -1,3 +1,3 @@
 'use client';
-import PriceListPrintOnly from '@/landing/pages/PriceListPrintOnly';
+import PriceListPrintOnly from '@/components/landing/pages/PriceListPrintOnly';
 export default function Page() { return <PriceListPrintOnly />; }

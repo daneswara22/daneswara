@@ -1,13 +1,13 @@
 import { useRef, useCallback } from "react";
-import { Header } from "@/landing/components/Header";
-import { Hero } from "@/landing/components/Hero";
-import { Marquee } from "@/landing/components/Marquee";
-import { Process } from "@/landing/components/Process";
-import { Pricing } from "@/landing/components/Pricing";
-import { Gallery } from "@/landing/components/Gallery";
-import { QuoteForm } from "@/landing/components/QuoteForm";
-import { Contact } from "@/landing/components/Contact";
-import { Footer } from "@/landing/components/Footer";
+import { Header } from "@/components/landing/components/Header";
+import { Hero } from "@/components/landing/components/Hero";
+import { Marquee } from "@/components/landing/components/Marquee";
+import { Process } from "@/components/landing/components/Process";
+import { Pricing } from "@/components/landing/components/Pricing";
+import { Gallery } from "@/components/landing/components/Gallery";
+import { QuoteForm } from "@/components/landing/components/QuoteForm";
+import { Contact } from "@/components/landing/components/Contact";
+import { Footer } from "@/components/landing/components/Footer";
 
 export default function Landing() {
   const formRef = useRef(null);

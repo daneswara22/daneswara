@@ -68,7 +68,7 @@ export function NavLink({ to, end, className, children, onClick, ...rest }: NavL
   const cls = typeof className === 'function' ? className({ isActive }) : className;
   const kids = typeof children === 'function' ? children({ isActive }) : children;
   return (
-    <NextLink href={to} className={cls} onClick={onClick as any} {...rest}>
+    <NextLink data-testid="react-router-shim-next-link-1" href={to} className={cls} onClick={onClick as any} {...rest}>
       {kids}
     </NextLink>
   );
@@ -76,7 +76,7 @@ export function NavLink({ to, end, className, children, onClick, ...rest }: NavL
 
 export function Link({ to, children, className, onClick, ...rest }: any) {
   return (
-    <NextLink href={to} className={className} onClick={onClick} {...rest}>
+    <NextLink data-testid="react-router-shim-next-link-2" href={to} className={className} onClick={onClick} {...rest}>
       {children}
     </NextLink>
   );

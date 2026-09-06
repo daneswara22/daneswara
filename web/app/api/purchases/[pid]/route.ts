@@ -16,7 +16,7 @@ export const PUT = handle(async (req: NextRequest, ctx: { params: Promise<{ pid:
   const data = purchaseOrderInputSchema.parse(await readBody(req));
   if (!data.items?.length) throw new HttpError(400, 'Item pembelian kosong');
   const { supplier_id, supplier_name } = await resolveSupplier(data.supplier_id, user.tenant_id);
-  const total = data.items.reduce((s, i) => s + i.qty * i.cost, 0);
+  const total = (data.items || []).reduce((s, i) => s + i.qty * i.cost, 0);
   await prisma.purchases.update({
     where: { id: pid },
     data: { supplier_id, supplier_name, items: JSON.stringify(data.items), total, note: data.note || '' },

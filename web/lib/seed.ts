@@ -39,7 +39,7 @@ async function readCsvSafe(file: string): Promise<any[] | null> {
     return lines.slice(1).map((l) => {
       const cells = parseLine(l);
       const o: any = {};
-      headers.forEach((h, i) => (o[h.replace(/^"|"$/g, '')] = cells[i] || ''));
+      (headers || []).forEach((h, i) => (o[h.replace(/^"|"$/g, '')] = cells[i] || ''));
       return o;
     });
   } catch {

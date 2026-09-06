@@ -37,7 +37,7 @@ export default function OtherIncome() {
   const filtered = term
     ? list.filter((e) => `${e.category} ${e.note || ""} ${e.date}`.toLowerCase().includes(term))
     : list;
-  const total = filtered.reduce((a, e) => a + e.amount, 0);
+  const total = (filtered || []).reduce((a, e) => a + e.amount, 0);
 
   const save = async () => {
     if (!form.category) return toast.error("Pilih kategori");
@@ -63,13 +63,13 @@ export default function OtherIncome() {
     if (rows.length === 0) return toast.error("Tidak ada data untuk dicetak");
     const fmt = (n) => "Rp" + Number(n || 0).toLocaleString("id-ID");
     const byCat = {};
-    rows.forEach((e) => { byCat[e.category] = (byCat[e.category] || 0) + e.amount; });
-    const dates = rows.map((r) => r.date).sort();
+    (rows || []).forEach((e) => { byCat[e.category] = (byCat[e.category] || 0) + e.amount; });
+    const dates = (rows || []).map((r) => r.date).sort();
     const periode = dates.length ? (dates[0] === dates[dates.length - 1] ? dates[0] : `${dates[0]} s/d ${dates[dates.length - 1]}`) : "-";
     const biz = settings.business_name || "Daneswara POS";
     const logo = settings.logo || "/logo.png";
     const now = new Date().toLocaleString("id-ID");
-    const rowsHtml = rows.map((e, i) => `
+    const rowsHtml = (rows || []).map((e, i) => `
       <tr>
         <td style="text-align:center">${i + 1}</td>
         <td>${e.date}</td>
@@ -191,10 +191,10 @@ export default function OtherIncome() {
                 <Label>Kategori <span className="text-destructive">*</span></Label>
                 <button type="button" onClick={() => setManageOpen(true)} className="text-xs font-medium text-primary hover:underline" data-testid="income-add-category-link">+ Tambah kategori baru</button>
               </div>
-              <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
+              <Select data-testid="other-income-select-1" value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
                 <SelectTrigger data-testid="other-income-category-select"><SelectValue placeholder="Pilih kategori" /></SelectTrigger>
                 <SelectContent>
-                  {cats.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  {cats.map((c) => <SelectItem data-testid="other-income-select-item-1" key={c} value={c}>{c}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -205,7 +205,7 @@ export default function OtherIncome() {
             <div className="space-y-1"><Label>Catatan (opsional)</Label><Input value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} placeholder="cth: Komisi vendor, biaya express order A" data-testid="other-income-note-input" /></div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>Batal</Button>
+            <Button data-testid="other-income-button-1" variant="outline" onClick={() => setOpen(false)}>Batal</Button>
             <Button onClick={save} disabled={saving} data-testid="save-other-income-button">{saving ? "Menyimpan..." : "Simpan"}</Button>
           </DialogFooter>
         </DialogContent>

@@ -19,7 +19,7 @@ export const GET = handle(async (req: NextRequest) => {
   const rows = await prisma.expenses.findMany({
     where, orderBy: [{ date: 'desc' }, { created_at: 'desc' }], take: 5000,
   });
-  return rows.map(serializeExpense);
+  return (rows || []).map(serializeExpense);
 });
 
 export const POST = handle(async (req: NextRequest) => {

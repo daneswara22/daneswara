@@ -8,7 +8,7 @@ import { userCreateSchema } from '@/lib/schemas';
 export const GET = handle(async (req: NextRequest) => {
   const user = await requireRoles(req, 'Owner', 'Manager');
   const rows = await prisma.users.findMany({ where: { tenant_id: user.tenant_id }, orderBy: { created_at: 'asc' } });
-  return rows.map(publicUser);
+  return (rows || []).map(publicUser);
 });
 
 export const POST = handle(async (req: NextRequest) => {

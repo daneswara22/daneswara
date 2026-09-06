@@ -11,5 +11,5 @@ export const GET = handle(async (req: NextRequest) => {
     orderBy: { created_at: 'desc' },
     take: 500,
   });
-  return rows.map(serializeStockMovement);
+  return (rows || []).map(serializeStockMovement);
 });

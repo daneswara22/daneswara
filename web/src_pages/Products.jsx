@@ -167,23 +167,23 @@ export default function Products() {
           <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari produk..." className="pl-10" data-testid="product-search" />
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Select value={sortBy} onValueChange={setSortBy}>
+          <Select data-testid="products-select-1" value={sortBy} onValueChange={setSortBy}>
             <SelectTrigger className="w-[180px]" data-testid="product-sort-select"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="name">Nama (A-Z)</SelectItem>
-              <SelectItem value="price">Harga (terendah)</SelectItem>
-              <SelectItem value="stock">Stok (terendah)</SelectItem>
+              <SelectItem data-testid="products-select-item-1" value="name">Nama (A-Z)</SelectItem>
+              <SelectItem data-testid="products-select-item-2" value="price">Harga (terendah)</SelectItem>
+              <SelectItem data-testid="products-select-item-3" value="stock">Stok (terendah)</SelectItem>
             </SelectContent>
           </Select>
-          <Select value={catFilter} onValueChange={setCatFilter}>
+          <Select data-testid="products-select-2" value={catFilter} onValueChange={setCatFilter}>
             <SelectTrigger className="w-[180px]" data-testid="product-category-filter"><SelectValue placeholder="Semua Kategori" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Semua Kategori</SelectItem>
-              {cats.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-              {products.some((p) => !p.category_id) && <SelectItem value="none">Tanpa Kategori</SelectItem>}
+              <SelectItem data-testid="products-select-item-4" value="all">Semua Kategori</SelectItem>
+              {cats.map((c) => <SelectItem data-testid="products-select-item-5" key={c.id} value={c.id}>{c.name}</SelectItem>)}
+              {products.some((p) => !p.category_id) && <SelectItem data-testid="products-select-item-6" value="none">Tanpa Kategori</SelectItem>}
             </SelectContent>
           </Select>
-          <ViewToggle mode={view} onChange={setView} />
+          <ViewToggle data-testid="products-view-toggle-1" mode={view} onChange={setView} />
         </div>
       </div>
 
@@ -200,7 +200,7 @@ export default function Products() {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((p) => (
+            {(filtered || []).map((p) => (
               <tr key={p.id} className="border-t border-border" data-testid={`product-row-${p.id}`}>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-3">
@@ -239,7 +239,7 @@ export default function Products() {
 
       {view !== "list" && (
         <div className={`grid gap-3 ${view === "besar" ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4" : "grid-cols-3 sm:grid-cols-4 lg:grid-cols-6"}`} data-testid="product-grid">
-          {filtered.map((p) => (
+          {(filtered || []).map((p) => (
             <div key={p.id} className="flex flex-col overflow-hidden rounded-lg border border-border bg-card" data-testid={`product-card-${p.id}`}>
               <div className={`flex flex-1 flex-col ${view === "besar" ? "p-3" : "p-2"}`}>
                 <p className={`truncate font-medium ${view === "besar" ? "text-sm" : "text-xs"}`}>{p.name}</p>
@@ -251,8 +251,8 @@ export default function Products() {
                 {canEdit && (
                   <div className="mt-2 flex gap-1">
                     {p.stock < 0 && <Button variant="outline" size="sm" className={`h-7 flex-1 px-2 ${p.open_po ? "border-blue-500/40 text-blue-600" : "text-orange-600"}`} onClick={() => makePO(p)} data-testid={`po-product-${p.id}`} title={p.open_po ? `Sudah ada PO: ${(p.open_po_numbers || []).join(", ")}` : "Buat PO restok"}>{p.open_po ? <PackageCheck className="h-3 w-3" /> : <PackagePlus className="h-3 w-3" />}</Button>}
-                    <Button variant="outline" size="sm" className="h-7 flex-1 px-2" onClick={() => openEdit(p)}><Pencil className="h-3 w-3" /></Button>
-                    <Button variant="outline" size="sm" className="h-7 flex-1 px-2" onClick={() => del(p.id)}><Trash2 className="h-3 w-3 text-destructive" /></Button>
+                    <Button data-testid="products-button-1" variant="outline" size="sm" className="h-7 flex-1 px-2" onClick={() => openEdit(p)}><Pencil className="h-3 w-3" /></Button>
+                    <Button data-testid="products-button-2" variant="outline" size="sm" className="h-7 flex-1 px-2" onClick={() => del(p.id)}><Trash2 className="h-3 w-3 text-destructive" /></Button>
                   </div>
                 )}
               </div>
@@ -270,15 +270,15 @@ export default function Products() {
               <Label>Nama Produk</Label>
               <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} data-testid="product-name-input" />
             </div>
-            <div className="space-y-1"><Label>SKU</Label><Input value={form.sku} onChange={(e) => setForm({ ...form, sku: e.target.value })} /></div>
+            <div className="space-y-1"><Label>SKU</Label><Input data-testid="products-input-1" value={form.sku} onChange={(e) => setForm({ ...form, sku: e.target.value })} /></div>
             <div className="space-y-1"><Label>Barcode</Label><Input value={form.barcode} onChange={(e) => setForm({ ...form, barcode: e.target.value })} data-testid="product-barcode-input" /></div>
             <div className="col-span-2 space-y-1">
               <Label>Kategori</Label>
-              <Select value={form.category_id || "none"} onValueChange={(v) => setForm({ ...form, category_id: v === "none" ? "" : v })}>
+              <Select data-testid="products-select-3" value={form.category_id || "none"} onValueChange={(v) => setForm({ ...form, category_id: v === "none" ? "" : v })}>
                 <SelectTrigger data-testid="product-category-select"><SelectValue placeholder="Pilih kategori" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">Tanpa kategori</SelectItem>
-                  {cats.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                  <SelectItem data-testid="products-select-item-7" value="none">Tanpa kategori</SelectItem>
+                  {cats.map((c) => <SelectItem data-testid="products-select-item-8" key={c.id} value={c.id}>{c.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -286,7 +286,7 @@ export default function Products() {
             <div className="space-y-1"><Label>Harga Modal <span className="text-muted-foreground">(opsional)</span></Label><NumberInput value={form.cost} onValueChange={(v) => setForm({ ...form, cost: v })} placeholder="Boleh dikosongkan" /></div>
             <div className="space-y-1"><Label>Stok</Label><NumberInput value={form.stock} onValueChange={(v) => setForm({ ...form, stock: v })} data-testid="product-stock-input" /></div>
             <div className="space-y-1"><Label>Min. Stok</Label><NumberInput value={form.min_stock} onValueChange={(v) => setForm({ ...form, min_stock: v })} /></div>
-            <div className="space-y-1"><Label>Satuan</Label><Input value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} /></div>
+            <div className="space-y-1"><Label>Satuan</Label><Input data-testid="products-input-2" value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} /></div>
             <div className="col-span-2 space-y-1">
               <Label>Keterangan <span className="text-muted-foreground">(catatan detail produk, opsional)</span></Label>
               <Textarea value={form.description || ""} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} placeholder="Detail produk, spesifikasi, catatan internal..." data-testid="product-description-input" />
@@ -318,11 +318,11 @@ export default function Products() {
           <div className="space-y-3">
             <div className="space-y-1">
               <Label>Kategori</Label>
-              <Select value={reorderCat} onValueChange={(v) => buildReorder(v)}>
+              <Select data-testid="products-select-4" value={reorderCat} onValueChange={(v) => buildReorder(v)}>
                 <SelectTrigger data-testid="reorder-category-select"><SelectValue placeholder="Pilih kategori" /></SelectTrigger>
                 <SelectContent>
-                  {catsWithProducts.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                  {hasUncategorized && <SelectItem value="none">Tanpa Kategori</SelectItem>}
+                  {(catsWithProducts || []).map((c) => <SelectItem data-testid="products-select-item-9" key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                  {hasUncategorized && <SelectItem data-testid="products-select-item-10" value="none">Tanpa Kategori</SelectItem>}
                 </SelectContent>
               </Select>
             </div>
@@ -342,7 +342,7 @@ export default function Products() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setReorderOpen(false)}>Batal</Button>
+            <Button data-testid="products-button-3" variant="outline" onClick={() => setReorderOpen(false)}>Batal</Button>
             <Button onClick={saveReorder} disabled={reorderList.length === 0} data-testid="reorder-save-button">Simpan Urutan</Button>
           </DialogFooter>
         </DialogContent>

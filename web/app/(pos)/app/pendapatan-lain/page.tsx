@@ -1,6 +1,6 @@
 'use client';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import OtherIncome from '@/pages/OtherIncome';
+import OtherIncome from '@/src_pages/OtherIncome';
 export default function Page() {
   return <ProtectedRoute roles={['Owner','Manager']}><OtherIncome /></ProtectedRoute>;
 }
