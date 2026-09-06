@@ -10,3 +10,6 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 next-env.d.ts
+
+# TypeScript incremental build info
+tsconfig.tsbuildinfo
