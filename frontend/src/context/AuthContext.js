@@ -43,7 +43,7 @@ export const AuthProvider = ({ children }) => {
   const logout = async () => {
     try {
       await api.post("/auth/logout");
-    } catch (e) {}
+    } catch (e) { /* ignore */ }
     localStorage.removeItem("pos_token");
     setUser(false);
   };

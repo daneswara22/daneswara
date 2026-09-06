@@ -47,7 +47,7 @@ export default function Suppliers() {
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari supplier atau telepon..." className="pl-10" data-testid="supplier-search" />
         </div>
-        <ViewToggle mode={view} onChange={setView} />
+        <ViewToggle data-testid="suppliers-view-toggle-1" mode={view} onChange={setView} />
       </div>
 
       <div className={
@@ -63,8 +63,8 @@ export default function Suppliers() {
                 <div className="min-w-0"><p className="truncate font-medium">{s.name}</p><p className="truncate text-xs text-muted-foreground">{s.phone || "—"}{s.address ? ` · ${s.address}` : ""}</p></div>
               </div>
               <div className="flex shrink-0 gap-1">
-                <Button variant="ghost" size="icon" onClick={() => { setForm(s); setEditId(s.id); setOpen(true); }}><Pencil className="h-4 w-4" /></Button>
-                <Button variant="ghost" size="icon" onClick={() => del(s.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                <Button data-testid="suppliers-button-1" variant="ghost" size="icon" onClick={() => { setForm(s); setEditId(s.id); setOpen(true); }}><Pencil className="h-4 w-4" /></Button>
+                <Button data-testid="suppliers-button-2" variant="ghost" size="icon" onClick={() => del(s.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
               </div>
             </div>
           ) : (
@@ -75,8 +75,8 @@ export default function Suppliers() {
                 <div className="min-w-0"><p className="truncate font-semibold">{s.name}</p><p className="truncate text-xs text-muted-foreground">{s.phone || "—"}</p></div>
               </div>
               <div className="flex shrink-0 gap-1">
-                <Button variant="ghost" size="icon" onClick={() => { setForm(s); setEditId(s.id); setOpen(true); }}><Pencil className="h-4 w-4" /></Button>
-                <Button variant="ghost" size="icon" onClick={() => del(s.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                <Button data-testid="suppliers-button-3" variant="ghost" size="icon" onClick={() => { setForm(s); setEditId(s.id); setOpen(true); }}><Pencil className="h-4 w-4" /></Button>
+                <Button data-testid="suppliers-button-4" variant="ghost" size="icon" onClick={() => del(s.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
               </div>
             </div>
             {s.address && view !== "kecil" && <p className="mt-2 text-xs text-muted-foreground">{s.address}</p>}
@@ -91,9 +91,9 @@ export default function Suppliers() {
           <DialogHeader><DialogTitle className="font-display">{editId ? "Edit" : "Tambah"} Supplier</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1"><Label>Nama</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} data-testid="supplier-name-input" /></div>
-            <div className="space-y-1"><Label>Telepon</Label><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
-            <div className="space-y-1"><Label>Email</Label><Input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
-            <div className="space-y-1"><Label>Alamat</Label><Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></div>
+            <div className="space-y-1"><Label>Telepon</Label><Input data-testid="suppliers-input-1" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
+            <div className="space-y-1"><Label>Email</Label><Input data-testid="suppliers-input-2" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
+            <div className="space-y-1"><Label>Alamat</Label><Input data-testid="suppliers-input-3" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></div>
           </div>
           <DialogFooter><Button onClick={save} className="w-full" data-testid="save-supplier-button">Simpan</Button></DialogFooter>
         </DialogContent>

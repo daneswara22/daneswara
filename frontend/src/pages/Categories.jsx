@@ -98,7 +98,7 @@ export default function Categories() {
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari kategori..." className="pl-10" data-testid="category-search" />
         </div>
-        <ViewToggle mode={view} onChange={setView} />
+        <ViewToggle data-testid="categories-view-toggle-1" mode={view} onChange={setView} />
       </div>
 
       <div className={
@@ -119,8 +119,8 @@ export default function Categories() {
               <span className="truncate font-medium">{c.name}</span>
             </div>
             <div className="flex shrink-0 gap-1">
-              <Button variant="ghost" size="icon" onClick={() => { setForm(c); setEditId(c.id); setOpen(true); }}><Pencil className="h-4 w-4" /></Button>
-              <Button variant="ghost" size="icon" onClick={() => del(c.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+              <Button data-testid="categories-button-1" variant="ghost" size="icon" onClick={() => { setForm(c); setEditId(c.id); setOpen(true); }}><Pencil className="h-4 w-4" /></Button>
+              <Button data-testid="categories-button-2" variant="ghost" size="icon" onClick={() => del(c.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
             </div>
           </div>
         ))}
@@ -140,7 +140,7 @@ export default function Categories() {
                 </div>
                 <div className="flex-1 space-y-1">
                   <Input type="file" accept="image/*" onChange={handleImage} data-testid="category-image-input" />
-                  {form.image && <button type="button" onClick={() => setForm({ ...form, image: "" })} className="text-xs text-destructive">Hapus gambar</button>}
+                  {form.image && <button data-testid="categories-button-3" type="button" onClick={() => setForm({ ...form, image: "" })} className="text-xs text-destructive">Hapus gambar</button>}
                 </div>
               </div>
             </div>
@@ -148,7 +148,7 @@ export default function Categories() {
               <Label>Warna</Label>
               <div className="flex gap-2">
                 {COLORS.map((col) => (
-                  <button key={col} onClick={() => setForm({ ...form, color: col })} className={`h-8 w-8 rounded-full border-2 ${form.color === col ? "border-foreground" : "border-transparent"}`} style={{ background: col }} />
+                  <button data-testid="categories-button-4" key={col} onClick={() => setForm({ ...form, color: col })} className={`h-8 w-8 rounded-full border-2 ${form.color === col ? "border-foreground" : "border-transparent"}`} style={{ background: col }} />
                 ))}
               </div>
             </div>
@@ -179,7 +179,7 @@ export default function Categories() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setReorderOpen(false)}>Batal</Button>
+            <Button data-testid="categories-button-5" variant="outline" onClick={() => setReorderOpen(false)}>Batal</Button>
             <Button onClick={saveReorder} disabled={reorderList.length === 0} data-testid="reorder-category-save-button">Simpan Urutan</Button>
           </DialogFooter>
         </DialogContent>

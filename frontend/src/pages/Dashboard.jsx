@@ -55,7 +55,7 @@ export default function Dashboard() {
           </div>
           <p className="mt-1 text-xs text-muted-foreground">Produk berikut stoknya minus — segera lakukan restock lewat menu Inventory / Pembelian.</p>
           <div className="mt-3 flex flex-wrap gap-2">
-            {d.minus_stock.map((p) => (
+            {(d.minus_stock || []).map((p) => (
               <div key={p.id} className="flex items-center gap-2 rounded-md border border-destructive/30 bg-card px-3 py-2 text-sm" data-testid={`minus-stock-${p.id}`}>
                 <span className="font-medium">{p.name}</span>
                 <span className="rounded-full bg-destructive/15 px-2 py-0.5 text-xs font-bold text-destructive">{p.stock} {p.unit}</span>
@@ -116,7 +116,7 @@ export default function Dashboard() {
             {d.low_stock.length === 0 ? (
               <p className="text-sm text-muted-foreground">Semua stok aman.</p>
             ) : (
-              d.low_stock.map((p) => (
+              (d.low_stock || []).map((p) => (
                 <div key={p.id} className="flex items-center justify-between rounded-md bg-secondary px-3 py-2 text-sm">
                   <span className="font-medium">{p.name}</span>
                   <span className="rounded-full bg-orange-500/15 px-2 py-0.5 text-xs font-semibold text-orange-600">
@@ -138,7 +138,7 @@ export default function Dashboard() {
             {d.activities.length === 0 ? (
               <p className="text-sm text-muted-foreground">Belum ada aktivitas.</p>
             ) : (
-              d.activities.map((a) => (
+              (d.activities || []).map((a) => (
                 <div key={a.id} className="flex items-start gap-3 text-sm">
                   <div className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
                   <div>

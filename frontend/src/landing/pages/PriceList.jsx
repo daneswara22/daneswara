@@ -40,7 +40,7 @@ function Card({ shirt, label, pkgId, mockup, price, isID }) {
       <div className="p-4 flex-1 flex flex-col">
         <div className="font-display text-xl uppercase tracking-wider">{label}</div>
         <div className="font-display text-2xl text-primary mt-2 leading-none">{Rp(price)}</div>
-        <Link to={`/order?${p.toString()}`} className="mt-4 inline-flex items-center justify-center gap-2 bg-primary text-primary-foreground px-4 py-2.5 border-2 border-foreground shadow-stamp font-bold uppercase tracking-wider text-xs lift">
+        <Link data-testid="price-list-link-1" to={`/order?${p.toString()}`} className="mt-4 inline-flex items-center justify-center gap-2 bg-primary text-primary-foreground px-4 py-2.5 border-2 border-foreground shadow-stamp font-bold uppercase tracking-wider text-xs lift">
           <ShoppingBag size={14} /> {isID ? "Pesan" : "Order"}
         </Link>
       </div>
@@ -58,7 +58,7 @@ export default function PriceList() {
       <SubPageBar />
       <header className="border-b-2 border-foreground bg-card">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-10 py-8">
-          <Link to="/" className="inline-flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground hover:text-foreground">
+          <Link data-testid="price-list-link-2" to="/" className="inline-flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground hover:text-foreground">
             <ArrowLeft size={14} /> {isID ? "Kembali" : "Back"}
           </Link>
           <div className="mt-4 text-xs uppercase tracking-[0.3em] text-primary font-bold">★ {isID ? "Daftar Harga" : "Price List"} ★</div>
@@ -77,7 +77,7 @@ export default function PriceList() {
             {SHIRTS.map((s) => {
               const active = sel?.id === s.id;
               return (
-                <button key={s.id} onClick={() => setSel(s)}
+                <button data-testid="price-list-button-1" key={s.id} onClick={() => setSel(s)}
                   className={`text-left bg-card border-2 border-foreground p-5 lift ${active ? "shadow-stamp-red ring-2 ring-primary" : "shadow-stamp"}`}>
                   <div className="flex items-start justify-between">
                     <div className="font-display text-lg uppercase tracking-wider">{s.name}</div>
@@ -139,7 +139,7 @@ export default function PriceList() {
                 </span>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                {PAIRS.map(([a, b]) => {
+                {(PAIRS || []).map(([a, b]) => {
                   const k = key(a, b);
                   return <Card key={k} shirt={sel} label={`${a.label} + ${b.label}`} pkgId={`double-${k}`} mockup={DOUBLE[k]} price={sel.price + a.price + b.price - DISCOUNT} isID={isID} />;
                 })}

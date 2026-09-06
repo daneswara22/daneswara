@@ -29,7 +29,7 @@ export default function GalleryPage() {
           data-testid="gallery-page-grid"
           className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 auto-rows-[180px] sm:auto-rows-[220px]"
         >
-          {items.map((img, i) => (
+          {(items || []).map((img, i) => (
             <figure
               key={img.id || i}
               data-testid={`gallery-page-item-${i}`}

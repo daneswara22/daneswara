@@ -74,7 +74,7 @@ export default function Settings() {
       const patch = { ...f, printers: next };
       // auto-activate the first printer or the edited-active one
       const activeId = editingPrinter || (next.length === 1 ? next[next.length - 1].id : f.active_printer);
-      const activeP = next.find((x) => x.id === activeId);
+      const activeP = (next || []).find((x) => x.id === activeId);
       if (activeP) { patch.active_printer = activeP.id; patch.print_mode = activeP.connection; patch.paper_width = activeP.paper_width; }
       return patch;
     });
@@ -222,11 +222,11 @@ export default function Settings() {
         </div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-1 sm:col-span-2"><Label>Nama Bisnis</Label><Input value={form.business_name || ""} onChange={(e) => setForm({ ...form, business_name: e.target.value })} data-testid="settings-business-input" /></div>
-          <div className="space-y-1 sm:col-span-2"><Label>Alamat</Label><Input value={form.address || ""} onChange={(e) => setForm({ ...form, address: e.target.value })} /></div>
-          <div className="space-y-1"><Label>Telepon</Label><Input value={form.phone || ""} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
-          <div className="space-y-1"><Label>Mata Uang</Label><Input value={form.currency || ""} onChange={(e) => setForm({ ...form, currency: e.target.value })} /></div>
+          <div className="space-y-1 sm:col-span-2"><Label>Alamat</Label><Input data-testid="settings-input-1" value={form.address || ""} onChange={(e) => setForm({ ...form, address: e.target.value })} /></div>
+          <div className="space-y-1"><Label>Telepon</Label><Input data-testid="settings-input-2" value={form.phone || ""} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
+          <div className="space-y-1"><Label>Mata Uang</Label><Input data-testid="settings-input-3" value={form.currency || ""} onChange={(e) => setForm({ ...form, currency: e.target.value })} /></div>
           <div className="space-y-1"><Label>Pajak Default (%)</Label><Input type="number" value={form.tax_rate ?? 0} onChange={(e) => setForm({ ...form, tax_rate: e.target.value })} data-testid="settings-tax-input" /></div>
-          <div className="space-y-1 sm:col-span-2"><Label>Footer Struk</Label><Input value={form.receipt_footer || ""} onChange={(e) => setForm({ ...form, receipt_footer: e.target.value })} /></div>
+          <div className="space-y-1 sm:col-span-2"><Label>Footer Struk</Label><Input data-testid="settings-input-4" value={form.receipt_footer || ""} onChange={(e) => setForm({ ...form, receipt_footer: e.target.value })} /></div>
         </div>
         <Button onClick={save} className="mt-6 gap-2" data-testid="save-settings-button"><Save className="h-4 w-4" /> Simpan Perubahan</Button>
       </div>
@@ -384,27 +384,27 @@ export default function Settings() {
             </div>
             <div className="space-y-1">
               <Label>Koneksi</Label>
-              <Select value={pForm.connection} onValueChange={(v) => setPForm({ ...pForm, connection: v })}>
+              <Select data-testid="settings-select-1" value={pForm.connection} onValueChange={(v) => setPForm({ ...pForm, connection: v })}>
                 <SelectTrigger data-testid="printer-connection-select"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="desktop"><span className="flex items-center gap-2"><Monitor className="h-4 w-4" /> USB / Desktop (dialog print)</span></SelectItem>
-                  <SelectItem value="bluetooth"><span className="flex items-center gap-2"><Bluetooth className="h-4 w-4" /> Bluetooth Thermal (BLE)</span></SelectItem>
+                  <SelectItem data-testid="settings-select-item-1" value="desktop"><span className="flex items-center gap-2"><Monitor className="h-4 w-4" /> USB / Desktop (dialog print)</span></SelectItem>
+                  <SelectItem data-testid="settings-select-item-2" value="bluetooth"><span className="flex items-center gap-2"><Bluetooth className="h-4 w-4" /> Bluetooth Thermal (BLE)</span></SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-1">
               <Label>Lebar Kertas</Label>
-              <Select value={pForm.paper_width} onValueChange={(v) => setPForm({ ...pForm, paper_width: v })}>
+              <Select data-testid="settings-select-2" value={pForm.paper_width} onValueChange={(v) => setPForm({ ...pForm, paper_width: v })}>
                 <SelectTrigger data-testid="printer-paper-select"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="58">58mm (kecil)</SelectItem>
-                  <SelectItem value="80">80mm (VSC TM-80D)</SelectItem>
+                  <SelectItem data-testid="settings-select-item-3" value="58">58mm (kecil)</SelectItem>
+                  <SelectItem data-testid="settings-select-item-4" value="80">80mm (VSC TM-80D)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setPrinterDialog(false)}>Batal</Button>
+            <Button data-testid="settings-button-1" variant="outline" onClick={() => setPrinterDialog(false)}>Batal</Button>
             <Button onClick={savePrinter} data-testid="printer-save-button">Simpan Printer</Button>
           </DialogFooter>
         </DialogContent>
@@ -419,7 +419,7 @@ export default function Settings() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setConfirmReset(false)}>Batal</Button>
+            <Button data-testid="settings-button-2" variant="outline" onClick={() => setConfirmReset(false)}>Batal</Button>
             <Button variant="destructive" onClick={doReset} disabled={resetting} data-testid="reset-confirm-button">
               {resetting ? "Menghapus..." : "Ya, Hapus Semua"}
             </Button>

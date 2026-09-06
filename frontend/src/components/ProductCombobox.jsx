@@ -14,8 +14,8 @@ export function ProductCombobox({ products = [], value, onChange, placeholder = 
 
   return (
     <Popover open={open} onOpenChange={(o) => { setOpen(o); if (!o) setTimeout(() => { document.body.style.pointerEvents = ""; }, 100); }}>
-      <PopoverTrigger asChild>
-        <Button variant="outline" role="combobox" className="w-full justify-between font-normal" data-testid={testId}>
+      <PopoverTrigger data-testid="product-combobox-popover-trigger-1" asChild>
+        <Button variant="outline" role="combobox" aria-expanded={open} aria-controls="product-combobox-listbox" className="w-full justify-between font-normal" data-testid={testId}>
           <span className={cn("truncate", !selected && "text-muted-foreground")}>{selected ? label : placeholder}</span>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
@@ -23,7 +23,7 @@ export function ProductCombobox({ products = [], value, onChange, placeholder = 
       <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
         <Command>
           <CommandInput placeholder="Ketik nama / SKU produk..." data-testid={testId ? `${testId}-search` : undefined} />
-          <CommandList>
+          <CommandList id="product-combobox-listbox">
             <CommandEmpty>Produk tidak ditemukan.</CommandEmpty>
             <CommandGroup>
               {products.map((p) => (

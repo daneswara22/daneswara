@@ -103,7 +103,7 @@ export const Header = ({ onCtaClick }) => {
         <div data-testid="mobile-menu" className="md:hidden border-t-2 border-foreground bg-card">
           <div className="px-4 py-4 flex flex-col gap-3">
             {nav.map((n) => (
-              <a
+              <a data-testid="header-a-1"
                 key={n.href}
                 href={n.href}
                 onClick={() => setOpen(false)}

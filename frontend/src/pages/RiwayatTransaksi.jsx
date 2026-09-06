@@ -48,7 +48,7 @@ export default function RiwayatTransaksi() {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((s) => (
+            {(filtered || []).map((s) => (
               <tr key={s.id} className="cursor-pointer border-t border-border transition-colors hover:bg-secondary/50" onClick={() => setNota(s)} data-testid={`riwayat-row-${s.id}`}>
                 <td className="px-4 py-3 font-medium">
                   {s.invoice}

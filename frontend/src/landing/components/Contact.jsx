@@ -121,7 +121,7 @@ export const Contact = () => {
                   return (
                     <li key={i} data-testid={testid}>
                       {href ? (
-                        <a
+                        <a data-testid="contact-a-1"
                           href={href}
                           target={external ? "_blank" : undefined}
                           rel={external ? "noreferrer" : undefined}
