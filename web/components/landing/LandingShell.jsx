@@ -1,7 +1,7 @@
 import { Outlet } from "react-router-dom";
 import { Toaster } from "sonner";
-import { LangProvider } from "@/landing/i18n/LangContext";
-import "@/landing/landing.css";
+import { LangProvider } from "@/components/landing/i18n/LangContext";
+import "@/components/landing/landing.css";
 
 /**
  * Wraps every public landing route: applies the scoped vintage theme (.dp-landing),

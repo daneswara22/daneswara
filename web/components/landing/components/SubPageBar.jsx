@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { Home } from "lucide-react";
-import { useLang } from "@/landing/i18n/LangContext";
+import { useLang } from "@/components/landing/i18n/LangContext";
 
 export const SubPageBar = () => {
   const { lang, setLang } = useLang();

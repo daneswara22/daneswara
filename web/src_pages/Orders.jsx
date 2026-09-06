@@ -126,11 +126,11 @@ export default function Orders() {
     setEditName(o.customer_name || "");
     setEditType(o.order_type || "Reguler");
   };
-  const setItemQty = (idx, delta) => setEditItems((arr) => arr.map((it, i) => i === idx ? { ...it, qty: Math.max(1, (Number(it.qty) || 1) + delta) } : it));
-  const setItemQtyAbs = (idx, v) => setEditItems((arr) => arr.map((it, i) => i === idx ? { ...it, qty: Math.max(1, parseInt(v || "1", 10) || 1) } : it));
-  const setItemPrice = (idx, v) => setEditItems((arr) => arr.map((it, i) => i === idx ? { ...it, price: Number(v) || 0 } : it));
-  const setItemNote = (idx, v) => setEditItems((arr) => arr.map((it, i) => i === idx ? { ...it, note: v } : it));
-  const removeItem = (idx) => setEditItems((arr) => arr.filter((_, i) => i !== idx));
+  const setItemQty = (idx, delta) => setEditItems((arr) => (arr || []).map((it, i) => i === idx ? { ...it, qty: Math.max(1, (Number(it.qty) || 1) + delta) } : it));
+  const setItemQtyAbs = (idx, v) => setEditItems((arr) => (arr || []).map((it, i) => i === idx ? { ...it, qty: Math.max(1, parseInt(v || "1", 10) || 1) } : it));
+  const setItemPrice = (idx, v) => setEditItems((arr) => (arr || []).map((it, i) => i === idx ? { ...it, price: Number(v) || 0 } : it));
+  const setItemNote = (idx, v) => setEditItems((arr) => (arr || []).map((it, i) => i === idx ? { ...it, note: v } : it));
+  const removeItem = (idx) => setEditItems((arr) => (arr || []).filter((_, i) => i !== idx));
   const editSubtotal = editItems.reduce((s, i) => s + (Number(i.price) || 0) * (Number(i.qty) || 0), 0);
   const editTaxRate = edit?.tax_rate || 0;
   const editTax = (editSubtotal - (Number(editDiscount) || 0)) * (editTaxRate / 100);
@@ -229,7 +229,7 @@ export default function Orders() {
       {list.length > 0 && filtered.length === 0 && <p className="text-sm text-muted-foreground">Tidak ada pesanan cocok.</p>}
 
       {GROUPS.map((g) => {
-        const rows = filtered.filter((o) => o.status === g.key);
+        const rows = (filtered || []).filter((o) => o.status === g.key);
         if (rows.length === 0) return null;
         return (
           <div key={g.key} className="space-y-3" data-testid={`order-group-${g.key}`}>
@@ -238,7 +238,7 @@ export default function Orders() {
               <span className="text-xs text-muted-foreground">{rows.length} pesanan</span>
             </div>
             <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-              {rows.map(renderCard)}
+              {(rows || []).map(renderCard)}
             </div>
           </div>
         );
@@ -270,7 +270,7 @@ export default function Orders() {
                     if (matches.length === 0) return null;
                     return (
                       <div className="absolute z-50 mt-1 max-h-56 w-full overflow-y-auto rounded-md border border-border bg-popover shadow-lg" data-testid="edit-name-suggestions">
-                        {matches.map((c) => (
+                        {(matches || []).map((c) => (
                           <button
                             key={c.id}
                             type="button"
@@ -289,9 +289,9 @@ export default function Orders() {
               </div>
               <div className="space-y-1">
                 <Label>Jenis Pesanan</Label>
-                <Select value={editType} onValueChange={setEditType}>
+                <Select data-testid="orders-select-1" value={editType} onValueChange={setEditType}>
                   <SelectTrigger data-testid="edit-type-select"><SelectValue /></SelectTrigger>
-                  <SelectContent>{ORDER_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+                  <SelectContent>{ORDER_TYPES.map((t) => <SelectItem data-testid="orders-select-item-1" key={t} value={t}>{t}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
             </div>

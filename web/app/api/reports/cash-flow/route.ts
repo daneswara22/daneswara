@@ -15,7 +15,7 @@ export const GET = handle(async (req: NextRequest) => {
   if (s) saleWhere.created_at.gte = s;
   if (e) saleWhere.created_at.lt = e;
   const sales = await prisma.sales.findMany({ where: saleWhere });
-  const salesIn = sales.reduce((a, x) => a + x.total, 0);
+  const salesIn = (sales || []).reduce((a, x) => a + x.total, 0);
 
   const startDate = parseDate(startStr); const endDate = parseDate(endStr);
   const finWhere: any = { tenant_id: tid };
@@ -23,21 +23,21 @@ export const GET = handle(async (req: NextRequest) => {
   if (startDate) finWhere.date.gte = startDate;
   if (endDate) finWhere.date.lte = endDate;
   const others = await prisma.other_income.findMany({ where: finWhere });
-  const oiIn = others.reduce((a, x) => a + x.amount, 0);
+  const oiIn = (others || []).reduce((a, x) => a + x.amount, 0);
   const expenses = await prisma.expenses.findMany({ where: finWhere });
   const expByCat: Record<string, number> = {};
   for (const ex of expenses) expByCat[ex.category] = (expByCat[ex.category] || 0) + ex.amount;
-  const expOut = expenses.reduce((a, x) => a + x.amount, 0);
+  const expOut = (expenses || []).reduce((a, x) => a + x.amount, 0);
 
   const purWhere: any = { tenant_id: tid, status: 'Diterima' };
   const purchases = await prisma.purchases.findMany({ where: purWhere });
-  const filtered = purchases.filter((p) => {
+  const filtered = (purchases || []).filter((p) => {
     const ref = p.received_at || p.created_at;
     if (s && ref < s) return false;
     if (e && ref >= e) return false;
     return true;
   });
-  const purchaseOut = filtered.reduce((a, x) => a + (x.total || 0), 0);
+  const purchaseOut = (filtered || []).reduce((a, x) => a + (x.total || 0), 0);
 
   const inflow = salesIn + oiIn;
   const outflow = purchaseOut + expOut;

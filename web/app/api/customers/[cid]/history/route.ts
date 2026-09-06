@@ -12,5 +12,5 @@ export const GET = handle(async (req: NextRequest, ctx: { params: Promise<{ cid:
     orderBy: { created_at: 'desc' },
     take: 500,
   });
-  return rows.map(serializeSale);
+  return (rows || []).map(serializeSale);
 });

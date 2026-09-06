@@ -1,5 +1,5 @@
 import { MapPin, Mail, Phone, Clock, Instagram, ExternalLink } from "lucide-react";
-import { useLang } from "@/landing/i18n/LangContext";
+import { useLang } from "@/components/landing/i18n/LangContext";
 
 const MAP_LINK = "https://maps.app.goo.gl/81eCVGTbwG1C2GmA6";
 const MAP_EMBED =
@@ -121,7 +121,7 @@ export const Contact = () => {
                   return (
                     <li key={i} data-testid={testid}>
                       {href ? (
-                        <a
+                        <a data-testid="contact-a-1"
                           href={href}
                           target={external ? "_blank" : undefined}
                           rel={external ? "noreferrer" : undefined}

@@ -1,5 +1,5 @@
 import { ArrowRight, Play } from "lucide-react";
-import { useLang } from "@/landing/i18n/LangContext";
+import { useLang } from "@/components/landing/i18n/LangContext";
 
 export const Hero = ({ onQuoteClick, onGalleryClick }) => {
   const { t } = useLang();

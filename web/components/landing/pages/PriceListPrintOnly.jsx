@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { ArrowLeft, Printer } from "lucide-react";
-import { useLang } from "@/landing/i18n/LangContext";
-import { SubPageBar } from "@/landing/components/SubPageBar";
+import { useLang } from "@/components/landing/i18n/LangContext";
+import { SubPageBar } from "@/components/landing/components/SubPageBar";
 
 const PRINTS = [
   { id: "a3", label: "A3", base: 30000 },
@@ -68,7 +68,7 @@ export default function PriceListPrintOnly() {
                     <div className="font-display text-xl uppercase tracking-wider">{p.label}</div>
                     <div className="font-display text-2xl text-primary mt-2 leading-none">{formatRp(p.base + ADD_ON)}</div>
                     <div className="mt-1 text-[11px] text-muted-foreground">{formatRp(p.base)} + {formatRp(ADD_ON)}</div>
-                    <Link to={`/order?${params.toString()}`} className="mt-4 inline-flex items-center justify-center gap-2 bg-primary text-primary-foreground px-4 py-2.5 border-2 border-foreground shadow-stamp font-bold uppercase tracking-wider text-xs lift">
+                    <Link data-testid="price-list-print-only-link-1" to={`/order?${params.toString()}`} className="mt-4 inline-flex items-center justify-center gap-2 bg-primary text-primary-foreground px-4 py-2.5 border-2 border-foreground shadow-stamp font-bold uppercase tracking-wider text-xs lift">
                       {isID ? "Pesan" : "Order"}
                     </Link>
                   </div>

@@ -1,6 +1,6 @@
 'use client';
 import { Suspense } from 'react';
-import Order from '@/landing/pages/Order';
+import Order from '@/components/landing/pages/Order';
 
 export const dynamic = 'force-dynamic';
 

@@ -1,7 +1,7 @@
 'use client';
-import { LangProvider } from '@/landing/i18n/LangContext';
+import { LangProvider } from '@/components/landing/i18n/LangContext';
 import { Toaster } from 'sonner';
-import '@/landing/landing.css';
+import '@/components/landing/landing.css';
 
 export default function LandingLayout({ children }: { children: React.ReactNode }) {
   return (

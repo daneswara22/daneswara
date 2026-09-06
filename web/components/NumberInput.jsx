@@ -19,7 +19,7 @@ export const NumberInput = forwardRef(function NumberInput(
     onValueChange(raw === "" ? "" : Number(raw));
   };
   return (
-    <Input
+    <Input data-testid="number-input-input-1"
       ref={ref}
       inputMode="numeric"
       value={fmt(value)}

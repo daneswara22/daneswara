@@ -26,7 +26,7 @@ export const GET = handle(async (req: NextRequest) => {
       (poMap[pid] ||= []).push(po.po_number);
     }
   }
-  const out = prods.map((p: any) => {
+  const out = (prods || []).map((p: any) => {
     const s = serializeProduct(p) as any;
     const nums = poMap[p.id] || [];
     s.open_po = nums.length > 0;

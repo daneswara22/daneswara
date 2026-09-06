@@ -65,7 +65,7 @@ export default function Login() {
           <h2 className="mt-1 font-display text-3xl font-bold tracking-tight">Selamat datang kembali</h2>
           <p className="mt-2 text-sm text-muted-foreground">Masukkan kredensial akun Anda untuk melanjutkan.</p>
 
-          <form onSubmit={submit} className="mt-8 space-y-5">
+          <form data-testid="login-form-1" onSubmit={submit} className="mt-8 space-y-5">
             <div className="space-y-2">
               <Label htmlFor="username">Username</Label>
               <Input

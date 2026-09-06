@@ -24,7 +24,7 @@ async function waitForImages(node, timeout = 5000) {
 export async function captureToBlob(node, { backgroundColor = "#15171c", scale = 2 } = {}) {
   if (!node) throw new Error("no node");
   if (document.fonts && document.fonts.ready) {
-    try { await document.fonts.ready; } catch (e) {}
+    try { await document.fonts.ready; } catch (e) { /* ignore */ }
   }
   await waitForImages(node);
   // Let layout settle for two frames before snapshotting.

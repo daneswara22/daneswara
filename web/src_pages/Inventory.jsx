@@ -69,7 +69,7 @@ export default function Inventory() {
         <div className="rounded-lg border border-border bg-card p-5 lg:col-span-1">
           <h3 className="mb-3 font-display font-semibold">Stok Produk</h3>
           <div className="max-h-[60vh] space-y-2 overflow-y-auto">
-            {fProducts.map((p) => (
+            {(fProducts || []).map((p) => (
               <div key={p.id} className="flex items-center justify-between rounded-md bg-secondary px-3 py-2 text-sm">
                 <span className="font-medium">{p.name}</span>
                 <span className={p.stock <= p.min_stock ? "font-semibold text-orange-600" : "font-semibold"}>{p.stock} {p.unit}</span>
@@ -89,7 +89,7 @@ export default function Inventory() {
                 <tr><th className="py-2 text-left">Produk</th><th className="py-2 text-left">Tipe</th><th className="py-2 text-right">Perubahan</th><th className="py-2 text-right">Waktu</th></tr>
               </thead>
               <tbody>
-                {fMoves.map((m) => (
+                {(fMoves || []).map((m) => (
                   <tr key={m.id} className="border-t border-border" data-testid={`stock-move-${m.id}`}>
                     <td className="py-2">{m.product_name}</td>
                     <td className="py-2"><span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${badge[m.type]}`}>{m.type}</span></td>
@@ -110,7 +110,7 @@ export default function Inventory() {
           <div className="space-y-4">
             <div className="space-y-1">
               <Label>Produk</Label>
-              <ProductCombobox
+              <ProductCombobox data-testid="inventory-product-combobox-1"
                 products={products}
                 value={form.product_id}
                 onChange={(v) => setForm({ ...form, product_id: v })}
@@ -121,16 +121,16 @@ export default function Inventory() {
             </div>
             <div className="space-y-1">
               <Label>Tipe</Label>
-              <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v })}>
+              <Select data-testid="inventory-select-1" value={form.type} onValueChange={(v) => setForm({ ...form, type: v })}>
                 <SelectTrigger data-testid="stock-type-select"><SelectValue /></SelectTrigger>
-                <SelectContent>{TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+                <SelectContent>{TYPES.map((t) => <SelectItem data-testid="inventory-select-item-1" key={t} value={t}>{t}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="space-y-1">
               <Label>{form.type === "Opname" ? "Stok Akhir (aktual)" : "Jumlah"}</Label>
               <NumberInput value={form.qty} onValueChange={(v) => setForm({ ...form, qty: v })} data-testid="stock-qty-input" />
             </div>
-            <div className="space-y-1"><Label>Catatan</Label><Input value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} /></div>
+            <div className="space-y-1"><Label>Catatan</Label><Input data-testid="inventory-input-1" value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} /></div>
           </div>
           <DialogFooter><Button onClick={save} className="w-full" data-testid="save-stock-button">Simpan</Button></DialogFooter>
         </DialogContent>

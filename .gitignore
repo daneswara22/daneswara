@@ -30,3 +30,5 @@ web/node_modules/@next/swc-linux-arm64-musl/next-swc.linux-arm64-musl.node
 
 # Emergent sandbox artefacts (never commit)
 plugins/
+web/.next/cache/webpack/server-production/0.pack
+web/.next/cache/webpack/client-production/0.pack

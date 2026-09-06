@@ -1,5 +1,5 @@
 import { Instagram, Mail, MapPin, Phone } from "lucide-react";
-import { useLang } from "@/landing/i18n/LangContext";
+import { useLang } from "@/components/landing/i18n/LangContext";
 
 export const Footer = () => {
   const { t } = useLang();
@@ -31,20 +31,20 @@ export const Footer = () => {
               <MapPin size={14} className="mt-0.5 shrink-0" />
               <span>Jl. Gunung Shangyang 156, Denpasar — Bali</span>
             </a>
-            <a href="mailto:daneswara.made@gmail.com" className="flex items-center gap-2 hover:text-primary">
+            <a data-testid="footer-a-1" href="mailto:daneswara.made@gmail.com" className="flex items-center gap-2 hover:text-primary">
               <Mail size={14} /> daneswara.made@gmail.com
             </a>
-            <a href="https://wa.me/6285888102930" target="_blank" rel="noreferrer" className="flex items-center gap-2 hover:text-primary">
+            <a data-testid="footer-a-2" href="https://wa.me/6285888102930" target="_blank" rel="noreferrer" className="flex items-center gap-2 hover:text-primary">
               <Phone size={14} /> +62 858 8810 2930
             </a>
             <div className="flex items-center gap-2"><Instagram size={14} /> @daneswaraprint</div>
           </div>
           <div className="space-y-2 text-sm">
             <div className="font-display uppercase tracking-widest text-primary">Quick links</div>
-            <a href="#gallery" className="block hover:text-primary">Gallery</a>
-            <a href="#pricing" className="block hover:text-primary">Pricing</a>
-            <a href="#quote" className="block hover:text-primary">Quote</a>
-            <a href="#contact" className="block hover:text-primary">Contact</a>
+            <a data-testid="footer-a-3" href="#gallery" className="block hover:text-primary">Gallery</a>
+            <a data-testid="footer-a-4" href="#pricing" className="block hover:text-primary">Pricing</a>
+            <a data-testid="footer-a-5" href="#quote" className="block hover:text-primary">Quote</a>
+            <a data-testid="footer-a-6" href="#contact" className="block hover:text-primary">Contact</a>
             <a href={adminHref} data-testid="admin-link" className="block hover:text-primary">Admin</a>
           </div>
         </div>

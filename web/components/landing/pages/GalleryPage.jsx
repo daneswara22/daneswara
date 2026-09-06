@@ -1,6 +1,6 @@
-import { useLang } from "@/landing/i18n/LangContext";
-import { useGallery } from "@/landing/hooks/useGallery";
-import { SubPageBar } from "@/landing/components/SubPageBar";
+import { useLang } from "@/components/landing/i18n/LangContext";
+import { useGallery } from "@/components/landing/hooks/useGallery";
+import { SubPageBar } from "@/components/landing/components/SubPageBar";
 
 export default function GalleryPage() {
   const { t, lang } = useLang();
@@ -29,7 +29,7 @@ export default function GalleryPage() {
           data-testid="gallery-page-grid"
           className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 auto-rows-[180px] sm:auto-rows-[220px]"
         >
-          {items.map((img, i) => (
+          {(items || []).map((img, i) => (
             <figure
               key={img.id || i}
               data-testid={`gallery-page-item-${i}`}

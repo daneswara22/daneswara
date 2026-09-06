@@ -23,7 +23,7 @@ export const GET = handle(async (req: NextRequest) => {
   for (const p of pos) {
     if (p.order_id) (poMap[p.order_id] ||= []).push(p.po_number);
   }
-  return orders.map((o: any) => {
+  return (orders || []).map((o: any) => {
     const d = serializeOrder(o) as any;
     const nums = poMap[o.id] || [];
     d.po_created = nums.length > 0;
@@ -38,7 +38,7 @@ export const POST = handle(async (req: NextRequest) => {
   if (!data.items || data.items.length === 0) throw new HttpError(400, 'Item pesanan kosong');
   const tid = user.tenant_id;
   const items = data.items;
-  const subtotal = items.reduce((s, i) => s + i.price * i.qty, 0);
+  const subtotal = (items || []).reduce((s, i) => s + i.price * i.qty, 0);
   const taxed = (subtotal - data.discount) * (data.tax_rate / 100);
   const total = subtotal - data.discount + taxed;
   let custName = data.customer_name || '';

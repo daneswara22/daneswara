@@ -67,7 +67,7 @@ export const GET = handle(async (req: NextRequest, ctx: { params: Promise<{ data
   }
   const orderBy = (dataset === 'settings') ? undefined : { created_at: 'desc' as const };
   const rows = await (prisma as any)[cfg.model].findMany({ where, orderBy, take: 50000 });
-  const docs = rows.map(cfg.serialize);
+  const docs = (rows || []).map(cfg.serialize);
   const body = '\uFEFF' + docsToCsv(docs);
   const filename = `${dataset}_${localToday()}.csv`;
   return new NextResponse(body, {

@@ -25,18 +25,18 @@ export const GET = handle(async (req: NextRequest) => {
     orderBy: { created_at: 'desc' },
     take: 5000,
   });
-  const todaySales = recent.filter((s) => localDateOf(s.created_at) === today);
+  const todaySales = (recent || []).filter((s) => localDateOf(s.created_at) === today);
   const series: any[] = [];
   for (let d = 6; d >= 0; d--) {
     const day = new Date(todayDate.getTime() - d * 86400_000);
     const dayKey = localDateOf(day)!;
-    const totalDay = recent.filter((s) => localDateOf(s.created_at) === dayKey).reduce((a, s) => a + s.total, 0);
+    const totalDay = (recent || []).filter((s) => localDateOf(s.created_at) === dayKey).reduce((a, s) => a + s.total, 0);
     series.push({ date: dayKey.slice(5), total: totalDay });
   }
 
   const products = await prisma.products.findMany({ where: { tenant_id: tid } });
-  const lowStock = products.filter((p) => (p.stock || 0) <= (p.min_stock || 5)).map(serializeProduct);
-  const minusStock = products.filter((p) => (p.stock || 0) < 0).map(serializeProduct);
+  const lowStock = (products || []).filter((p) => (p.stock || 0) <= (p.min_stock || 5)).map(serializeProduct);
+  const minusStock = (products || []).filter((p) => (p.stock || 0) < 0).map(serializeProduct);
 
   const allItems = await prisma.sales.findMany({
     where: { tenant_id: tid, refunded: false }, select: { items: true },
@@ -58,9 +58,9 @@ export const GET = handle(async (req: NextRequest) => {
   });
 
   return {
-    today_revenue: todaySales.reduce((a, s) => a + s.total, 0),
+    today_revenue: (todaySales || []).reduce((a, s) => a + s.total, 0),
     today_transactions: todaySales.length,
-    today_profit: todaySales.reduce((a, s) => a + (s.profit || 0), 0),
+    today_profit: (todaySales || []).reduce((a, s) => a + (s.profit || 0), 0),
     total_revenue: totalRevenue,
     total_transactions: totalTransactions,
     product_count: products.length,
@@ -70,6 +70,6 @@ export const GET = handle(async (req: NextRequest) => {
     minus_stock: minusStock.slice(0, 20),
     sales_series: series,
     top_products: topProducts,
-    activities: activities.map(serializeActivity),
+    activities: (activities || []).map(serializeActivity),
   };
 });

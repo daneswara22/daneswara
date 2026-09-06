@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useMemo, useCallback } from "react";
-import { translations } from "@/landing/i18n/translations";
+import { translations } from "@/components/landing/i18n/translations";
 
 const LangContext = createContext(null);
 

@@ -9,7 +9,7 @@ import { serializeSupplier } from '@/lib/serializers';
 export const GET = handle(async (req: NextRequest) => {
   const user = await getCurrentUser(req);
   const rows = await prisma.suppliers.findMany({ where: { tenant_id: user.tenant_id }, orderBy: { created_at: 'desc' } });
-  return rows.map(serializeSupplier);
+  return (rows || []).map(serializeSupplier);
 });
 
 export const POST = handle(async (req: NextRequest) => {

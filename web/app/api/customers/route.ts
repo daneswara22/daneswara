@@ -20,7 +20,7 @@ export const GET = handle(async (req: NextRequest) => {
   for (const g of agg) {
     if (g.customer_id) map[g.customer_id] = { total: Number(g._sum.total || 0), visits: g._count };
   }
-  return customers.map((c: any) => {
+  return (customers || []).map((c: any) => {
     const d = serializeCustomer(c) as any;
     const s = map[c.id] || { total: 0, visits: 0 };
     d.total_spent = s.total; d.visits = s.visits;

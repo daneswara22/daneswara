@@ -147,8 +147,8 @@ export default function POS() {
       addToCart(product, "", val);
     } else {
       setTempItems((t) => {
-        const ex = t.find((x) => x.product.id === product.id);
-        if (ex) return t.map((x) => (x.product.id === product.id ? { ...x, qty: x.qty + 1, price: val } : x));
+        const ex = (t || []).find((x) => x.product.id === product.id);
+        if (ex) return (t || []).map((x) => (x.product.id === product.id ? { ...x, qty: x.qty + 1, price: val } : x));
         return [...t, { product, qty: 1, price: val }];
       });
     }
@@ -268,7 +268,7 @@ export default function POS() {
   }, [categories, productsByCat]);
 
   const tileThumb = (tile) =>
-    tile.image || tile.items.find((p) => p.image)?.image || null;
+    tile.image || (tile.items || []).find((p) => p.image)?.image || null;
 
   const stripVariant = (name, catName) => {
     if (!catName) return name;
@@ -280,20 +280,20 @@ export default function POS() {
     const price = priceOverride != null ? Number(priceOverride) : (Number(p.price) || 0);
     const lineId = `${p.id}|${note}|${price}`;
     setCart((c) => {
-      const ex = c.find((x) => x.lineId === lineId);
-      if (ex) return c.map((x) => (x.lineId === lineId ? { ...x, qty: x.qty + 1 } : x));
+      const ex = (c || []).find((x) => x.lineId === lineId);
+      if (ex) return (c || []).map((x) => (x.lineId === lineId ? { ...x, qty: x.qty + 1 } : x));
       return [...c, { lineId, product_id: p.id, name: p.name, price, cost: p.cost || 0, qty: 1, note }];
     });
   };
   const setQty = (lineId, delta) =>
     setCart((c) =>
-      c.map((x) => (x.lineId === lineId ? { ...x, qty: Math.max(1, x.qty + delta) } : x))
+      (c || []).map((x) => (x.lineId === lineId ? { ...x, qty: Math.max(1, x.qty + delta) } : x))
     );
   const setQtyAbs = (lineId, val) => {
     const n = Math.max(1, Math.floor(Number(val) || 1));
-    setCart((c) => c.map((x) => (x.lineId === lineId ? { ...x, qty: n } : x)));
+    setCart((c) => (c || []).map((x) => (x.lineId === lineId ? { ...x, qty: n } : x)));
   };
-  const removeItem = (lineId) => setCart((c) => c.filter((x) => x.lineId !== lineId));
+  const removeItem = (lineId) => setCart((c) => (c || []).filter((x) => x.lineId !== lineId));
 
   const addTemp = (p) => {
     if (needPrice(p) && !tempItems.find((x) => x.product.id === p.id)) {
@@ -301,16 +301,16 @@ export default function POS() {
       return;
     }
     setTempItems((t) => {
-      const ex = t.find((x) => x.product.id === p.id);
-      if (ex) return t.map((x) => (x.product.id === p.id ? { ...x, qty: x.qty + 1 } : x));
+      const ex = (t || []).find((x) => x.product.id === p.id);
+      if (ex) return (t || []).map((x) => (x.product.id === p.id ? { ...x, qty: x.qty + 1 } : x));
       return [...t, { product: p, qty: 1 }];
     });
   };
   const decTemp = (pid) =>
-    setTempItems((t) => t.map((x) => (x.product.id === pid ? { ...x, qty: x.qty - 1 } : x)).filter((x) => x.qty > 0));
+    setTempItems((t) => (t || []).map((x) => (x.product.id === pid ? { ...x, qty: x.qty - 1 } : x)).filter((x) => x.qty > 0));
   const setTempQty = (p, val) => {
     const n = Math.max(1, Math.floor(Number(val) || 1));
-    setTempItems((t) => t.map((x) => (x.product.id === p.id ? { ...x, qty: n } : x)));
+    setTempItems((t) => (t || []).map((x) => (x.product.id === p.id ? { ...x, qty: n } : x)));
   };
   const commitVariants = () => {
     const note = variantNote.trim();
@@ -321,7 +321,7 @@ export default function POS() {
           const unit = price != null ? Number(price) : (Number(product.price) || 0);
           const lineId = `${product.id}|${note}|${unit}`;
           const ex = next.find((x) => x.lineId === lineId);
-          if (ex) next = next.map((x) => (x.lineId === lineId ? { ...x, qty: x.qty + qty } : x));
+          if (ex) next = (next || []).map((x) => (x.lineId === lineId ? { ...x, qty: x.qty + qty } : x));
           else next = [...next, { lineId, product_id: product.id, name: product.name, price: unit, cost: product.cost || 0, qty, note }];
         });
         return next;
@@ -334,12 +334,12 @@ export default function POS() {
   const saveEditNote = (lineId) => {
     const note = editNoteVal.trim();
     setCart((c) => {
-      const item = c.find((x) => x.lineId === lineId);
+      const item = (c || []).find((x) => x.lineId === lineId);
       if (!item) return c;
       const newLineId = `${item.product_id}|${note}|${item.price}`;
-      let next = c.filter((x) => x.lineId !== lineId);
-      const ex = next.find((x) => x.lineId === newLineId);
-      if (ex) next = next.map((x) => (x.lineId === newLineId ? { ...x, qty: x.qty + item.qty } : x));
+      let next = (c || []).filter((x) => x.lineId !== lineId);
+      const ex = (next || []).find((x) => x.lineId === newLineId);
+      if (ex) next = (next || []).map((x) => (x.lineId === newLineId ? { ...x, qty: x.qty + item.qty } : x));
       else next = [...next, { ...item, lineId: newLineId, note }];
       return next;
     });
@@ -463,7 +463,7 @@ export default function POS() {
     lines.push(`Tgl  : ${new Date(r.created_at).toLocaleString("id-ID")}`);
     if (r.customer_name) lines.push(`Nama : ${r.customer_name}`);
     lines.push("--------------------------------");
-    r.items.forEach((i) => {
+    (r.items || []).forEach((i) => {
       lines.push(`${i.qty} x ${i.name}`);
       lines.push(`     @${rupiah(i.price)}  =  ${rupiah(i.price * i.qty)}`);
       if (i.note) lines.push(`     * ${i.note}`);
@@ -536,8 +536,8 @@ export default function POS() {
           <Button variant="outline" size="sm" className="gap-1" onClick={openHold} data-testid="pos-hold-button"><PauseCircle className="h-4 w-4" /> Tahan (Draft)</Button>
         </div>
         <Popover open={custOpen} onOpenChange={setCustOpen}>
-          <PopoverTrigger asChild>
-            <Button variant="outline" role="combobox" className="h-9 w-full justify-between font-normal" data-testid="pos-customer-select">
+          <PopoverTrigger data-testid="pos-popover-trigger-1" asChild>
+            <Button variant="outline" role="combobox" aria-expanded={custOpen} aria-controls="pos-customer-listbox" className="h-9 w-full justify-between font-normal" data-testid="pos-customer-select">
               <span className="truncate">
                 {customerId ? (customers.find((c) => c.id === customerId)?.name || "Pelanggan") : "Pilih pelanggan (opsional)"}
               </span>
@@ -552,7 +552,7 @@ export default function POS() {
                 onValueChange={setCustQuery}
                 data-testid="pos-customer-search"
               />
-              <CommandList ref={custListRef} data-testid="pos-customer-list">
+              <CommandList ref={custListRef} id="pos-customer-listbox" data-testid="pos-customer-list">
                 <CommandEmpty>Pelanggan tidak ditemukan.</CommandEmpty>
                 {!hasCustQuery && (
                   <CommandItem
@@ -564,7 +564,7 @@ export default function POS() {
                     Tanpa pelanggan
                   </CommandItem>
                 )}
-                {filteredCustomers.map((c, idx) => (
+                {(filteredCustomers || []).map((c, idx) => (
                   <CommandItem
                     key={c.id}
                     value={c.id}
@@ -622,7 +622,7 @@ export default function POS() {
                   <>
                     <p className="px-1 pb-1 text-[11px] text-muted-foreground">Ketuk transaksi untuk melihat nota.</p>
                     <div className="max-h-56 space-y-1 overflow-y-auto pr-0.5">
-                      {(custHistExpanded ? custHistory.sales : custHistory.sales.slice(0, HISTORY_PREVIEW)).map((s) => {
+                      {((custHistExpanded ? custHistory.sales : custHistory.sales.slice(0, HISTORY_PREVIEW)) || []).map((s) => {
                         const notes = itemNotes(s.items);
                         return (
                           <button
@@ -809,7 +809,7 @@ export default function POS() {
             {searching ? (
               /* Direct product search results (barcode / name) */
               <div className={`grid ${gridClass}`}>
-                {filtered.map((p) => (
+                {(filtered || []).map((p) => (
                   <motion.button
                     key={p.id}
                     whileTap={{ scale: 0.96 }}
@@ -834,7 +834,7 @@ export default function POS() {
             ) : (
               /* Category tiles (main products) — variants shown after tapping */
               <div className={`grid ${gridClass}`}>
-                {catTiles.map((tile) => {
+                {(catTiles || []).map((tile) => {
                   const thumb = tileThumb(tile);
                   return (
                     <motion.button
@@ -1004,7 +1004,7 @@ export default function POS() {
                 <NumberInput value={paid} onValueChange={setPaid} className="mt-1 h-12 text-lg" data-testid="pay-cash-input" />
                 <div className="mt-2 flex flex-wrap gap-2">
                   {[total, 50000, 100000, 200000].map((v, idx) => (
-                    <button key={idx} onClick={() => setPaid(v)} className="rounded-md bg-secondary px-3 py-1.5 text-xs font-medium">
+                    <button data-testid="pos-button-1" key={idx} onClick={() => setPaid(v)} className="rounded-md bg-secondary px-3 py-1.5 text-xs font-medium">
                       {rupiah(v)}
                     </button>
                   ))}
@@ -1058,7 +1058,7 @@ export default function POS() {
             </div>
             <div className="space-y-1">
               <Label>Jenis Pesanan</Label>
-              <Select value={holdType} onValueChange={setHoldType}>
+              <Select data-testid="pos-select-1" value={holdType} onValueChange={setHoldType}>
                 <SelectTrigger data-testid="hold-type-select"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {ORDER_TYPES.map((t) => <SelectItem key={t} value={t} data-testid={`hold-type-${t}`}>{t}</SelectItem>)}
@@ -1120,7 +1120,7 @@ export default function POS() {
               <div className="rounded-md border border-dashed border-border p-4 font-mono text-xs">
                 <p className="text-center font-bold">{receipt.invoice}</p>
                 <div className="my-2 border-t border-dashed" />
-                {receipt.items.map((i, idx) => (
+                {(receipt.items || []).map((i, idx) => (
                   <div key={idx}>
                     <div className="flex justify-between">
                       <span>{i.qty}x {i.name}</span>

@@ -120,7 +120,7 @@ export default function GalleryManager() {
           <p className="mt-1 text-sm text-muted-foreground">Foto yang tampil di halaman utama & halaman Galeri daneswaraprint. 6 foto pertama tampil di beranda.</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" asChild className="gap-2">
+          <Button data-testid="gallery-manager-button-1" variant="outline" asChild className="gap-2">
             <a href="/galeri" target="_blank" rel="noreferrer" data-testid="gallery-view-site"><ExternalLink className="h-4 w-4" /> Lihat di Website</a>
           </Button>
           <Button variant="outline" onClick={openReorder} className="gap-2" data-testid="reorder-gallery-button">
@@ -152,11 +152,11 @@ export default function GalleryManager() {
           <Images className="h-10 w-10 text-muted-foreground" />
           <p className="mt-3 font-medium">{items.length === 0 ? "Belum ada foto galeri" : "Tidak ada foto yang cocok"}</p>
           <p className="text-sm text-muted-foreground">Unggah foto hasil produksi untuk ditampilkan di website.</p>
-          {items.length === 0 && <Button onClick={openAdd} className="mt-4 gap-2"><Plus className="h-4 w-4" /> Tambah Foto</Button>}
+          {items.length === 0 && <Button data-testid="gallery-manager-button-2" onClick={openAdd} className="mt-4 gap-2"><Plus className="h-4 w-4" /> Tambah Foto</Button>}
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4" data-testid="gallery-grid">
-          {filtered.map((g, i) => (
+          {(filtered || []).map((g, i) => (
             <div key={g.id} className="group overflow-hidden rounded-lg border border-border bg-card" data-testid={`gallery-item-${g.id}`}>
               <div className="relative aspect-[4/3] bg-secondary">
                 <img src={g.src} alt={g.label} loading="lazy" className="h-full w-full object-cover" />
@@ -204,9 +204,9 @@ export default function GalleryManager() {
               </div>
               <div className="space-y-1">
                 <Label>Ukuran di grid</Label>
-                <Select value={form.span || "__none"} onValueChange={(v) => setForm({ ...form, span: v === "__none" ? "" : v })}>
+                <Select data-testid="gallery-manager-select-1" value={form.span || "__none"} onValueChange={(v) => setForm({ ...form, span: v === "__none" ? "" : v })}>
                   <SelectTrigger data-testid="gallery-span-select"><SelectValue /></SelectTrigger>
-                  <SelectContent>{SPANS.map((s) => <SelectItem key={s.value || "__none"} value={s.value || "__none"}>{s.label}</SelectItem>)}</SelectContent>
+                  <SelectContent>{SPANS.map((s) => <SelectItem data-testid="gallery-manager-select-item-1" key={s.value || "__none"} value={s.value || "__none"}>{s.label}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
             </div>

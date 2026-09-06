@@ -21,7 +21,7 @@ export const PUT = handle(async (req: NextRequest, ctx: { params: Promise<{ oid:
   const data = updateOrderSchema.parse(await readBody(req));
   if (!data.items || data.items.length === 0) throw new HttpError(400, 'Item pesanan kosong');
   const items = data.items;
-  const subtotal = items.reduce((s, i) => s + i.price * i.qty, 0);
+  const subtotal = (items || []).reduce((s, i) => s + i.price * i.qty, 0);
   const taxed = (subtotal - data.discount) * (data.tax_rate / 100);
   const total = subtotal - data.discount + taxed;
   const updated = await prisma.orders.update({

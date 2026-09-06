@@ -11,7 +11,7 @@ let btWriteBusy = false;    // simple mutex so keep-alive & print never overlap
 let btStatusCb = null;      // UI callback: 'connected' | 'reconnecting' | 'lost' | 'disconnected'
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-function notifyBt(status) { try { btStatusCb && btStatusCb(status, btName); } catch (e) {} }
+function notifyBt(status) { try { btStatusCb && btStatusCb(status, btName); } catch (e) { /* ignore */ } }
 export function setPrinterStatusCallback(cb) { btStatusCb = cb; }
 export const isPrinterReconnecting = () => btReconnecting;
 
@@ -165,7 +165,7 @@ async function locateWritable(server) {
 // Attach the disconnect listener + start the keep-alive/watchdog loop that keeps
 // the link alive and silently reconnects if the printer drops unexpectedly.
 function armConnection(device) {
-  try { device.removeEventListener("gattserverdisconnected", onGattDisconnected); } catch (e) {}
+  try { device.removeEventListener("gattserverdisconnected", onGattDisconnected); } catch (e) { /* ignore */ }
   device.addEventListener("gattserverdisconnected", onGattDisconnected);
   startWatchdog();
 }
@@ -247,7 +247,7 @@ export async function connectBluetoothPrinter() {
   btChar = writable;
   btName = device.name || "Printer Thermal";
   btKeepStay = true;
-  try { setDevicePrinterConfig({ last_device_id: device.id, last_device_name: btName }); } catch (e) {}
+  try { setDevicePrinterConfig({ last_device_id: device.id, last_device_name: btName }); } catch (e) { /* ignore */ }
   armConnection(device);
   notifyBt("connected");
   return btName;
@@ -262,7 +262,7 @@ export async function restorePrinterConnection() {
   if (!cfg.last_device_id) return "";
   try {
     const devices = await navigator.bluetooth.getDevices();
-    const dev = devices.find((d) => d.id === cfg.last_device_id) || devices.find((d) => d.name === cfg.last_device_name);
+    const dev = (devices || []).find((d) => d.id === cfg.last_device_id) || (devices || []).find((d) => d.name === cfg.last_device_name);
     if (!dev) return "";
     btDevice = dev;
     btName = dev.name || cfg.last_device_name || "Printer Thermal";
@@ -276,7 +276,7 @@ export async function restorePrinterConnection() {
 export function disconnectPrinter() {
   btKeepStay = false;
   stopWatchdog();
-  try { if (btDevice?.gatt?.connected) btDevice.gatt.disconnect(); } catch (e) {}
+  try { if (btDevice?.gatt?.connected) btDevice.gatt.disconnect(); } catch (e) { /* ignore */ }
   btChar = null; btDevice = null; btName = "";
   notifyBt("disconnected");
 }
@@ -460,7 +460,7 @@ export function printDesktop(r, settings) {
   const iframe = getPrintFrame();
   const doc = iframe.contentWindow.document;
   doc.open(); doc.write(html); doc.close();
-  const fire = () => { try { iframe.contentWindow.focus(); iframe.contentWindow.print(); } catch (e) {} };
+  const fire = () => { try { iframe.contentWindow.focus(); iframe.contentWindow.print(); } catch (e) { /* ignore */ } };
   // Print as soon as content is ready; don't block on slow image loads.
   let fired = false;
   const once = () => { if (fired) return; fired = true; fire(); };

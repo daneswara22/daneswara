@@ -15,8 +15,8 @@ export const GET = handle(async (req: NextRequest) => {
   if (s) saleWhere.created_at.gte = s;
   if (e) saleWhere.created_at.lt = e;
   const sales = await prisma.sales.findMany({ where: saleWhere });
-  const revenue = sales.reduce((a, x) => a + x.total, 0);
-  const hpp = sales.reduce((a, x) => a + (x.cost || 0), 0);
+  const revenue = (sales || []).reduce((a, x) => a + x.total, 0);
+  const hpp = (sales || []).reduce((a, x) => a + (x.cost || 0), 0);
 
   const startDate = parseDate(startStr); const endDate = parseDate(endStr);
   const finWhere: any = { tenant_id: tid };
@@ -31,8 +31,8 @@ export const GET = handle(async (req: NextRequest) => {
   const oiByCat: Record<string, number> = {};
   for (const e of others) oiByCat[e.category] = (oiByCat[e.category] || 0) + e.amount;
 
-  const expenseTotal = expenses.reduce((a, x) => a + x.amount, 0);
-  const otherIncomeTotal = others.reduce((a, x) => a + x.amount, 0);
+  const expenseTotal = (expenses || []).reduce((a, x) => a + x.amount, 0);
+  const otherIncomeTotal = (others || []).reduce((a, x) => a + x.amount, 0);
   return {
     revenue, hpp, gross_profit: revenue - hpp, expense_total: expenseTotal,
     expenses_by_category: Object.entries(byCat).map(([category, amount]) => ({ category, amount })),

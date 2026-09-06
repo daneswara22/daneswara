@@ -80,7 +80,7 @@ export default function Layout() {
           <span className="font-display text-lg font-bold tracking-tight">Daneswara POS</span>
         </div>
         <nav className="flex flex-col gap-1 p-4">
-          {items.map((n) => (
+          {(items || []).map((n) => (
             <NavLink
               key={n.to}
               to={n.to}
@@ -112,7 +112,7 @@ export default function Layout() {
       </aside>
 
       {open && (
-        <div className="fixed inset-0 z-30 bg-black/40 lg:hidden" onClick={() => setOpen(false)} />
+        <div data-testid="layout-div-1" className="fixed inset-0 z-30 bg-black/40 lg:hidden" onClick={() => setOpen(false)} />
       )}
 
       {/* Main */}
@@ -165,7 +165,7 @@ export default function Layout() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setPwOpen(false)}>Batal</Button>
+            <Button data-testid="layout-button-1" variant="outline" onClick={() => setPwOpen(false)}>Batal</Button>
             <Button onClick={changePassword} disabled={pwLoading} data-testid="submit-change-password">
               {pwLoading ? "Menyimpan..." : "Simpan Password"}
             </Button>

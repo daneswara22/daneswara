@@ -20,7 +20,7 @@ export const POST = handle(async (req: NextRequest, ctx: { params: Promise<{ oid
   if (data.paid_amount < remaining) throw new HttpError(400, 'Nominal pelunasan kurang dari sisa tagihan');
   const items = safeJsonParse<any[]>(order.items, []);
   await decrementStock(tid, user, items, `Pesanan ${order.order_number}`);
-  const totalCost = items.reduce((s, i) => s + Number(i.cost || 0) * Number(i.qty || 0), 0);
+  const totalCost = (items || []).reduce((s, i) => s + Number(i.cost || 0) * Number(i.qty || 0), 0);
   const invoice = await nextInvoice(tid);
   if (order.customer_id) {
     const c = await prisma.customers.findFirst({ where: { id: order.customer_id, tenant_id: tid } });

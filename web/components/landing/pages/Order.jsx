@@ -1,8 +1,8 @@
 import { useState, useMemo } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Send } from "lucide-react";
-import { useLang } from "@/landing/i18n/LangContext";
-import { SubPageBar } from "@/landing/components/SubPageBar";
+import { useLang } from "@/components/landing/i18n/LangContext";
+import { SubPageBar } from "@/components/landing/components/SubPageBar";
 
 const STUDIO_WA = "6285888102930";
 const formatRp = (n) => "Rp " + Number(n).toLocaleString("id-ID");
@@ -44,7 +44,7 @@ export default function Order() {
       <SubPageBar />
       <header className="border-b-2 border-foreground bg-card">
         <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-10 py-8">
-          <Link to="/price-list" className="inline-flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground hover:text-foreground">
+          <Link data-testid="order-link-1" to="/price-list" className="inline-flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground hover:text-foreground">
             <ArrowLeft size={14} /> {isID ? "Kembali ke daftar harga" : "Back to price list"}
           </Link>
           <div className="mt-4 text-xs uppercase tracking-[0.3em] text-primary font-bold">★ {isID ? "Ringkasan Pesanan" : "Order Summary"} ★</div>
@@ -76,11 +76,11 @@ export default function Order() {
           <div className="grid sm:grid-cols-2 gap-4 mt-6">
             <div>
               <label className={labelCls}>Order Quantity</label>
-              <input type="number" min={1} value={qty} onChange={(e) => setQty(e.target.value)} className={inputCls} />
+              <input data-testid="order-input-1" type="number" min={1} value={qty} onChange={(e) => setQty(e.target.value)} className={inputCls} />
             </div>
             <div>
               <label className={labelCls}>WhatsApp Number</label>
-              <input type="tel" value={wa} onChange={(e) => setWa(e.target.value)} placeholder="+62 ..." className={inputCls} />
+              <input data-testid="order-input-2" type="tel" value={wa} onChange={(e) => setWa(e.target.value)} placeholder="+62 ..." className={inputCls} />
             </div>
           </div>
 
@@ -89,7 +89,7 @@ export default function Order() {
             <span className="font-display text-2xl text-primary">{formatRp(total)}</span>
           </div>
 
-          <button
+          <button data-testid="order-button-1"
             onClick={sendWA}
             disabled={!wa.trim() || !qty}
             className="mt-6 inline-flex items-center justify-center gap-2 w-full bg-primary text-primary-foreground px-6 py-3.5 border-2 border-foreground shadow-stamp font-bold uppercase tracking-wider text-sm lift disabled:opacity-50 disabled:cursor-not-allowed"
