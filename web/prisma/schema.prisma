@@ -48,14 +48,15 @@ model customers {
 }
 
 model expenses {
-  id         String   @id @db.VarChar(36)
-  tenant_id  String   @db.VarChar(36)
-  category   String
-  amount     Float    @db.Float
-  note       String?  @db.Text
-  date       DateTime @db.Date
-  user_name  String?
-  created_at DateTime @db.DateTime(0)
+  id           String   @id @db.VarChar(36)
+  tenant_id    String   @db.VarChar(36)
+  category     String
+  amount       Float    @db.Float
+  note         String?  @db.Text
+  date         DateTime @db.Date
+  user_name    String?
+  fund_source  String?  @db.VarChar(40)
+  created_at   DateTime @db.DateTime(0)
 
   @@index([date], map: "ix_expenses_date")
   @@index([tenant_id], map: "ix_expenses_tenant_id")
@@ -131,14 +132,15 @@ model orders {
 }
 
 model other_income {
-  id         String   @id @db.VarChar(36)
-  tenant_id  String   @db.VarChar(36)
-  category   String
-  amount     Float    @db.Float
-  note       String?  @db.Text
-  date       DateTime @db.Date
-  user_name  String?
-  created_at DateTime @db.DateTime(0)
+  id           String   @id @db.VarChar(36)
+  tenant_id    String   @db.VarChar(36)
+  category     String
+  amount       Float    @db.Float
+  note         String?  @db.Text
+  date         DateTime @db.Date
+  user_name    String?
+  fund_source  String?  @db.VarChar(40)
+  created_at   DateTime @db.DateTime(0)
 
   @@index([date], map: "ix_other_income_date")
   @@index([tenant_id], map: "ix_other_income_tenant_id")

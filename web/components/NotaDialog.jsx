@@ -76,6 +76,7 @@ export function NotaDialog({ nota, onClose, settings = {} }) {
               <p className="mt-1 text-center">{nota.invoice || nota.order_number}</p>
               <p className="text-center text-muted-foreground">{new Date(nota.created_at).toLocaleString("id-ID")}</p>
               {nota.customer_name && <p className="text-center">Nama: {nota.customer_name}</p>}
+              {nota.cashier && <p className="text-center" data-testid="nota-cashier">Kasir: {nota.cashier}</p>}
               <div className="my-2 border-t border-dashed border-border" />
               {items.map((i, idx) => (
                 <div key={idx} className="mb-1">

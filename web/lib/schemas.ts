@@ -157,6 +157,7 @@ export const financeEntryInputSchema = z.object({
   amount: z.number(),
   note: z.string().optional().default(''),
   date: z.string().nullable().optional(),
+  fund_source: z.string().nullable().optional(),
 });
 
 export const galleryInputSchema = z.object({

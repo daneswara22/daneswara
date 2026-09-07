@@ -341,6 +341,46 @@ export default function Reports() {
             <span className={`font-display text-xl font-bold ${cash.net_cash >= 0 ? "text-emerald-600" : "text-destructive"}`} data-testid="cash-net">{rupiah(cash.net_cash)}</span>
           </div>
           <p className="mt-1 text-[11px] text-muted-foreground">Arus Kas Bersih = Kas Masuk − Kas Keluar. Pembelian dihitung dari PO berstatus "Diterima".</p>
+
+          {(cash.by_source || []).length > 0 && (
+            <div className="mt-5 rounded-md border border-border/60 bg-secondary/20 p-3" data-testid="cash-by-source-section">
+              <div className="mb-2 flex items-center gap-2">
+                <Landmark className="h-4 w-4 text-primary" />
+                <h4 className="font-display text-sm font-semibold">Ringkasan per Sumber Dana</h4>
+              </div>
+              <p className="mb-3 text-[11px] text-muted-foreground">Uang masuk, keluar, dan saldo bersih per rekening/kas. Pembelian yang belum bersumber dana tercantum di baris terakhir.</p>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[480px] text-sm">
+                  <thead className="text-xs uppercase text-muted-foreground">
+                    <tr className="border-b border-border">
+                      <th className="py-2 text-left font-medium">Sumber Dana</th>
+                      <th className="py-2 text-right font-medium">Masuk</th>
+                      <th className="py-2 text-right font-medium">Keluar</th>
+                      <th className="py-2 text-right font-medium">Saldo Bersih</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(cash.by_source || []).map((b) => (
+                      <tr key={b.source} className="border-b border-border/60" data-testid={`cash-source-row-${b.source}`}>
+                        <td className="py-2">
+                          <span className="rounded-full bg-background px-2 py-0.5 text-xs font-medium">{b.source}</span>
+                        </td>
+                        <td className="py-2 text-right text-emerald-600">{b.in > 0 ? `+ ${rupiah(b.in)}` : "-"}</td>
+                        <td className="py-2 text-right text-destructive">{b.out > 0 ? `- ${rupiah(b.out)}` : "-"}</td>
+                        <td className={`py-2 text-right font-semibold ${b.net >= 0 ? "text-emerald-600" : "text-destructive"}`}>{rupiah(b.net)}</td>
+                      </tr>
+                    ))}
+                    <tr className="border-t-2 border-border bg-background/60">
+                      <td className="py-2 font-semibold">Total</td>
+                      <td className="py-2 text-right font-bold text-emerald-600">+ {rupiah((cash.by_source || []).reduce((a, b) => a + b.in, 0))}</td>
+                      <td className="py-2 text-right font-bold text-destructive">- {rupiah((cash.by_source || []).reduce((a, b) => a + b.out, 0))}</td>
+                      <td className={`py-2 text-right font-bold ${cash.net_cash >= 0 ? "text-emerald-600" : "text-destructive"}`} data-testid="cash-source-net-total">{rupiah(cash.net_cash)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

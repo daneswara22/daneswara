@@ -187,6 +187,7 @@ export function serializeExpense(e: any) {
     note: e.note,
     date: e.date instanceof Date ? e.date.toISOString().slice(0, 10) : String(e.date).slice(0, 10),
     user_name: e.user_name,
+    fund_source: e.fund_source ?? null,
     created_at: toIso(e.created_at),
   };
 }
@@ -200,6 +201,7 @@ export function serializeOtherIncome(o: any) {
     note: o.note,
     date: o.date instanceof Date ? o.date.toISOString().slice(0, 10) : String(o.date).slice(0, 10),
     user_name: o.user_name,
+    fund_source: o.fund_source ?? null,
     created_at: toIso(o.created_at),
   };
 }

@@ -36,13 +36,14 @@ export default function RiwayatTransaksi() {
       </div>
 
       <div className="overflow-x-auto rounded-lg border border-border">
-        <table className="w-full min-w-[720px] text-sm">
+        <table className="w-full min-w-[820px] text-sm">
           <thead className="bg-secondary/60 text-left text-xs uppercase tracking-wider text-muted-foreground">
             <tr>
               <th className="px-4 py-3">Invoice</th>
               <th className="px-4 py-3">Waktu</th>
               <th className="px-4 py-3">Pelanggan</th>
               <th className="px-4 py-3">Metode</th>
+              <th className="px-4 py-3">Dibuat oleh</th>
               <th className="px-4 py-3 text-right">Total</th>
               <th className="px-4 py-3 text-right">Aksi</th>
             </tr>
@@ -57,6 +58,11 @@ export default function RiwayatTransaksi() {
                 <td className="px-4 py-3 text-xs text-muted-foreground">{new Date(s.created_at).toLocaleString("id-ID")}</td>
                 <td className="px-4 py-3">{s.customer_name || "Umum"}</td>
                 <td className="px-4 py-3 text-muted-foreground">{s.payment_method}</td>
+                <td className="px-4 py-3" data-testid={`riwayat-cashier-${s.id}`}>
+                  {s.cashier
+                    ? <span className="rounded-full bg-secondary px-2 py-0.5 text-xs font-medium">{s.cashier}</span>
+                    : <span className="text-xs text-muted-foreground">-</span>}
+                </td>
                 <td className="px-4 py-3 text-right font-semibold">{rupiah(s.total)}</td>
                 <td className="px-4 py-3 text-right">
                   <button onClick={(e) => { e.stopPropagation(); setNota(s); }} className="inline-flex items-center gap-1 text-primary" data-testid={`riwayat-reprint-${s.id}`}>
@@ -66,7 +72,7 @@ export default function RiwayatTransaksi() {
               </tr>
             ))}
             {filtered.length === 0 && (
-              <tr><td colSpan={6} className="px-4 py-12 text-center text-muted-foreground">
+              <tr><td colSpan={7} className="px-4 py-12 text-center text-muted-foreground">
                 <Receipt className="mx-auto mb-2 h-8 w-8 opacity-40" />
                 {term ? "Tidak ada transaksi cocok." : "Belum ada transaksi."}
               </td></tr>
