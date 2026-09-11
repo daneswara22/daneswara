@@ -56,6 +56,7 @@ export default function Orders() {
   const [dpMethod, setDpMethod] = useState("Tunai");
   const [dpAmt, setDpAmt] = useState("");
   const [q, setQ] = useState("");
+  const [tab, setTab] = useState("Draft");
   const [nota, setNota] = useState(null);
   const [preview, setPreview] = useState(null);
   const [poOrder, setPoOrder] = useState(null); // order pending PO (supplier picker)
@@ -228,21 +229,39 @@ export default function Orders() {
       {list.length === 0 && <p className="text-sm text-muted-foreground">Belum ada pesanan.</p>}
       {list.length > 0 && filtered.length === 0 && <p className="text-sm text-muted-foreground">Tidak ada pesanan cocok.</p>}
 
-      {GROUPS.map((g) => {
-        const rows = (filtered || []).filter((o) => o.status === g.key);
-        if (rows.length === 0) return null;
-        return (
-          <div key={g.key} className="space-y-3" data-testid={`order-group-${g.key}`}>
-            <div className="flex items-center gap-2">
-              <span className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-semibold ${g.tint}`}><g.icon className="h-4 w-4" /> {g.label}</span>
-              <span className="text-xs text-muted-foreground">{rows.length} pesanan</span>
-            </div>
-            <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-              {(rows || []).map(renderCard)}
-            </div>
+      {list.length > 0 && filtered.length > 0 && (
+        <>
+          <div className="flex flex-wrap gap-1 border-b border-border" data-testid="order-tabs">
+            {GROUPS.map((g) => {
+              const count = (filtered || []).filter((o) => o.status === g.key).length;
+              const active = tab === g.key;
+              return (
+                <button
+                  key={g.key}
+                  onClick={() => setTab(g.key)}
+                  className={`-mb-px flex items-center gap-2 whitespace-nowrap border-b-2 px-4 py-2.5 text-sm font-semibold transition-colors duration-200 ${active ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+                  data-testid={`order-tab-${g.key}`}
+                >
+                  <g.icon className="h-4 w-4" /> {g.label}
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${active ? g.tint : "bg-secondary text-muted-foreground"}`}>{count}</span>
+                </button>
+              );
+            })}
           </div>
-        );
-      })}
+
+          {(() => {
+            const rows = (filtered || []).filter((o) => o.status === tab);
+            if (rows.length === 0) {
+              return <p className="text-sm text-muted-foreground" data-testid="order-tab-empty">{term ? "Tidak ada pesanan cocok di tab ini." : "Belum ada pesanan di tab ini."}</p>;
+            }
+            return (
+              <div className="grid grid-cols-1 gap-3 lg:grid-cols-2" data-testid={`order-group-${tab}`}>
+                {(rows || []).map(renderCard)}
+              </div>
+            );
+          })()}
+        </>
+      )}
 
       {/* Edit draft dialog */}
       <Dialog open={!!edit} onOpenChange={() => setEdit(null)}>
