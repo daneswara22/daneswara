@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import api, { rupiah, formatApiError } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +12,7 @@ import { DraftPreviewDialog, buildDraftText } from "@/components/DraftPreviewDia
 import { SupplierPickerDialog } from "@/components/SupplierPickerDialog";
 import { printReceiptSmart } from "@/lib/printer";
 import { toast } from "sonner";
-import { CheckCircle2, Clock, Trash2, Printer, Search, FileText, Copy, HandCoins, Wallet, Pencil, Plus, Minus, PackagePlus, PackageCheck } from "lucide-react";
+import { CheckCircle2, Clock, Trash2, Printer, Search, FileText, Copy, HandCoins, Wallet, Pencil, Plus, Minus, PackagePlus, PackageCheck, Store } from "lucide-react";
 
 const METHODS = ["Tunai", "Bank Transfer", "QRIS", "E-Wallet"];
 const BANKS = ["BCA TOKO", "BRI TOKO", "BCA ADMIN (ELIS)"];
@@ -67,6 +68,7 @@ export default function Orders() {
   const [editType, setEditType] = useState("Reguler");
   const [customers, setCustomers] = useState([]);
   const [nameSuggestOpen, setNameSuggestOpen] = useState(false);
+  const navigate = useNavigate();
 
   const load = () => { api.get("/orders").then((r) => setList(r.data)); };
   useEffect(() => {
@@ -149,6 +151,23 @@ export default function Orders() {
     } catch (e) { toast.error(formatApiError(e.response?.data?.detail)); }
   };
 
+  const editInPos = (o) => {
+    try {
+      localStorage.setItem("pos_resume_draft", JSON.stringify({
+        id: o.id,
+        order_number: o.order_number,
+        items: o.items || [],
+        discount: o.discount || 0,
+        tax_rate: o.tax_rate || 0,
+        customer_id: o.customer_id || "",
+        customer_name: o.customer_name || "",
+        order_type: o.order_type || "Reguler",
+        channel: o.channel || "Toko",
+      }));
+    } catch { /* ignore storage errors */ }
+    navigate("/pos");
+  };
+
   const copyDraft = async (o) => {
     const text = buildDraftText(o, settings);
     try { await navigator.clipboard.writeText(text); }
@@ -193,6 +212,7 @@ export default function Orders() {
           <>
             <Button variant="outline" size="sm" className="gap-1" onClick={() => setPreview(o)} data-testid={`preview-order-${o.id}`}><FileText className="h-4 w-4" /> Preview</Button>
             <Button variant="outline" size="sm" className="gap-1" onClick={() => openEdit(o)} data-testid={`edit-order-${o.id}`}><Pencil className="h-4 w-4" /> Edit</Button>
+            <Button variant="outline" size="sm" className="gap-1" onClick={() => editInPos(o)} data-testid={`edit-pos-order-${o.id}`}><Store className="h-4 w-4" /> Edit di POS</Button>
             <Button variant="secondary" size="sm" className="gap-1" onClick={() => copyDraft(o)} data-testid={`copy-order-${o.id}`}><Copy className="h-4 w-4" /> Salin</Button>
             <Button size="sm" variant="outline" className="gap-1" onClick={() => { setDp(o); setDpMethod("Tunai"); setDpAmt(""); }} data-testid={`dp-order-${o.id}`}><HandCoins className="h-4 w-4" /> Jadi DP</Button>
             <Button size="sm" className="gap-1" onClick={() => { setSettle(o); setMethod("Tunai"); setPaid(o.total); }} data-testid={`pay-order-${o.id}`}><Wallet className="h-4 w-4" /> Lunasi</Button>

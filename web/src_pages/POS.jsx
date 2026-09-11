@@ -166,6 +166,56 @@ export default function POS() {
   };
   useEffect(load, []);
 
+  // Resume draft ke POS untuk ditinjau/diedit (dari menu Pesanan -> "Edit di POS").
+  const [resumeOrder, setResumeOrder] = useState(null);
+  useEffect(() => {
+    let raw = null;
+    try { raw = localStorage.getItem("pos_resume_draft"); } catch { raw = null; }
+    if (!raw) return;
+    try { localStorage.removeItem("pos_resume_draft"); } catch { /* ignore */ }
+    let d;
+    try { d = JSON.parse(raw); } catch { return; }
+    if (!d || !d.id) return;
+    const lines = (d.items || []).map((it, idx) => ({
+      lineId: `${it.product_id || "x"}|${it.note || ""}|${Number(it.price) || 0}|${idx}`,
+      product_id: it.product_id || null,
+      name: it.name,
+      price: Number(it.price) || 0,
+      cost: Number(it.cost) || 0,
+      qty: Number(it.qty) || 1,
+      note: it.note || "",
+    }));
+    setCart(lines);
+    setDiscount(Number(d.discount) || 0);
+    if (d.customer_id) setCustomerId(d.customer_id);
+    if (d.channel) setChannel(d.channel);
+    setResumeOrder({ id: d.id, order_number: d.order_number, order_type: d.order_type || "Reguler", customer_name: d.customer_name || "" });
+    setCartOpen(true);
+    toast.info(`Mengedit draft ${d.order_number || ""}`.trim());
+  }, []);
+  const exitResume = () => {
+    setResumeOrder(null);
+    setCart([]); setDiscount(0); setCustomerId(""); setChannel("Toko"); setCartOpen(false);
+    navigate("/app/pesanan");
+  };
+  const updateDraft = async () => {
+    if (!resumeOrder) return;
+    if (cart.length === 0) return toast.error("Keranjang kosong");
+    try {
+      await api.put(`/orders/${resumeOrder.id}`, {
+        items: cart.map((i) => ({ product_id: i.product_id, name: i.name, price: Number(i.price) || 0, qty: Number(i.qty) || 1, cost: i.cost || 0, note: i.note || "" })),
+        discount: Number(discount) || 0,
+        tax_rate: taxRate,
+        customer_name: (customers.find((c) => c.id === customerId)?.name) || resumeOrder.customer_name || "",
+        order_type: resumeOrder.order_type || "Reguler",
+      });
+      toast.success(`Draft ${resumeOrder.order_number} diperbarui`);
+      setResumeOrder(null);
+      setCart([]); setDiscount(0); setCustomerId(""); setChannel("Toko"); setCartOpen(false);
+      navigate("/app/pesanan");
+    } catch (e) { toast.error(formatApiError(e.response?.data?.detail)); }
+  };
+
   // Pencarian pelanggan: hasil terurut relevansi, item teratas otomatis ter-highlight & list di-scroll ke atas.
   const filteredCustomers = useMemo(() => rankCustomers(customers, custQuery), [customers, custQuery]);
   const hasCustQuery = normalize(custQuery).length > 0;
@@ -432,6 +482,7 @@ export default function POS() {
       setCustomerId("");
       setChannel("Toko");
       setCartOpen(false);
+      if (resumeOrder) { try { await api.delete(`/orders/${resumeOrder.id}`); } catch { /* ignore */ } setResumeOrder(null); }
       load();
       toast.success("Transaksi berhasil");
       setTimeout(() => {
@@ -533,8 +584,18 @@ export default function POS() {
       <div className="space-y-2 border-b border-border p-4">
         <div className="flex items-center justify-between pr-8">
           <h3 className="font-display text-lg font-semibold">Keranjang</h3>
-          <Button variant="outline" size="sm" className="gap-1" onClick={openHold} data-testid="pos-hold-button"><PauseCircle className="h-4 w-4" /> Tahan (Draft)</Button>
+          {resumeOrder ? (
+            <Button size="sm" className="gap-1" onClick={updateDraft} data-testid="pos-update-draft-button"><CheckCircle2 className="h-4 w-4" /> Perbarui Draft</Button>
+          ) : (
+            <Button variant="outline" size="sm" className="gap-1" onClick={openHold} data-testid="pos-hold-button"><PauseCircle className="h-4 w-4" /> Tahan (Draft)</Button>
+          )}
         </div>
+        {resumeOrder && (
+          <div className="flex items-center justify-between gap-2 rounded-md border border-primary/40 bg-primary/10 px-3 py-2 text-xs" data-testid="pos-resume-banner">
+            <span className="min-w-0 truncate font-medium text-primary">Mengedit draft {resumeOrder.order_number} — ubah item lalu simpan</span>
+            <button onClick={exitResume} className="inline-flex shrink-0 items-center gap-1 font-semibold text-muted-foreground hover:text-foreground" data-testid="pos-resume-cancel"><X className="h-3.5 w-3.5" /> Batal</button>
+          </div>
+        )}
         <Popover open={custOpen} onOpenChange={setCustOpen}>
           <PopoverTrigger data-testid="pos-popover-trigger-1" asChild>
             <Button variant="outline" role="combobox" aria-expanded={custOpen} aria-controls="pos-customer-listbox" className="h-9 w-full justify-between font-normal" data-testid="pos-customer-select">
