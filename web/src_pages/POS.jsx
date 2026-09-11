@@ -126,7 +126,7 @@ export default function POS() {
   const [custHistory, setCustHistory] = useState(null); // { customerId, sales }
   const [custHistLoading, setCustHistLoading] = useState(false);
   const [custHistExpanded, setCustHistExpanded] = useState(false);
-  const [custHistCollapsed, setCustHistCollapsed] = useState(false);
+  const [custHistCollapsed, setCustHistCollapsed] = useState(true);
   const [holdOpen, setHoldOpen] = useState(false);
   const [holdName, setHoldName] = useState("");
   const [holdType, setHoldType] = useState("Reguler");
@@ -232,7 +232,7 @@ export default function POS() {
   useEffect(() => {
     if (!customerId) { setCustHistory(null); setCustHistLoading(false); return; }
     let cancelled = false;
-    setCustHistLoading(true); setCustHistExpanded(false); setCustHistCollapsed(false);
+    setCustHistLoading(true); setCustHistExpanded(false); setCustHistCollapsed(true);
     api.get(`/customers/${customerId}/history`)
       .then((r) => { if (!cancelled) setCustHistory({ customerId, sales: Array.isArray(r.data) ? r.data : [] }); })
       .catch((e) => { if (!cancelled) { setCustHistory({ customerId, sales: [], error: formatApiError(e) }); } })
