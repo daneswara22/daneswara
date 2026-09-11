@@ -157,6 +157,7 @@ export const financeEntryInputSchema = z.object({
   amount: z.number(),
   note: z.string().optional().default(''),
   date: z.string().nullable().optional(),
+  source: z.string().optional().default('Tunai'),
 });
 
 export const galleryInputSchema = z.object({

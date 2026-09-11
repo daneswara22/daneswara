@@ -12,7 +12,8 @@ import { toast } from "sonner";
 import { Plus, Trash2, Wallet, Receipt, Search, Tags, Printer } from "lucide-react";
 
 const today = () => new Date().toISOString().slice(0, 10);
-const EMPTY = { category: "", amount: "", note: "", date: today() };
+const FUND_SOURCES = ["Tunai", "BCA TOKO", "BRI TOKO", "BCA ADMIN (ELIS)", "QRIS", "E-Wallet"];
+const EMPTY = { category: "", amount: "", note: "", date: today(), source: "Tunai" };
 
 export default function Expenses() {
   const [list, setList] = useState([]);
@@ -42,9 +43,10 @@ export default function Expenses() {
   const save = async () => {
     if (!form.category) return toast.error("Pilih kategori");
     if (!form.amount || Number(form.amount) <= 0) return toast.error("Isi nominal");
+    if (!form.source) return toast.error("Pilih sumber dana");
     setSaving(true);
     try {
-      await api.post("/expenses", { category: form.category, amount: Number(form.amount), note: form.note, date: form.date });
+      await api.post("/expenses", { category: form.category, amount: Number(form.amount), note: form.note, date: form.date, source: form.source });
       toast.success("Pengeluaran dicatat");
       setOpen(false); setForm(EMPTY); load();
     } catch (e) {
@@ -64,6 +66,8 @@ export default function Expenses() {
     const fmt = (n) => "Rp" + Number(n || 0).toLocaleString("id-ID");
     const byCat = {};
     (rows || []).forEach((e) => { byCat[e.category] = (byCat[e.category] || 0) + e.amount; });
+    const bySrc = {};
+    (rows || []).forEach((e) => { const k = e.source || "Tunai"; bySrc[k] = (bySrc[k] || 0) + e.amount; });
     const dates = (rows || []).map((r) => r.date).sort();
     const periode = dates.length ? (dates[0] === dates[dates.length - 1] ? dates[0] : `${dates[0]} s/d ${dates[dates.length - 1]}`) : "-";
     const biz = settings.business_name || "Daneswara POS";
@@ -74,10 +78,13 @@ export default function Expenses() {
         <td style="text-align:center">${i + 1}</td>
         <td>${e.date}</td>
         <td>${e.category}</td>
+        <td>${e.source || "Tunai"}</td>
         <td>${(e.note || "-").replace(/</g, "&lt;")}</td>
         <td style="text-align:right">${fmt(e.amount)}</td>
       </tr>`).join("");
     const catHtml = Object.entries(byCat).sort((a, b) => b[1] - a[1]).map(([c, v]) => `
+      <tr><td>${c}</td><td style="text-align:right">${fmt(v)}</td></tr>`).join("");
+    const srcHtml = Object.entries(bySrc).sort((a, b) => b[1] - a[1]).map(([c, v]) => `
       <tr><td>${c}</td><td style="text-align:right">${fmt(v)}</td></tr>`).join("");
     const html = `<!doctype html><html><head><meta charset="utf-8"><title>Laporan Pengeluaran</title>
       <style>
@@ -102,12 +109,15 @@ export default function Expenses() {
       </div>
       <div class="meta">Periode: <b>${periode}</b> &nbsp;·&nbsp; Dicetak: ${now} &nbsp;·&nbsp; Jumlah catatan: ${rows.length}${term ? ` &nbsp;·&nbsp; Filter: "${term}"` : ""}</div>
       <table>
-        <thead><tr><th style="width:32px;text-align:center">No</th><th style="width:90px">Tanggal</th><th>Kategori</th><th>Catatan</th><th style="width:120px;text-align:right">Nominal</th></tr></thead>
+        <thead><tr><th style="width:32px;text-align:center">No</th><th style="width:90px">Tanggal</th><th>Kategori</th><th style="width:130px">Sumber Dana</th><th>Catatan</th><th style="width:120px;text-align:right">Nominal</th></tr></thead>
         <tbody>${rowsHtml}</tbody>
       </table>
       <div class="total">Total Pengeluaran: ${fmt(total)}</div>
       <h2>Ringkasan per Kategori</h2>
       <table class="sum"><thead><tr><th>Kategori</th><th style="text-align:right;width:140px">Total</th></tr></thead><tbody>${catHtml}
+        <tr><td style="font-weight:bold">TOTAL</td><td style="text-align:right;font-weight:bold">${fmt(total)}</td></tr></tbody></table>
+      <h2>Ringkasan per Sumber Dana</h2>
+      <table class="sum"><thead><tr><th>Sumber Dana</th><th style="text-align:right;width:140px">Total</th></tr></thead><tbody>${srcHtml}
         <tr><td style="font-weight:bold">TOTAL</td><td style="text-align:right;font-weight:bold">${fmt(total)}</td></tr></tbody></table>
       <script>window.onload=function(){setTimeout(function(){window.print();},300);}</script>
       </body></html>`;
@@ -157,6 +167,7 @@ export default function Expenses() {
             <tr>
               <th className="px-4 py-3">Tanggal</th>
               <th className="px-4 py-3">Kategori</th>
+              <th className="px-4 py-3">Sumber Dana</th>
               <th className="px-4 py-3">Catatan</th>
               <th className="px-4 py-3 text-right">Nominal</th>
               <th className="px-4 py-3"></th>
@@ -167,6 +178,7 @@ export default function Expenses() {
               <tr key={e.id} className="border-t border-border" data-testid={`expense-${e.id}`}>
                 <td className="px-4 py-3 whitespace-nowrap">{e.date}</td>
                 <td className="px-4 py-3"><span className="rounded-full bg-secondary px-2 py-0.5 text-xs font-medium">{e.category}</span></td>
+                <td className="px-4 py-3"><span className="rounded-full border border-border px-2 py-0.5 text-xs font-medium">{e.source || "Tunai"}</span></td>
                 <td className="px-4 py-3 text-muted-foreground">{e.note || "-"}</td>
                 <td className="px-4 py-3 text-right font-semibold">{rupiah(e.amount)}</td>
                 <td className="px-4 py-3 text-right">
@@ -177,7 +189,7 @@ export default function Expenses() {
                 </td>
               </tr>
             ))}
-            {filtered.length === 0 && <tr><td colSpan={5} className="px-4 py-10 text-center text-muted-foreground">{term ? "Tidak ada pengeluaran cocok." : "Belum ada pengeluaran."}</td></tr>}
+            {filtered.length === 0 && <tr><td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">{term ? "Tidak ada pengeluaran cocok." : "Belum ada pengeluaran."}</td></tr>}
           </tbody>
         </table>
       </div>
@@ -201,6 +213,15 @@ export default function Expenses() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1"><Label>Nominal (Rp) <span className="text-destructive">*</span></Label><NumberInput value={form.amount} onValueChange={(v) => setForm({ ...form, amount: v })} data-testid="expense-amount-input" /></div>
               <div className="space-y-1"><Label>Tanggal <span className="text-destructive">*</span></Label><Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} data-testid="expense-date-input" /></div>
+            </div>
+            <div className="space-y-1">
+              <Label>Sumber Dana <span className="text-destructive">*</span></Label>
+              <Select data-testid="expense-source-select-1" value={form.source} onValueChange={(v) => setForm({ ...form, source: v })}>
+                <SelectTrigger data-testid="expense-source-select"><SelectValue placeholder="Pilih sumber dana" /></SelectTrigger>
+                <SelectContent>
+                  {FUND_SOURCES.map((s) => <SelectItem data-testid={`expense-source-item-${s}`} key={s} value={s}>{s}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-1"><Label>Catatan (opsional)</Label><Input value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} placeholder="cth: Beli tinta DTF 1L" data-testid="expense-note-input" /></div>
           </div>
