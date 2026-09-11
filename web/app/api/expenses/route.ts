@@ -30,7 +30,7 @@ export const POST = handle(async (req: NextRequest) => {
   const row = await prisma.expenses.create({
     data: {
       id: newId(), tenant_id: user.tenant_id, category: data.category, amount: data.amount,
-      note: data.note || '', date: d, user_name: user.name || '', created_at: new Date(),
+      note: data.note || '', date: d, user_name: user.name || '', source: (data.source || 'Tunai').trim() || 'Tunai', created_at: new Date(),
     },
   });
   await logActivity(user.tenant_id, user, 'Tambah Pengeluaran', `${data.category} - ${data.amount}`);

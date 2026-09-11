@@ -288,6 +288,17 @@ export default function Reports() {
                     <span className="text-emerald-600">+ {rupiah(e.amount)}</span>
                   </div>
                 ))}
+                {(pl.other_income_by_source || []).length > 0 && (
+                  <div className="mt-2 border-t border-emerald-500/20 pt-2" data-testid="pl-other-income-by-source">
+                    <div className="mb-1 text-[11px] uppercase tracking-wider text-muted-foreground">Per Sumber Dana</div>
+                    {(pl.other_income_by_source || []).map((e) => (
+                      <div key={e.source} className="flex items-center justify-between py-0.5">
+                        <span className="text-muted-foreground">{e.source}</span>
+                        <span className="text-emerald-600">+ {rupiah(e.amount)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
             <div className="rounded-md bg-secondary/40 p-3">
@@ -304,6 +315,17 @@ export default function Reports() {
                     <span className="text-destructive">- {rupiah(e.amount)}</span>
                   </div>
                 ))
+              )}
+              {(pl.expenses_by_source || []).length > 0 && (
+                <div className="mt-2 border-t border-border pt-2" data-testid="pl-expenses-by-source">
+                  <div className="mb-1 text-[11px] uppercase tracking-wider text-muted-foreground">Per Sumber Dana</div>
+                  {(pl.expenses_by_source || []).map((e) => (
+                    <div key={e.source} className="flex items-center justify-between py-0.5">
+                      <span className="text-muted-foreground">{e.source}</span>
+                      <span className="text-destructive">- {rupiah(e.amount)}</span>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
             <div className="flex items-center justify-between border-t border-border pt-3">

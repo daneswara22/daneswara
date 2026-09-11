@@ -31,13 +31,20 @@ export const GET = handle(async (req: NextRequest) => {
   const oiByCat: Record<string, number> = {};
   for (const e of others) oiByCat[e.category] = (oiByCat[e.category] || 0) + e.amount;
 
+  const bySrc: Record<string, number> = {};
+  for (const e of expenses) { const k = (e as any).source || 'Tunai'; bySrc[k] = (bySrc[k] || 0) + e.amount; }
+  const oiBySrc: Record<string, number> = {};
+  for (const e of others) { const k = (e as any).source || 'Tunai'; oiBySrc[k] = (oiBySrc[k] || 0) + e.amount; }
+
   const expenseTotal = (expenses || []).reduce((a, x) => a + x.amount, 0);
   const otherIncomeTotal = (others || []).reduce((a, x) => a + x.amount, 0);
   return {
     revenue, hpp, gross_profit: revenue - hpp, expense_total: expenseTotal,
     expenses_by_category: Object.entries(byCat).map(([category, amount]) => ({ category, amount })),
+    expenses_by_source: Object.entries(bySrc).map(([source, amount]) => ({ source, amount })).sort((a, b) => b.amount - a.amount),
     other_income_total: otherIncomeTotal,
     other_income_by_category: Object.entries(oiByCat).map(([category, amount]) => ({ category, amount })),
+    other_income_by_source: Object.entries(oiBySrc).map(([source, amount]) => ({ source, amount })).sort((a, b) => b.amount - a.amount),
     net_profit: (revenue - hpp) + otherIncomeTotal - expenseTotal,
     sales_count: sales.length, expense_count: expenses.length, other_income_count: others.length,
   };
