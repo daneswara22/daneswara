@@ -43,6 +43,7 @@ export default function RiwayatTransaksi() {
               <th className="px-4 py-3">Waktu</th>
               <th className="px-4 py-3">Pelanggan</th>
               <th className="px-4 py-3">Metode</th>
+              <th className="px-4 py-3">Dibuat Oleh</th>
               <th className="px-4 py-3 text-right">Total</th>
               <th className="px-4 py-3 text-right">Aksi</th>
             </tr>
@@ -57,6 +58,7 @@ export default function RiwayatTransaksi() {
                 <td className="px-4 py-3 text-xs text-muted-foreground">{new Date(s.created_at).toLocaleString("id-ID")}</td>
                 <td className="px-4 py-3">{s.customer_name || "Umum"}</td>
                 <td className="px-4 py-3 text-muted-foreground">{s.payment_method}</td>
+                <td className="px-4 py-3">{s.cashier || "-"}</td>
                 <td className="px-4 py-3 text-right font-semibold">{rupiah(s.total)}</td>
                 <td className="px-4 py-3 text-right">
                   <button onClick={(e) => { e.stopPropagation(); setNota(s); }} className="inline-flex items-center gap-1 text-primary" data-testid={`riwayat-reprint-${s.id}`}>
@@ -66,7 +68,7 @@ export default function RiwayatTransaksi() {
               </tr>
             ))}
             {filtered.length === 0 && (
-              <tr><td colSpan={6} className="px-4 py-12 text-center text-muted-foreground">
+              <tr><td colSpan={7} className="px-4 py-12 text-center text-muted-foreground">
                 <Receipt className="mx-auto mb-2 h-8 w-8 opacity-40" />
                 {term ? "Tidak ada transaksi cocok." : "Belum ada transaksi."}
               </td></tr>
