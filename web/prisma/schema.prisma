@@ -86,6 +86,27 @@ model gallery_items {
   @@index([tenant_id], map: "ix_gallery_items_tenant_id")
 }
 
+model custom_mockups {
+  id          String   @id @db.VarChar(36)
+  tenant_id   String   @db.VarChar(36)
+  product_key String   @db.VarChar(80)
+  view        String   @db.VarChar(20)
+  color_hex   String   @db.VarChar(9)
+  color_name  String   @db.VarChar(60)
+  image_url   String   @db.Text
+  image_key   String?  @db.Text
+  width       Int?
+  height      Int?
+  bytes       Int?
+  sort_order  Int      @default(0)
+  created_at  DateTime @db.DateTime(0)
+  updated_at  DateTime @db.DateTime(0)
+
+  @@unique([tenant_id, product_key, color_hex, view], map: "uq_custom_mockups_slot")
+  @@index([tenant_id], map: "ix_custom_mockups_tenant_id")
+  @@index([product_key], map: "ix_custom_mockups_product_key")
+}
+
 model held_orders {
   id         String   @id @db.VarChar(36)
   tenant_id  String   @db.VarChar(36)

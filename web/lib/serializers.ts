@@ -281,3 +281,21 @@ export function serializePublicGallery(g: any) {
     sort_order: g.sort_order || 0,
   };
 }
+
+export function serializeMockup(m: any) {
+  return {
+    id: m.id,
+    product_key: m.product_key,
+    view: m.view,
+    color_hex: m.color_hex,
+    color_name: m.color_name,
+    image_url: m.image_url,
+    width: m.width || 0,
+    height: m.height || 0,
+    bytes: m.bytes || 0,
+    sort_order: m.sort_order || 0,
+    created_at: toIso(m.created_at),
+    updated_at: toIso(m.updated_at),
+  };
+}
+

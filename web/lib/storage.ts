@@ -11,6 +11,7 @@ export const IMAGE_PROFILES: Record<string, { max: number; quality: number }> = 
   product: { max: 800, quality: 80 },
   category: { max: 800, quality: 80 },
   logo: { max: 800, quality: 90 },
+  mockup: { max: 1400, quality: 85 },
   misc: { max: 1600, quality: 82 },
 };
 
