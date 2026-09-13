@@ -299,3 +299,20 @@ export function serializeMockup(m: any) {
   };
 }
 
+export function serializeCustomProduct(p: any) {
+  let sizes: string[] = [];
+  let specs: string[] = [];
+  try { sizes = JSON.parse(p.sizes_json || '[]'); } catch {}
+  try { specs = JSON.parse(p.specs_json || '[]'); } catch {}
+  return {
+    id: p.id,
+    product_key: p.product_key,
+    title: p.title || '',
+    description: p.description || '',
+    size_guide_url: p.size_guide_url || '',
+    sizes: Array.isArray(sizes) ? sizes : [],
+    specs: Array.isArray(specs) ? specs : [],
+    updated_at: toIso(p.updated_at),
+  };
+}
+

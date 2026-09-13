@@ -107,6 +107,22 @@ model custom_mockups {
   @@index([product_key], map: "ix_custom_mockups_product_key")
 }
 
+model custom_products {
+  id               String   @id @db.VarChar(36)
+  tenant_id        String   @db.VarChar(36)
+  product_key      String   @db.VarChar(80)
+  title            String   @db.VarChar(200)
+  description      String   @db.Text
+  size_guide_url   String?  @db.Text
+  sizes_json       String   @db.Text
+  specs_json       String   @db.Text
+  created_at       DateTime @db.DateTime(0)
+  updated_at       DateTime @db.DateTime(0)
+
+  @@unique([tenant_id, product_key], map: "uq_custom_products_slot")
+  @@index([tenant_id], map: "ix_custom_products_tenant_id")
+}
+
 model held_orders {
   id         String   @id @db.VarChar(36)
   tenant_id  String   @db.VarChar(36)
