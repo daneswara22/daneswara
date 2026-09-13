@@ -110,6 +110,7 @@ export default function POS() {
   const gridClass = POS_GRID[density] || POS_GRID.sedang;
   const [cart, setCart] = useState([]);
   const [discount, setDiscount] = useState(0);
+  const [discountTouched, setDiscountTouched] = useState(false);
   const [taxRate, setTaxRate] = useState(0);
   const [payOpen, setPayOpen] = useState(false);
   const [method, setMethod] = useState("Tunai");
@@ -138,6 +139,14 @@ export default function POS() {
   const [priceVal, setPriceVal] = useState("");
 
   const needPrice = (p) => !(Number(p?.price) > 0);
+  // Diskon per varian: margin setelah diskon wajib >= harga pokok + DISC_FLOOR.
+  // Contoh: pokok 50.000, jual 60.000 => diskon maksimal 5.000 (harga akhir 55.000).
+  const DISC_FLOOR = 5000;
+  const maxDiscOf = (product, priceOverride) => {
+    const price = priceOverride != null ? Number(priceOverride) : (Number(product?.price) || 0);
+    const cost = Number(product?.cost) || 0;
+    return Math.max(0, Math.floor(price - cost - DISC_FLOOR));
+  };
   const openPrice = (product, source) => { setPriceVal(""); setPriceModal({ product, source }); };
   const confirmPrice = () => {
     const val = Number(priceVal) || 0;
@@ -149,7 +158,7 @@ export default function POS() {
       setTempItems((t) => {
         const ex = (t || []).find((x) => x.product.id === product.id);
         if (ex) return (t || []).map((x) => (x.product.id === product.id ? { ...x, qty: x.qty + 1, price: val } : x));
-        return [...t, { product, qty: 1, price: val }];
+        return [...t, { product, qty: 1, price: val, disc: 0 }];
       });
     }
     setPriceModal(null); setPriceVal("");
@@ -184,9 +193,11 @@ export default function POS() {
       cost: Number(it.cost) || 0,
       qty: Number(it.qty) || 1,
       note: it.note || "",
+      disc: Number(it.disc) || 0,
     }));
     setCart(lines);
     setDiscount(Number(d.discount) || 0);
+    setDiscountTouched(true);
     if (d.customer_id) setCustomerId(d.customer_id);
     if (d.channel) setChannel(d.channel);
     setResumeOrder({ id: d.id, order_number: d.order_number, order_type: d.order_type || "Reguler", customer_name: d.customer_name || "" });
@@ -195,7 +206,7 @@ export default function POS() {
   }, []);
   const exitResume = () => {
     setResumeOrder(null);
-    setCart([]); setDiscount(0); setCustomerId(""); setChannel("Toko"); setCartOpen(false);
+    setCart([]); setDiscount(0); setDiscountTouched(false); setCustomerId(""); setChannel("Toko"); setCartOpen(false);
     navigate("/app/pesanan");
   };
   const updateDraft = async () => {
@@ -203,7 +214,7 @@ export default function POS() {
     if (cart.length === 0) return toast.error("Keranjang kosong");
     try {
       await api.put(`/orders/${resumeOrder.id}`, {
-        items: cart.map((i) => ({ product_id: i.product_id, name: i.name, price: Number(i.price) || 0, qty: Number(i.qty) || 1, cost: i.cost || 0, note: i.note || "" })),
+        items: cart.map((i) => ({ product_id: i.product_id, name: i.name, price: Number(i.price) || 0, qty: Number(i.qty) || 1, cost: i.cost || 0, note: i.note || "", disc: Number(i.disc) || 0 })),
         discount: Number(discount) || 0,
         tax_rate: taxRate,
         customer_name: (customers.find((c) => c.id === customerId)?.name) || resumeOrder.customer_name || "",
@@ -211,7 +222,7 @@ export default function POS() {
       });
       toast.success(`Draft ${resumeOrder.order_number} diperbarui`);
       setResumeOrder(null);
-      setCart([]); setDiscount(0); setCustomerId(""); setChannel("Toko"); setCartOpen(false);
+      setCart([]); setDiscount(0); setDiscountTouched(false); setCustomerId(""); setChannel("Toko"); setCartOpen(false);
       navigate("/app/pesanan");
     } catch (e) { toast.error(formatApiError(e.response?.data?.detail)); }
   };
@@ -265,7 +276,7 @@ export default function POS() {
       });
       toast.success("Draft pesanan disimpan di menu Pesanan");
       setHoldOpen(false); setHoldName(""); setHoldType("Reguler");
-      setCart([]); setDiscount(0); setCustomerId(""); setCartOpen(false); setChannel("Toko");
+      setCart([]); setDiscount(0); setDiscountTouched(false); setCustomerId(""); setCartOpen(false); setChannel("Toko");
     } catch (e) { toast.error(formatApiError(e.response?.data?.detail)); }
     finally { setHoldBusy(false); }
   };
@@ -278,7 +289,7 @@ export default function POS() {
         deposit_amount: Number(depositAmt) || 0, deposit_method: method, channel,
       });
       toast.success("Pesanan + deposit tersimpan");
-      setDepositOpen(false); setDepositAmt(""); setCart([]); setDiscount(0); setCustomerId(""); setCartOpen(false); setChannel("Toko");
+      setDepositOpen(false); setDepositAmt(""); setCart([]); setDiscount(0); setDiscountTouched(false); setCustomerId(""); setCartOpen(false); setChannel("Toko");
       setNota(data);
     } catch (e) { toast.error(formatApiError(e.response?.data?.detail)); }
   };
@@ -353,26 +364,46 @@ export default function POS() {
     setTempItems((t) => {
       const ex = (t || []).find((x) => x.product.id === p.id);
       if (ex) return (t || []).map((x) => (x.product.id === p.id ? { ...x, qty: x.qty + 1 } : x));
-      return [...t, { product: p, qty: 1 }];
+      return [...t, { product: p, qty: 1, disc: 0 }];
     });
   };
   const decTemp = (pid) =>
     setTempItems((t) => (t || []).map((x) => (x.product.id === pid ? { ...x, qty: x.qty - 1 } : x)).filter((x) => x.qty > 0));
   const setTempQty = (p, val) => {
-    const n = Math.max(1, Math.floor(Number(val) || 1));
+    const n = Math.max(1, Math.floor(Number(val) || 0));
     setTempItems((t) => (t || []).map((x) => (x.product.id === p.id ? { ...x, qty: n } : x)));
+  };
+  // Set diskon per varian (per unit). Auto-menambahkan varian (qty 1) bila belum dipilih.
+  // Nilai diklem ke maksimal yang menjaga margin >= DISC_FLOOR di atas harga pokok.
+  const setTempDisc = (p, val) => {
+    setTempItems((t) => {
+      const list = t || [];
+      const ex = list.find((x) => x.product.id === p.id);
+      const price = ex?.price != null ? Number(ex.price) : (Number(p.price) || 0);
+      const maxD = maxDiscOf(p, price);
+      let n = Math.floor(Number(val) || 0);
+      if (n < 0) n = 0;
+      if (n > maxD) {
+        n = maxD;
+        toast.warning(`Diskon maksimal ${rupiah(maxD)} — margin wajib ≥ ${rupiah(DISC_FLOOR)} di atas harga pokok`);
+      }
+      if (ex) return list.map((x) => (x.product.id === p.id ? { ...x, disc: n } : x));
+      if (n > 0) return [...list, { product: p, qty: 1, disc: n }];
+      return list;
+    });
   };
   const commitVariants = () => {
     const note = variantNote.trim();
     if (tempItems.length) {
       setCart((c) => {
         let next = [...c];
-        tempItems.forEach(({ product, qty, price }) => {
+        tempItems.forEach(({ product, qty, price, disc }) => {
           const unit = price != null ? Number(price) : (Number(product.price) || 0);
+          const d = Number(disc) || 0;
           const lineId = `${product.id}|${note}|${unit}`;
           const ex = next.find((x) => x.lineId === lineId);
-          if (ex) next = (next || []).map((x) => (x.lineId === lineId ? { ...x, qty: x.qty + qty } : x));
-          else next = [...next, { lineId, product_id: product.id, name: product.name, price: unit, cost: product.cost || 0, qty, note }];
+          if (ex) next = (next || []).map((x) => (x.lineId === lineId ? { ...x, qty: x.qty + qty, disc: d || x.disc || 0 } : x));
+          else next = [...next, { lineId, product_id: product.id, name: product.name, price: unit, cost: product.cost || 0, qty, note, disc: d }];
         });
         return next;
       });
@@ -398,6 +429,12 @@ export default function POS() {
   };
 
   const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
+  // Total diskon per item (per unit x qty). Kolom Diskon keranjang otomatis mengikuti
+  // nilai ini, kecuali kasir mengetik manual (discountTouched = true).
+  const itemDiscTotal = cart.reduce((s, i) => s + (Number(i.disc) || 0) * i.qty, 0);
+  useEffect(() => {
+    if (!discountTouched) setDiscount(itemDiscTotal);
+  }, [itemDiscTotal, discountTouched]);
   const cartCount = cart.reduce((s, i) => s + i.qty, 0);
   const taxAmt = ((subtotal - discount) * taxRate) / 100;
   const total = Math.max(0, subtotal - discount + taxAmt);
@@ -478,6 +515,7 @@ export default function POS() {
       setPayOpen(false);
       setCart([]);
       setDiscount(0);
+      setDiscountTouched(false);
       setPaid("");
       setCustomerId("");
       setChannel("Toko");
@@ -517,6 +555,7 @@ export default function POS() {
     (r.items || []).forEach((i) => {
       lines.push(`${i.qty} x ${i.name}`);
       lines.push(`     @${rupiah(i.price)}  =  ${rupiah(i.price * i.qty)}`);
+      if (Number(i.disc) > 0) lines.push(`     Diskon: -${rupiah(i.disc * i.qty)}`);
       if (i.note) lines.push(`     * ${i.note}`);
     });
     lines.push("--------------------------------");
@@ -790,23 +829,37 @@ export default function POS() {
                 </div>
                 <span className="font-display text-sm font-bold">{rupiah(i.price * i.qty)}</span>
               </div>
+              {Number(i.disc) > 0 && (
+                <div className="mt-1 flex items-center justify-end gap-1 text-[11px] font-medium text-emerald-600" data-testid={`cart-disc-${i.product_id}`}>
+                  <span>Diskon per item</span>
+                  <span>-{rupiah(i.disc * i.qty)}</span>
+                </div>
+              )}
             </motion.div>
           ))}
         </AnimatePresence>
       </div>
       <div className="border-t border-border p-4">
-        <div className="mb-3 flex items-center gap-2">
+        <div className="mb-1 flex items-center gap-2">
           <Label className="text-xs whitespace-nowrap">Diskon (Rp)</Label>
           <NumberInput
             value={discount}
-            onValueChange={setDiscount}
+            onValueChange={(v) => { setDiscount(v); setDiscountTouched(true); }}
             className="h-9"
             data-testid="pos-discount-input"
           />
         </div>
+        {discountTouched && itemDiscTotal > 0 && Number(discount) !== itemDiscTotal && (
+          <button type="button" onClick={() => setDiscountTouched(false)} className="mb-2 text-[11px] font-medium text-primary hover:underline" data-testid="pos-discount-reset">
+            ↺ Ikuti diskon per item ({rupiah(itemDiscTotal)})
+          </button>
+        )}
         <div className="space-y-1 text-sm">
           <div className="flex justify-between text-muted-foreground"><span>Subtotal</span><span>{rupiah(subtotal)}</span></div>
-          <div className="flex justify-between text-muted-foreground"><span>Diskon</span><span>-{rupiah(discount)}</span></div>
+          {itemDiscTotal > 0 && (
+            <div className="flex justify-between text-emerald-600"><span>Diskon per item</span><span>-{rupiah(itemDiscTotal)}</span></div>
+          )}
+          <div className="flex justify-between text-muted-foreground"><span>{itemDiscTotal > 0 ? "Total Diskon" : "Diskon"}</span><span>-{rupiah(discount)}</span></div>
           <div className="flex justify-between text-muted-foreground"><span>Pajak ({taxRate}%)</span><span>{rupiah(taxAmt)}</span></div>
           <div className="flex justify-between border-t border-border pt-2 font-display text-lg font-bold"><span>Total</span><span data-testid="pos-total">{rupiah(total)}</span></div>
         </div>
@@ -971,7 +1024,7 @@ export default function POS() {
                 const cnt = tempItems.reduce((s, x) => s + x.qty, 0);
                 const tot = tempItems.reduce((s, x) => {
                   const unit = x.price != null ? Number(x.price) : (Number(x.product?.price) || 0);
-                  return s + unit * x.qty;
+                  return s + unit * x.qty - (Number(x.disc) || 0) * x.qty;
                 }, 0);
                 return (
                   <div className="shrink-0 text-right" data-testid="variant-total-label">
@@ -986,12 +1039,16 @@ export default function POS() {
             <div className="space-y-2">
               {variantCat?.items.map((p) => {
                 const inTemp = tempItems.find((x) => x.product.id === p.id);
+                const maxD = maxDiscOf(p, inTemp?.price);
+                const discVal = Number(inTemp?.disc) || 0;
+                const discDisabled = maxD <= 0;
                 return (
                   <div
                     key={p.id}
-                    className="flex w-full items-center gap-3 rounded-lg border border-border bg-card p-3 text-left transition-colors hover:border-primary"
+                    className="w-full rounded-lg border border-border bg-card p-3 text-left transition-colors hover:border-primary"
                     data-testid={`variant-item-${p.id}`}
                   >
+                    <div className="flex items-center gap-3">
                     <button onClick={() => addTemp(p)} className="flex min-w-0 flex-1 items-center gap-3 text-left" data-testid={`variant-add-${p.id}`}>
                       <div className="h-12 w-12 shrink-0 overflow-hidden rounded-md bg-secondary flex items-center justify-center">
                         {p.image ? <img src={p.image} alt="" className="h-full w-full object-cover" /> : <ShoppingCart className="h-5 w-5 text-muted-foreground" />}
@@ -1020,6 +1077,23 @@ export default function POS() {
                     ) : (
                       <button onClick={() => addTemp(p)} className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground" data-testid={`variant-quickadd-${p.id}`}><Plus className="h-3.5 w-3.5" /></button>
                     )}
+                    </div>
+                    <div className="mt-2 flex items-center gap-2 border-t border-border/60 pt-2">
+                      <span className="shrink-0 text-[11px] font-medium text-muted-foreground">Diskon (Rp)</span>
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        min="0"
+                        value={discVal}
+                        disabled={discDisabled}
+                        onChange={(e) => setTempDisc(p, e.target.value)}
+                        onFocus={(e) => e.target.select()}
+                        title={discDisabled ? "Tidak ada ruang diskon (margin terlalu tipis)" : `Maksimal ${rupiah(maxD)}`}
+                        className="h-7 w-24 rounded-md border border-border bg-background px-2 text-center text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+                        data-testid={`variant-disc-${p.id}`}
+                      />
+                      {discDisabled && <span className="text-[10px] text-muted-foreground">tidak tersedia</span>}
+                    </div>
                   </div>
                 );
               })}
@@ -1035,7 +1109,7 @@ export default function POS() {
               data-testid="variant-note-input"
               className="mb-3 w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
             />
-            <p className="mb-3 text-[11px] text-muted-foreground">Catatan akan menempel ke semua varian yang dipilih saat menekan Selesai.</p>
+            <p className="mb-3 text-[11px] text-muted-foreground">Catatan menempel ke semua varian saat menekan Selesai. Diskon per varian otomatis masuk ke kolom Diskon keranjang (bisa diedit manual).</p>
             <Button className="w-full" onClick={() => { commitVariants(); setVariantCat(null); }} data-testid="variant-done-button">
               {tempItems.reduce((s, x) => s + x.qty, 0) > 0
                 ? `Selesai — Tambah ${tempItems.reduce((s, x) => s + x.qty, 0)} item`
@@ -1188,6 +1262,9 @@ export default function POS() {
                       <span>{rupiah(i.price * i.qty)}</span>
                     </div>
                     <p className="pl-2 text-muted-foreground">{rupiah(i.price)} x {i.qty}{i.note ? ` • ${i.note}` : ""}</p>
+                    {Number(i.disc) > 0 && (
+                      <p className="flex justify-between pl-2"><span>Diskon per item</span><span>-{rupiah(i.disc * i.qty)}</span></p>
+                    )}
                   </div>
                 ))}
                 <div className="my-2 border-t border-dashed" />
