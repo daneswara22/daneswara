@@ -49,6 +49,7 @@ export const saleItemSchema = z.object({
   price: z.number(),
   qty: z.number().int(),
   cost: z.number().default(0),
+  disc: z.number().default(0),
   note: z.string().optional().default(''),
 });
 

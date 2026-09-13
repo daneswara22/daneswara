@@ -81,6 +81,7 @@ export function NotaDialog({ nota, onClose, settings = {} }) {
                 <div key={idx} className="mb-1">
                   <div className="flex justify-between"><span>{i.qty}x {i.name}</span><span>{rupiah(i.price * i.qty)}</span></div>
                   <div className="text-muted-foreground">{rupiah(i.price)} x {i.qty}{i.note ? ` • ${i.note}` : ""}</div>
+                  {Number(i.disc) > 0 ? <div className="flex justify-between text-emerald-600"><span>Diskon per item</span><span>-{rupiah(i.disc * i.qty)}</span></div> : null}
                 </div>
               ))}
               <div className="my-2 border-t border-dashed border-border" />

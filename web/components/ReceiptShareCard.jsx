@@ -80,6 +80,9 @@ export const ReceiptShareCard = forwardRef(function ReceiptShareCard({ data, set
               <div style={{ maxWidth: "270px" }}>
                 <div style={{ color: DARK, fontSize: "12.5px", fontWeight: 600 }}>{i.name}</div>
                 <div style={{ color: GRAY, fontSize: "11px" }}>{i.qty} x {rupiah(i.price)}{i.note ? ` • ${i.note}` : ""}</div>
+                {Number(i.disc) > 0 ? (
+                  <div style={{ color: "#15803d", fontSize: "11px", fontWeight: 600 }}>Diskon per item: -{rupiah(i.disc * i.qty)}</div>
+                ) : null}
               </div>
               <div style={{ color: DARK, fontSize: "12.5px", fontWeight: 700, whiteSpace: "nowrap" }}>{rupiah(i.price * i.qty)}</div>
             </div>

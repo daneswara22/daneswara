@@ -25,6 +25,7 @@ export function buildDraftText(o, settings = {}) {
   (o.items || []).forEach((i) => {
     L.push(`${i.qty} x ${i.name}`);
     L.push(`     ${i.qty} x ${rp(i.price)}  =  ${rp(i.price * i.qty)}`);
+    if (Number(i.disc) > 0) L.push(`     Diskon: -${rp(i.disc * i.qty)}`);
     if (i.note) L.push(`     * ${i.note}`);
   });
   L.push("--------------------------------");
@@ -106,6 +107,7 @@ export function DraftPreviewDialog({ order, onClose, settings = {} }) {
               {items.map((i, idx) => (
                 <div key={idx}>
                   <div className="flex justify-between"><span>{i.qty}x {i.name}</span><span>{rupiah(i.price * i.qty)}</span></div>
+                  {Number(i.disc) > 0 ? <div className="flex justify-between text-emerald-600"><span>Diskon per item</span><span>-{rupiah(i.disc * i.qty)}</span></div> : null}
                   {i.note && <p className="pl-2 italic text-muted-foreground">* {i.note}</p>}
                 </div>
               ))}
