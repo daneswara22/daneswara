@@ -3,12 +3,13 @@ import api, { formatApiError, uploadImage } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Shirt, UploadCloud, Loader2, Trash2, Info, RefreshCw, Check, ImageOff, CheckCircle2 } from "lucide-react";
+import { Shirt, UploadCloud, Loader2, Trash2, Info, RefreshCw, Check, ImageOff, CheckCircle2, Ruler, Plus, X, FileText } from "lucide-react";
 
 // Master data for the current product. Extendable when we support multiple products later.
 const DEFAULT_PRODUCT_KEY = "premium-cotton-7200";
@@ -171,21 +172,37 @@ export default function MockupManager() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Shirt className="h-6 w-6" /> Mockup Kaos
+            <Shirt className="h-6 w-6" /> Custom Design — Konten Halaman
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Kelola foto asli kaos per warna &amp; sudut pandang untuk halaman <code className="text-xs">/custom</code>.
+            Kelola info produk, foto mockup per warna &amp; sudut pandang, serta panduan ukuran untuk halaman <code className="text-xs">/custom</code>.
           </p>
         </div>
         <div className="flex items-center gap-2">
           <Badge variant="secondary" data-testid="mockup-stats-badge">
-            {stats.filled} / {stats.total} slot terisi
+            {stats.filled} / {stats.total} mockup terisi
           </Badge>
           <Button variant="outline" size="sm" onClick={load} data-testid="mockup-refresh">
             <RefreshCw className="h-4 w-4 mr-1" /> Muat Ulang
           </Button>
         </div>
       </div>
+
+      <Tabs defaultValue="info" className="space-y-4">
+        <TabsList className="grid grid-cols-2 w-full sm:w-auto sm:inline-grid" data-testid="mockup-main-tabs">
+          <TabsTrigger value="info" className="gap-1.5" data-testid="tab-info">
+            <FileText className="h-4 w-4" /> Info Produk
+          </TabsTrigger>
+          <TabsTrigger value="photos" className="gap-1.5" data-testid="tab-photos">
+            <Shirt className="h-4 w-4" /> Foto Mockup
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="info" className="mt-2">
+          <ProductInfoForm productKey={productKey} productLabel={productLabel} />
+        </TabsContent>
+
+        <TabsContent value="photos" className="mt-2 space-y-6">
 
       {/* Product info */}
       <div className="rounded-lg border bg-card p-4 flex items-start gap-3">
@@ -415,6 +432,266 @@ export default function MockupManager() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
+/* ============================================================
+ * ProductInfoForm — admin editor for the "Produk" panel that
+ * shows up on the public /custom page. Also manages the size
+ * guide image (uploaded automatically as WebP).
+ * ============================================================ */
+function ProductInfoForm({ productKey, productLabel }) {
+  const [form, setForm] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+
+  const load = () => {
+    setLoading(true);
+    api
+      .get(`/custom-product?product_key=${encodeURIComponent(productKey)}`)
+      .then((r) => setForm(r.data))
+      .catch((e) => toast.error(formatApiError(e.response?.data?.detail)))
+      .finally(() => setLoading(false));
+  };
+  useEffect(load, [productKey]);
+
+  const update = (patch) => setForm((f) => ({ ...f, ...patch }));
+
+  const handleSizeGuide = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) return toast.error("File harus gambar");
+    if (file.size > 15 * 1024 * 1024) return toast.error("Ukuran maks 15MB");
+    setUploading(true);
+    try {
+      const info = await uploadImage(file, "mockup");
+      update({ size_guide_url: info.url });
+      toast.success(`Panduan ukuran dikompres ke WebP · ${Math.round(info.bytes / 1024)} KB · ${info.width}×${info.height}`);
+    } catch (err) {
+      toast.error(formatApiError(err.response?.data?.detail) || "Upload gagal");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const removeSizeGuide = () => update({ size_guide_url: "" });
+
+  const setSizeAt = (idx, v) => {
+    const next = [...(form.sizes || [])];
+    next[idx] = v;
+    update({ sizes: next });
+  };
+  const addSize = () => update({ sizes: [...(form.sizes || []), ""] });
+  const removeSize = (idx) => update({ sizes: form.sizes.filter((_, i) => i !== idx) });
+
+  const setSpecAt = (idx, v) => {
+    const next = [...(form.specs || [])];
+    next[idx] = v;
+    update({ specs: next });
+  };
+  const addSpec = () => update({ specs: [...(form.specs || []), ""] });
+  const removeSpec = (idx) => update({ specs: form.specs.filter((_, i) => i !== idx) });
+
+  const save = async () => {
+    if (!form?.title?.trim()) return toast.error("Judul wajib diisi");
+    if (!form?.description?.trim()) return toast.error("Deskripsi wajib diisi");
+    const cleanSizes = (form.sizes || []).map((s) => s.trim()).filter(Boolean);
+    const cleanSpecs = (form.specs || []).map((s) => s.trim()).filter(Boolean);
+    if (cleanSizes.length === 0) return toast.error("Isi minimal 1 ukuran");
+    setSaving(true);
+    try {
+      const payload = {
+        product_key: productKey,
+        title: form.title.trim(),
+        description: form.description.trim(),
+        sizes: cleanSizes,
+        specs: cleanSpecs,
+      };
+      const isNewImage = (form.size_guide_url || "").startsWith("data:image") || (form.size_guide_url || "").startsWith("http");
+      if (!form.size_guide_url) payload.clear_size_guide = true;
+      else if (isNewImage) payload.size_guide_image = form.size_guide_url;
+      const r = await api.put("/custom-product", payload);
+      setForm(r.data);
+      toast.success("Info produk tersimpan");
+    } catch (e) {
+      toast.error(formatApiError(e.response?.data?.detail));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading || !form) {
+    return (
+      <div className="space-y-3">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-24 w-full" />
+        <Skeleton className="h-40 w-full" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid gap-6 lg:grid-cols-2" data-testid="product-info-form">
+      {/* Kiri: form */}
+      <div className="space-y-4">
+        <div>
+          <Label className="text-xs">Kode Produk</Label>
+          <Input value={productKey} disabled className="mt-1 font-mono" />
+        </div>
+
+        <div>
+          <Label htmlFor="p-title" className="text-xs">Judul Produk</Label>
+          <Input
+            id="p-title"
+            value={form.title}
+            onChange={(e) => update({ title: e.target.value })}
+            className="mt-1"
+            placeholder="mis. New States Apparel Premium Cotton T-shirt 7200"
+            data-testid="input-title"
+          />
+        </div>
+
+        <div>
+          <Label htmlFor="p-desc" className="text-xs">Deskripsi</Label>
+          <Textarea
+            id="p-desc"
+            rows={5}
+            value={form.description}
+            onChange={(e) => update({ description: e.target.value })}
+            className="mt-1"
+            placeholder="Deskripsi singkat karakteristik produk"
+            data-testid="input-description"
+          />
+        </div>
+
+        {/* Sizes */}
+        <div>
+          <div className="flex items-center justify-between">
+            <Label className="text-xs">Ukuran Tersedia</Label>
+            <Button size="sm" variant="ghost" onClick={addSize} data-testid="btn-add-size">
+              <Plus className="h-3.5 w-3.5 mr-1" /> Tambah
+            </Button>
+          </div>
+          <div className="flex flex-wrap gap-2 mt-1">
+            {(form.sizes || []).map((s, i) => (
+              <div key={i} className="relative">
+                <Input
+                  value={s}
+                  onChange={(e) => setSizeAt(i, e.target.value)}
+                  className="w-20 pr-7 text-center font-semibold uppercase"
+                  data-testid={`input-size-${i}`}
+                />
+                <button
+                  onClick={() => removeSize(i)}
+                  className="absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-destructive"
+                  aria-label="Hapus"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Specs */}
+        <div>
+          <div className="flex items-center justify-between">
+            <Label className="text-xs">Spesifikasi</Label>
+            <Button size="sm" variant="ghost" onClick={addSpec} data-testid="btn-add-spec">
+              <Plus className="h-3.5 w-3.5 mr-1" /> Tambah
+            </Button>
+          </div>
+          <div className="space-y-2 mt-1">
+            {(form.specs || []).map((s, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <Input
+                  value={s}
+                  onChange={(e) => setSpecAt(i, e.target.value)}
+                  className="flex-1"
+                  placeholder="mis. 100% cotton ring spun preshrunk jersey knit."
+                  data-testid={`input-spec-${i}`}
+                />
+                <Button size="sm" variant="ghost" onClick={() => removeSpec(i)} className="h-9 w-9 p-0">
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
+            {(form.specs || []).length === 0 && (
+              <p className="text-xs text-muted-foreground italic">Belum ada spesifikasi.</p>
+            )}
+          </div>
+        </div>
+
+        <Button onClick={save} disabled={saving} className="w-full sm:w-auto" data-testid="btn-save-product">
+          {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Check className="h-4 w-4 mr-1" />} Simpan Info Produk
+        </Button>
+      </div>
+
+      {/* Kanan: panduan ukuran */}
+      <div className="space-y-3">
+        <div className="rounded-lg border bg-card p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Ruler className="h-4 w-4 text-primary" />
+            <h3 className="font-semibold">Panduan Ukuran</h3>
+          </div>
+          <p className="text-xs text-muted-foreground mb-3">
+            Foto/infografis panduan ukuran yang muncul ketika pelanggan klik <b>Panduan Ukuran</b> di halaman <code>/custom</code>. Otomatis dikompres ke <b>WebP</b> 1400px @ q85.
+          </p>
+
+          {form.size_guide_url ? (
+            <div className="space-y-3">
+              <div className="rounded-md overflow-hidden border bg-muted/40">
+                <img src={form.size_guide_url} alt="Panduan ukuran" className="w-full max-h-[420px] object-contain" />
+              </div>
+              <div className="flex gap-2">
+                <label className="flex-1 cursor-pointer">
+                  <input type="file" accept="image/*" className="hidden" onChange={handleSizeGuide} disabled={uploading} data-testid="input-size-guide-file" />
+                  <span className="flex items-center justify-center gap-1.5 h-9 rounded-md border text-xs font-medium hover:bg-accent transition-colors">
+                    {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <UploadCloud className="h-3.5 w-3.5" />}
+                    Ganti Gambar
+                  </span>
+                </label>
+                <Button variant="outline" size="sm" onClick={removeSizeGuide} data-testid="btn-remove-size-guide">
+                  <Trash2 className="h-3.5 w-3.5 mr-1" /> Hapus
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <label className="flex flex-col items-center gap-2 cursor-pointer border-2 border-dashed rounded-md p-6 hover:bg-accent transition-colors">
+              {uploading ? (
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              ) : (
+                <UploadCloud className="h-6 w-6 text-muted-foreground" />
+              )}
+              <span className="text-sm font-medium">{uploading ? "Mengompres..." : "Upload panduan ukuran"}</span>
+              <span className="text-xs text-muted-foreground">Rekomendasi rasio 1:1 atau 4:5, min 1200px</span>
+              <input type="file" accept="image/*" className="hidden" onChange={handleSizeGuide} disabled={uploading} data-testid="input-size-guide-file" />
+            </label>
+          )}
+        </div>
+
+        {/* Preview panel like /custom */}
+        <div className="rounded-lg border bg-muted/30 p-4">
+          <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Preview di /custom</p>
+          <div className="border-2 border-foreground bg-background p-4">
+            <h4 className="font-bold uppercase tracking-wide text-sm leading-snug mb-2">{form.title || "Judul Produk"}</h4>
+            <p className="text-xs text-muted-foreground leading-relaxed mb-3 line-clamp-4">{form.description || "Deskripsi..."}</p>
+            <div className="text-xs">
+              <div className="flex justify-between mb-1">
+                <span className="font-semibold">Ukuran:</span>
+                <span className="underline text-[10px]">Panduan Ukuran</span>
+              </div>
+              <p className="text-foreground/80">{(form.sizes || []).join(" – ") || "(belum ada)"}</p>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
