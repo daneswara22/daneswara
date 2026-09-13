@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import {
   Shirt,
@@ -19,6 +19,7 @@ import {
 
 // Feature flag: only render the tool when explicitly ready (build step-by-step)
 const READY = process.env.NEXT_PUBLIC_CUSTOM_DESIGN_READY === 'true';
+const PRODUCT_KEY = 'premium-cotton-7200';
 
 const TOOLS = [
   { id: 'product', icon: Shirt, label: 'Product' },
@@ -79,7 +80,7 @@ const VIEWS = [
 ];
 
 function TshirtSVG({ view = 'front', color = '#FFFFFF' }) {
-  // Vector t-shirt placeholder — same silhouette across views for now (visual step 1 only).
+  // Vector t-shirt placeholder — used as fallback when no photo mockup uploaded yet.
   const stroke = '#1A1A1A';
   return (
     <svg viewBox="0 0 400 460" className="h-full w-auto" xmlns="http://www.w3.org/2000/svg" aria-label={`t-shirt ${view}`}>
@@ -111,6 +112,51 @@ function TshirtSVG({ view = 'front', color = '#FFFFFF' }) {
       <rect x="188" y="55" width="24" height="14" fill="#EDEDED" stroke={stroke} strokeWidth="1" />
     </svg>
   );
+}
+
+/**
+ * Renders either a real uploaded mockup photo (if admin uploaded one for this
+ * color+view combination) or falls back to the SVG placeholder.
+ */
+function TshirtMockup({ view, colorHex, mockups, alt = 't-shirt', priority = false }) {
+  const key = `${colorHex.toUpperCase()}::${view}`;
+  const mock = mockups?.get(key);
+  if (mock?.image_url) {
+    return (
+      <img
+        src={mock.image_url}
+        alt={alt}
+        className="h-full w-auto max-w-full object-contain"
+        loading={priority ? 'eager' : 'lazy'}
+        draggable={false}
+      />
+    );
+  }
+  return <TshirtSVG view={view} color={colorHex} />;
+}
+
+function useMockups(productKey) {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let live = true;
+    setLoading(true);
+    fetch(`/api/public/mockups?product_key=${encodeURIComponent(productKey)}`, { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => { if (live) setItems(Array.isArray(data) ? data : []); })
+      .catch(() => { if (live) setItems([]); })
+      .finally(() => { if (live) setLoading(false); });
+    return () => { live = false; };
+  }, [productKey]);
+
+  const map = useMemo(() => {
+    const m = new Map();
+    for (const it of items) m.set(`${(it.color_hex || '').toUpperCase()}::${it.view}`, it);
+    return m;
+  }, [items]);
+
+  return { mockups: map, mockupsList: items, loading };
 }
 
 function ComingSoon() {
@@ -145,6 +191,7 @@ export default function CustomDesign() {
   const [color, setColor] = useState('#E5E7EB');
   const [colorName, setColorName] = useState('Salmon');
   const [zoom, setZoom] = useState(1);
+  const { mockups } = useMockups(PRODUCT_KEY);
 
   if (!READY) return <ComingSoon />;
 
@@ -292,10 +339,10 @@ export default function CustomDesign() {
         {/* Canvas stage */}
         <div className="absolute inset-0 flex items-center justify-center p-8">
           <div
-            className="h-[80%] max-h-[720px] transition-transform duration-200"
+            className="h-[80%] max-h-[720px] transition-transform duration-200 flex items-center justify-center"
             style={{ transform: `scale(${zoom})` }}
           >
-            <TshirtSVG view={activeView} color={color} />
+            <TshirtMockup view={activeView} colorHex={color} mockups={mockups} alt={`${colorName} ${activeView}`} priority />
           </div>
         </div>
 
@@ -323,9 +370,9 @@ export default function CustomDesign() {
                   : 'border-foreground/25 hover:border-foreground'
               }`}
             >
-              <div className="w-full aspect-square bg-muted/60 flex items-center justify-center">
+              <div className="w-full aspect-square bg-muted/60 flex items-center justify-center overflow-hidden">
                 <div className="h-14 w-auto">
-                  <TshirtSVG view={v.id} color={color} />
+                  <TshirtMockup view={v.id} colorHex={color} mockups={mockups} alt={v.label} />
                 </div>
               </div>
               <span
