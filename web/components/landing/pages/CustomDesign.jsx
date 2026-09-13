@@ -15,11 +15,13 @@ import {
   ZoomIn,
   ZoomOut,
   ChevronLeft,
+  X,
 } from 'lucide-react';
 
 // Feature flag: only render the tool when explicitly ready (build step-by-step)
 const READY = process.env.NEXT_PUBLIC_CUSTOM_DESIGN_READY === 'true';
 const PRODUCT_KEY = 'premium-cotton-7200';
+const DEFAULT_SIZE_GUIDE = '/assets/size-guide/premium-cotton-7200.webp';
 
 const TOOLS = [
   { id: 'product', icon: Shirt, label: 'Product' },
@@ -159,6 +161,23 @@ function useMockups(productKey) {
   return { mockups: map, mockupsList: items, loading };
 }
 
+// Fetches editable product info (title, description, sizes, specs, size guide image).
+function useCustomProduct(productKey) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    let live = true;
+    setLoading(true);
+    fetch(`/api/public/custom-product?product_key=${encodeURIComponent(productKey)}`, { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (live) setData(d || null); })
+      .catch(() => { if (live) setData(null); })
+      .finally(() => { if (live) setLoading(false); });
+    return () => { live = false; };
+  }, [productKey]);
+  return { product: data, loading };
+}
+
 function ComingSoon() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-6" data-testid="custom-coming-soon">
@@ -191,7 +210,31 @@ export default function CustomDesign() {
   const [color, setColor] = useState('#E5E7EB');
   const [colorName, setColorName] = useState('Salmon');
   const [zoom, setZoom] = useState(1);
+  const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
   const { mockups } = useMockups(PRODUCT_KEY);
+  const { product } = useCustomProduct(PRODUCT_KEY);
+
+  // Dynamic content w/ safe fallbacks so the layout stays intact while loading.
+  const title = product?.title || 'New States Apparel Premium Cotton T-shirt 7200';
+  const description =
+    product?.description ||
+    'Made from lightweight ring-spun cotton, this t-shirt offers a noticeably softer and more comfortable feel. It features a regular fit that sits nicely without feeling tight. A versatile choice for relaxed days or clean, casual looks.';
+  const dynamicSizes = product?.sizes && product.sizes.length ? product.sizes : SIZES;
+  const dynamicSpecs =
+    product?.specs && product.specs.length
+      ? product.specs
+      : [
+          '100% cotton ring spun preshrunk jersey knit.',
+          '50% Cotton, 50% Polyester for Heather colors.',
+          '90% Cotton, 10% Polyester for Sport Grey color.',
+          '180g/m².',
+          'Single needle 2.2 cm collar.',
+          'Taped neck and shoulders.',
+          'Tubular construction.',
+          'Double needle sleeve and bottom hems.',
+          'Quarter-turned to eliminate centre crease.',
+        ];
+  const sizeGuideSrc = product?.size_guide_url || DEFAULT_SIZE_GUIDE;
 
   if (!READY) return <ComingSoon />;
 
@@ -239,23 +282,15 @@ export default function CustomDesign() {
 
           <div className="border-2 border-foreground bg-card p-4 shadow-stamp">
             <h3 className="font-display uppercase tracking-wide text-base leading-snug mb-2">
-              New States Apparel Premium Cotton T-shirt 7200
+              {title}
             </h3>
             <p className="text-xs text-muted-foreground leading-relaxed mb-4">
-              Made from lightweight ring-spun cotton, this t-shirt offers a noticeably softer and
-              more comfortable feel. It features a regular fit that sits nicely without feeling
-              tight. A versatile choice for relaxed days or clean, casual looks.
+              {description}
             </p>
             <div className="flex gap-2">
               <button
-                data-testid="custom-btn-details"
-                className="flex-1 border-2 border-foreground bg-background text-foreground text-[11px] font-bold uppercase tracking-widest py-2 lift"
-              >
-                Product Details
-              </button>
-              <button
                 data-testid="custom-btn-change-product"
-                className="flex-1 border-2 border-foreground bg-foreground text-background text-[11px] font-bold uppercase tracking-widest py-2 lift"
+                className="w-full border-2 border-foreground bg-foreground text-background text-[11px] font-bold uppercase tracking-widest py-2 lift"
               >
                 Ganti Produk
               </button>
@@ -266,15 +301,16 @@ export default function CustomDesign() {
           <div className="mt-6">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-semibold">Ukuran:</span>
-              <a
-                href="#"
+              <button
+                type="button"
+                onClick={() => setSizeGuideOpen(true)}
                 className="text-[11px] font-bold uppercase tracking-widest underline underline-offset-2 hover:text-primary"
                 data-testid="custom-size-guide"
               >
                 Panduan Ukuran
-              </a>
+              </button>
             </div>
-            <p className="text-sm text-foreground/80">{SIZES.join(' – ')}</p>
+            <p className="text-sm text-foreground/80">{dynamicSizes.join(' – ')}</p>
           </div>
 
           {/* Warna */}
@@ -309,15 +345,9 @@ export default function CustomDesign() {
           <div className="mt-6">
             <p className="text-sm font-semibold mb-2">Spesifikasi</p>
             <ul className="list-disc pl-5 text-xs text-foreground/80 space-y-1 leading-relaxed">
-              <li>100% cotton ring spun preshrunk jersey knit.</li>
-              <li>50% Cotton, 50% Polyester for Heather colors.</li>
-              <li>90% Cotton, 10% Polyester for Sport Grey color.</li>
-              <li>180g/m².</li>
-              <li>Single needle 2.2 cm collar.</li>
-              <li>Taped neck and shoulders.</li>
-              <li>Tubular construction.</li>
-              <li>Double needle sleeve and bottom hems.</li>
-              <li>Quarter-turned to eliminate centre crease.</li>
+              {dynamicSpecs.map((s, i) => (
+                <li key={i}>{s}</li>
+              ))}
             </ul>
           </div>
         </div>
@@ -386,6 +416,45 @@ export default function CustomDesign() {
           );
         })}
       </aside>
+
+      {/* Size guide modal — opens when user taps "Panduan Ukuran" */}
+      {sizeGuideOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/70 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Panduan Ukuran"
+          data-testid="size-guide-modal"
+          onClick={() => setSizeGuideOpen(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="relative bg-background border-2 border-foreground shadow-stamp max-w-4xl w-full max-h-[92vh] overflow-hidden flex flex-col"
+          >
+            <div className="flex items-center justify-between border-b-2 border-foreground px-4 py-2.5 bg-card">
+              <h3 className="font-display uppercase tracking-widest text-sm sm:text-base">Panduan Ukuran</h3>
+              <button
+                type="button"
+                onClick={() => setSizeGuideOpen(false)}
+                aria-label="Tutup"
+                data-testid="size-guide-close"
+                className="p-1.5 border-2 border-foreground bg-background hover:bg-foreground hover:text-background transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="overflow-auto p-3 sm:p-5 bg-muted/30 flex-1">
+              <img
+                src={sizeGuideSrc}
+                alt="Panduan Ukuran"
+                className="w-full h-auto object-contain mx-auto max-h-[80vh]"
+                loading="lazy"
+                draggable={false}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
