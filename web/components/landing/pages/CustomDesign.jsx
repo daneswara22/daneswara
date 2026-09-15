@@ -211,6 +211,7 @@ export default function CustomDesign() {
   const [colorName, setColorName] = useState('Salmon');
   const [zoom, setZoom] = useState(1);
   const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
+  const [mobilePanelTab, setMobilePanelTab] = useState(null); // null = closed
   const { mockups } = useMockups(PRODUCT_KEY);
   const { product } = useCustomProduct(PRODUCT_KEY);
 
@@ -243,181 +244,234 @@ export default function CustomDesign() {
 
   return (
     <div
-      className="flex h-[calc(100vh-0px)] w-full bg-background overflow-hidden"
+      className="flex flex-col h-[calc(100vh-0px)] w-full bg-background overflow-hidden"
       data-testid="custom-design-page"
     >
-      {/* ============ LEFT TOOL RAIL ============ */}
-      <aside
-        className="w-16 sm:w-20 shrink-0 border-r-2 border-foreground bg-card flex flex-col"
-        data-testid="custom-tool-rail"
+      {/* ==================== TOP BAR ==================== */}
+      <header
+        className="shrink-0 border-b-2 border-foreground bg-card"
+        data-testid="custom-top-bar"
       >
-        {TOOLS.map((t) => {
-          const Icon = t.icon;
-          const active = activeTool === t.id;
-          return (
-            <button
-              key={t.id}
-              onClick={() => setActiveTool(t.id)}
-              data-testid={`custom-tool-${t.id}`}
-              className={`flex flex-col items-center justify-center gap-1 py-3 border-b border-foreground/15 text-[10px] font-semibold uppercase tracking-wider transition-colors ${
-                active
-                  ? 'bg-foreground text-background'
-                  : 'text-foreground hover:bg-muted'
-              }`}
-            >
-              <Icon size={20} strokeWidth={1.75} />
-              <span className="leading-tight text-center px-1">{t.label}</span>
-            </button>
-          );
-        })}
-      </aside>
-
-      {/* ============ PRODUCT / TOOL PANEL ============ */}
-      <aside
-        className="w-72 sm:w-80 shrink-0 border-r-2 border-foreground bg-background overflow-y-auto"
-        data-testid="custom-side-panel"
-      >
-        <div className="p-4 sm:p-5">
-          <h2 className="font-display uppercase tracking-wider text-lg mb-3">Produk</h2>
-
-          <div className="border-2 border-foreground bg-card p-4 shadow-stamp">
-            <h3 className="font-display uppercase tracking-wide text-base leading-snug mb-2">
-              {title}
-            </h3>
-            <p className="text-xs text-muted-foreground leading-relaxed mb-4">
-              {description}
-            </p>
-            <div className="flex gap-2">
-              <button
-                data-testid="custom-btn-change-product"
-                className="w-full border-2 border-foreground bg-foreground text-background text-[11px] font-bold uppercase tracking-widest py-2 lift"
-              >
-                Ganti Produk
-              </button>
-            </div>
-          </div>
-
-          {/* Ukuran */}
-          <div className="mt-6">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-semibold">Ukuran:</span>
-              <button
-                type="button"
-                onClick={() => setSizeGuideOpen(true)}
-                className="text-[11px] font-bold uppercase tracking-widest underline underline-offset-2 hover:text-primary"
-                data-testid="custom-size-guide"
-              >
-                Panduan Ukuran
-              </button>
-            </div>
-            <p className="text-sm text-foreground/80">{dynamicSizes.join(' – ')}</p>
-          </div>
-
-          {/* Warna */}
-          <div className="mt-6">
-            <p className="text-sm font-semibold mb-3">
-              Warna: <span className="font-normal">{colorName}</span>
-            </p>
-            <div className="grid grid-cols-8 gap-2" data-testid="custom-color-grid">
-              {COLORS.map((c) => {
-                const active = c.hex === color;
-                return (
-                  <button
-                    key={c.hex + c.name}
-                    onClick={() => {
-                      setColor(c.hex);
-                      setColorName(c.name);
-                    }}
-                    title={c.name}
-                    aria-label={c.name}
-                    data-testid={`custom-color-${c.name.toLowerCase().replace(/\s+/g, '-')}`}
-                    className={`h-6 w-6 border-2 ${
-                      active ? 'border-foreground ring-2 ring-foreground ring-offset-1 ring-offset-background' : 'border-foreground/30'
-                    }`}
-                    style={{ background: c.hex }}
-                  />
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Spesifikasi */}
-          <div className="mt-6">
-            <p className="text-sm font-semibold mb-2">Spesifikasi</p>
-            <ul className="list-disc pl-5 text-xs text-foreground/80 space-y-1 leading-relaxed">
-              {dynamicSpecs.map((s, i) => (
-                <li key={i}>{s}</li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      </aside>
-
-      {/* ============ CANVAS ============ */}
-      <main className="flex-1 relative bg-muted/40 overflow-hidden" data-testid="custom-canvas">
-        {/* Top dock */}
-        <div
-          className="absolute top-4 left-1/2 -translate-x-1/2 flex bg-card border-2 border-foreground shadow-stamp z-10"
-          data-testid="custom-top-dock"
-        >
-          <DockButton icon={Undo2} label="Undo" testId="custom-undo" onClick={() => {}} />
-          <DockButton icon={Redo2} label="Redo" testId="custom-redo" onClick={() => {}} />
-          <DockButton icon={ZoomIn} label="Perbesar" testId="custom-zoom-in" onClick={zoomIn} active />
-          <DockButton icon={ZoomOut} label="Perkecil" testId="custom-zoom-out" onClick={zoomOut} />
-        </div>
-
-        {/* Canvas stage */}
-        <div className="absolute inset-0 flex items-center justify-center p-8">
-          <div
-            className="h-[80%] max-h-[720px] transition-transform duration-200 flex items-center justify-center"
-            style={{ transform: `scale(${zoom})` }}
+        <div className="flex items-center gap-3 px-3 sm:px-5 py-2.5">
+          <Link
+            href="/"
+            className="hidden sm:inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest hover:text-primary"
+            data-testid="custom-back-link"
           >
-            <TshirtMockup view={activeView} colorHex={color} mockups={mockups} alt={`${colorName} ${activeView}`} priority />
+            <ChevronLeft size={14} /> Kembali
+          </Link>
+          <div className="hidden sm:block h-6 w-[2px] bg-foreground/30" />
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] uppercase tracking-widest text-muted-foreground leading-none">Custom Design</p>
+            <h1 className="font-display uppercase tracking-wide text-sm sm:text-base truncate leading-tight">
+              {title}
+            </h1>
+          </div>
+          {/* Zoom & history cluster */}
+          <div className="flex items-center gap-1 sm:gap-2">
+            <div className="flex border-2 border-foreground bg-background">
+              <TopIconBtn icon={Undo2} label="Undo" onClick={() => {}} testId="custom-undo" />
+              <TopIconBtn icon={Redo2} label="Redo" onClick={() => {}} testId="custom-redo" />
+            </div>
+            <div className="flex items-center border-2 border-foreground bg-background">
+              <TopIconBtn icon={ZoomOut} label="Perkecil" onClick={zoomOut} testId="custom-zoom-out" />
+              <span
+                className="px-2 sm:px-3 text-[11px] font-bold tabular-nums border-x-2 border-foreground select-none"
+                data-testid="custom-zoom-label"
+              >
+                {Math.round(zoom * 100)}%
+              </span>
+              <TopIconBtn icon={ZoomIn} label="Perbesar" onClick={zoomIn} testId="custom-zoom-in" />
+            </div>
           </div>
         </div>
+      </header>
 
-        {/* Zoom badge */}
-        <div className="absolute bottom-4 left-4 bg-card border-2 border-foreground px-2.5 py-1 text-[11px] font-bold uppercase tracking-widest shadow-stamp">
-          {Math.round(zoom * 100)}%
-        </div>
-      </main>
-
-      {/* ============ RIGHT VIEWS RAIL ============ */}
-      <aside
-        className="w-24 sm:w-28 shrink-0 border-l-2 border-foreground bg-card overflow-y-auto p-2 sm:p-3 space-y-3"
-        data-testid="custom-views-rail"
-      >
-        {VIEWS.map((v) => {
-          const active = activeView === v.id;
-          return (
-            <button
-              key={v.id}
-              onClick={() => setActiveView(v.id)}
-              data-testid={`custom-view-${v.id}`}
-              className={`w-full border-2 bg-background flex flex-col items-center gap-1 p-1.5 transition-shadow ${
-                active
-                  ? 'border-foreground shadow-stamp'
-                  : 'border-foreground/25 hover:border-foreground'
-              }`}
-            >
-              <div className="w-full aspect-square bg-muted/60 flex items-center justify-center overflow-hidden">
-                <div className="h-14 w-auto">
-                  <TshirtMockup view={v.id} colorHex={color} mockups={mockups} alt={v.label} />
-                </div>
-              </div>
-              <span
-                className={`text-[10px] font-semibold uppercase tracking-wider text-center leading-tight ${
-                  active ? 'text-foreground' : 'text-muted-foreground'
+      {/* ==================== MAIN ROW ==================== */}
+      <div className="flex flex-1 min-h-0">
+        {/* Left compact tool dock (icon-only) */}
+        <aside
+          className="w-12 sm:w-14 shrink-0 border-r-2 border-foreground bg-card flex flex-col items-stretch"
+          data-testid="custom-tool-rail"
+        >
+          {TOOLS.map((t) => {
+            const Icon = t.icon;
+            const active = activeTool === t.id;
+            return (
+              <button
+                key={t.id}
+                onClick={() => setActiveTool(t.id)}
+                title={t.label}
+                aria-label={t.label}
+                data-testid={`custom-tool-${t.id}`}
+                className={`relative flex items-center justify-center py-3.5 border-b border-foreground/15 transition-colors ${
+                  active
+                    ? 'bg-foreground text-background'
+                    : 'text-foreground hover:bg-muted'
                 }`}
               >
-                {v.label}
-              </span>
-            </button>
-          );
-        })}
-      </aside>
+                <Icon size={18} strokeWidth={1.75} />
+                {active && (
+                  <span className="absolute right-0 top-0 h-full w-[3px] bg-primary" aria-hidden />
+                )}
+              </button>
+            );
+          })}
+        </aside>
 
-      {/* Size guide modal — opens when user taps "Panduan Ukuran" */}
+        {/* Canvas center */}
+        <main className="flex-1 relative bg-muted/40 overflow-hidden" data-testid="custom-canvas">
+          <div className="absolute inset-0 flex items-center justify-center p-4 sm:p-8">
+            <div
+              className="h-[80%] max-h-[720px] transition-transform duration-200 flex items-center justify-center"
+              style={{ transform: `scale(${zoom})` }}
+            >
+              <TshirtMockup
+                view={activeView}
+                colorHex={color}
+                mockups={mockups}
+                alt={`${colorName} ${activeView}`}
+                priority
+              />
+            </div>
+          </div>
+          {/* Selected color chip pinned bottom-left of canvas */}
+          <div className="absolute bottom-3 left-3 flex items-center gap-2 bg-card border-2 border-foreground shadow-stamp px-2.5 py-1.5">
+            <span
+              className="h-4 w-4 border-2 border-foreground"
+              style={{ background: color }}
+              aria-hidden
+            />
+            <span className="text-[11px] font-bold uppercase tracking-widest">{colorName}</span>
+          </div>
+        </main>
+
+        {/* Right panel with tabs (desktop only) */}
+        <aside
+          className="hidden md:flex w-72 sm:w-80 shrink-0 border-l-2 border-foreground bg-background flex-col"
+          data-testid="custom-side-panel"
+        >
+          <RightPanel
+            title={title}
+            description={description}
+            sizes={dynamicSizes}
+            specs={dynamicSpecs}
+            color={color}
+            colorName={colorName}
+            onSelectColor={(hex, name) => { setColor(hex); setColorName(name); }}
+            onOpenSizeGuide={() => setSizeGuideOpen(true)}
+          />
+        </aside>
+      </div>
+
+      {/* ==================== BOTTOM VIEWS STRIP ==================== */}
+      <footer
+        className="shrink-0 border-t-2 border-foreground bg-card"
+        data-testid="custom-views-strip"
+      >
+        <div className="flex items-center gap-2 sm:gap-3 px-3 sm:px-5 py-2.5 overflow-x-auto">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground shrink-0 hidden sm:inline">
+            Sudut Pandang
+          </span>
+          <div className="hidden sm:block h-6 w-[2px] bg-foreground/30 shrink-0" />
+          {VIEWS.map((v) => {
+            const active = activeView === v.id;
+            return (
+              <button
+                key={v.id}
+                onClick={() => setActiveView(v.id)}
+                data-testid={`custom-view-${v.id}`}
+                className={`group flex items-center gap-2 border-2 pl-1.5 pr-3 py-1 transition-shadow shrink-0 ${
+                  active
+                    ? 'border-foreground bg-background shadow-stamp'
+                    : 'border-foreground/25 bg-background/60 hover:border-foreground'
+                }`}
+              >
+                <div className="h-10 w-10 flex items-center justify-center bg-muted/60 overflow-hidden">
+                  <div className="h-9 w-auto">
+                    <TshirtMockup view={v.id} colorHex={color} mockups={mockups} alt={v.label} />
+                  </div>
+                </div>
+                <span
+                  className={`text-[11px] font-bold uppercase tracking-widest ${
+                    active ? 'text-foreground' : 'text-muted-foreground group-hover:text-foreground'
+                  }`}
+                >
+                  {v.label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </footer>
+
+      {/* ==================== MOBILE BOTTOM TAB BAR ==================== */}
+      <nav
+        className="md:hidden shrink-0 grid grid-cols-3 border-t-2 border-foreground bg-card"
+        data-testid="custom-mobile-tabs"
+      >
+        {[
+          { id: 'color', label: 'Warna' },
+          { id: 'size', label: 'Ukuran' },
+          { id: 'info', label: 'Info' },
+        ].map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            onClick={() => setMobilePanelTab(t.id)}
+            data-testid={`custom-mobile-tab-${t.id}`}
+            className="py-3 text-[11px] font-bold uppercase tracking-widest border-r-2 last:border-r-0 border-foreground hover:bg-foreground hover:text-background transition-colors"
+          >
+            {t.label}
+          </button>
+        ))}
+      </nav>
+
+      {/* ==================== MOBILE BOTTOM SHEET ==================== */}
+      {mobilePanelTab && (
+        <div
+          className="md:hidden fixed inset-0 z-40 flex flex-col"
+          data-testid="custom-mobile-sheet"
+        >
+          <div
+            className="flex-1 bg-black/60 backdrop-blur-sm"
+            onClick={() => setMobilePanelTab(null)}
+            aria-hidden
+          />
+          <div className="bg-background border-t-2 border-foreground max-h-[75vh] flex flex-col shadow-stamp">
+            <div className="flex items-center justify-between px-4 py-2 border-b-2 border-foreground bg-card">
+              <span className="font-display uppercase tracking-widest text-sm">
+                {mobilePanelTab === 'color' ? 'Warna' : mobilePanelTab === 'size' ? 'Ukuran' : 'Info Produk'}
+              </span>
+              <button
+                type="button"
+                onClick={() => setMobilePanelTab(null)}
+                aria-label="Tutup"
+                data-testid="custom-mobile-sheet-close"
+                className="p-1.5 border-2 border-foreground bg-background hover:bg-foreground hover:text-background transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="overflow-y-auto">
+              <RightPanel
+                initialTab={mobilePanelTab}
+                hideTabs
+                title={title}
+                description={description}
+                sizes={dynamicSizes}
+                specs={dynamicSpecs}
+                color={color}
+                colorName={colorName}
+                onSelectColor={(hex, name) => { setColor(hex); setColorName(name); }}
+                onOpenSizeGuide={() => { setMobilePanelTab(null); setSizeGuideOpen(true); }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ==================== SIZE GUIDE MODAL ==================== */}
       {sizeGuideOpen && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/70 backdrop-blur-sm"
@@ -459,17 +513,156 @@ export default function CustomDesign() {
   );
 }
 
-function DockButton({ icon: Icon, label, onClick, active = false, testId }) {
+/* -------- small button used in the top bar (icon + tooltip) -------- */
+function TopIconBtn({ icon: Icon, label, onClick, testId }) {
   return (
     <button
+      type="button"
       onClick={onClick}
+      title={label}
+      aria-label={label}
       data-testid={testId}
-      className={`flex flex-col items-center justify-center gap-0.5 px-3 py-2 border-r-2 border-foreground last:border-r-0 min-w-[64px] transition-colors ${
-        active ? 'bg-foreground text-background' : 'bg-card hover:bg-muted text-foreground'
-      }`}
+      className="h-8 w-9 sm:w-10 flex items-center justify-center border-r-2 border-foreground last:border-r-0 text-foreground hover:bg-foreground hover:text-background transition-colors"
     >
-      <Icon size={16} strokeWidth={1.75} />
-      <span className="text-[10px] font-bold uppercase tracking-wider">{label}</span>
+      <Icon size={15} strokeWidth={1.9} />
     </button>
+  );
+}
+
+/* -------- right panel with tabs: Warna / Ukuran / Info -------- */
+function RightPanel({
+  title,
+  description,
+  sizes,
+  specs,
+  color,
+  colorName,
+  onSelectColor,
+  onOpenSizeGuide,
+  initialTab = 'color',
+  hideTabs = false,
+}) {
+  const [tab, setTab] = useState(initialTab);
+  const tabs = [
+    { id: 'color', label: 'Warna' },
+    { id: 'size', label: 'Ukuran' },
+    { id: 'info', label: 'Info' },
+  ];
+  return (
+    <div className="flex flex-col h-full">
+      {/* Tab head */}
+      {!hideTabs && (
+        <div className="grid grid-cols-3 border-b-2 border-foreground bg-card" data-testid="custom-right-tabs">
+          {tabs.map((t) => {
+            const active = tab === t.id;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setTab(t.id)}
+                data-testid={`custom-right-tab-${t.id}`}
+                className={`py-2.5 text-[11px] font-bold uppercase tracking-widest border-r-2 last:border-r-0 border-foreground transition-colors ${
+                  active
+                    ? 'bg-foreground text-background'
+                    : 'bg-background text-foreground hover:bg-muted'
+                }`}
+              >
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Tab body (scrolls) */}
+      <div className="flex-1 overflow-y-auto">
+        {tab === 'color' && (
+          <div className="p-4 sm:p-5" data-testid="pane-color">
+            <div className="flex items-center gap-2 mb-3">
+              <span
+                className="h-6 w-6 border-2 border-foreground"
+                style={{ background: color }}
+                aria-hidden
+              />
+              <div className="min-w-0">
+                <p className="text-[10px] uppercase tracking-widest text-muted-foreground leading-none">Warna terpilih</p>
+                <p className="text-sm font-bold truncate">{colorName}</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-6 sm:grid-cols-7 gap-1.5" data-testid="custom-color-grid">
+              {COLORS.map((c) => {
+                const active = c.hex === color;
+                return (
+                  <button
+                    key={c.hex + c.name}
+                    onClick={() => onSelectColor(c.hex, c.name)}
+                    title={c.name}
+                    aria-label={c.name}
+                    data-testid={`custom-color-${c.name.toLowerCase().replace(/\s+/g, '-')}`}
+                    className={`aspect-square border-2 transition-transform ${
+                      active
+                        ? 'border-foreground ring-2 ring-foreground ring-offset-1 ring-offset-background'
+                        : 'border-foreground/25 hover:scale-110'
+                    }`}
+                    style={{ background: c.hex }}
+                  />
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {tab === 'size' && (
+          <div className="p-4 sm:p-5 space-y-4" data-testid="pane-size">
+            <div className="flex flex-wrap gap-1.5">
+              {sizes.map((s) => (
+                <span
+                  key={s}
+                  className="inline-flex items-center justify-center min-w-[36px] h-8 px-2.5 border-2 border-foreground bg-card text-xs font-bold uppercase tracking-wider"
+                >
+                  {s}
+                </span>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={onOpenSizeGuide}
+              data-testid="custom-size-guide"
+              className="w-full border-2 border-foreground bg-foreground text-background py-2.5 text-[11px] font-bold uppercase tracking-widest lift"
+            >
+              Buka Panduan Ukuran
+            </button>
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              Toleransi ukuran 1–2,5 cm. Klik &quot;Buka Panduan Ukuran&quot; untuk melihat detail dimensi.
+            </p>
+          </div>
+        )}
+
+        {tab === 'info' && (
+          <div className="p-4 sm:p-5 space-y-4" data-testid="pane-info">
+            <div>
+              <p className="text-[10px] uppercase tracking-widest text-muted-foreground leading-none mb-1">Produk</p>
+              <h3 className="font-display uppercase tracking-wide text-sm leading-snug mb-2">{title}</h3>
+              <p className="text-xs text-muted-foreground leading-relaxed">{description}</p>
+            </div>
+            <button
+              type="button"
+              data-testid="custom-btn-change-product"
+              className="w-full border-2 border-foreground bg-background text-foreground py-2 text-[11px] font-bold uppercase tracking-widest lift"
+            >
+              Ganti Produk
+            </button>
+            <div>
+              <p className="text-xs font-bold uppercase tracking-widest mb-2">Spesifikasi</p>
+              <ul className="list-disc pl-5 text-xs text-foreground/80 space-y-1 leading-relaxed">
+                {specs.map((s, i) => (
+                  <li key={i}>{s}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
