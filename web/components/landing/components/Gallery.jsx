@@ -22,7 +22,7 @@ export const Gallery = () => {
             <div className="text-xs uppercase tracking-[0.3em] text-primary font-bold">
               ★ {t("gallery_eyebrow")} ★
             </div>
-            <h2 className="font-display mt-3 text-4xl sm:text-5xl lg:text-6xl uppercase tracking-wider leading-none">
+            <h2 className="font-display mt-3 text-4xl sm:text-5xl lg:text-6xl tracking-tight leading-tight">
               {t("gallery_title")}
             </h2>
             <p className="mt-4 text-base sm:text-lg text-muted-foreground">{t("gallery_sub")}</p>

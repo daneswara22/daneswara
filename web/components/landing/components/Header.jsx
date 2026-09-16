@@ -36,7 +36,7 @@ export const Header = ({ onCtaClick }) => {
             className="h-10 sm:h-12 w-auto object-contain group-hover:translate-x-[-1px] group-hover:translate-y-[-1px] transition-transform"
           />
           <div className="leading-tight hidden sm:block">
-            <div className="font-display text-lg sm:text-xl uppercase tracking-wider">
+            <div className="font-display text-lg sm:text-xl tracking-tight">
               Daneswara Print
             </div>
             <div className="text-[10px] sm:text-xs uppercase tracking-[0.2em] text-muted-foreground">

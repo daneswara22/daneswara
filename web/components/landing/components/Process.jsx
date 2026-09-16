@@ -22,7 +22,7 @@ export const Process = () => {
             <div className="text-xs uppercase tracking-[0.3em] text-primary font-bold">
               ★ {t("process_eyebrow")} ★
             </div>
-            <h2 className="font-display mt-3 text-4xl sm:text-5xl lg:text-6xl uppercase tracking-wider leading-none">
+            <h2 className="font-display mt-3 text-4xl sm:text-5xl lg:text-6xl tracking-tight leading-tight">
               {t("process_title")}
             </h2>
           </div>
@@ -39,7 +39,7 @@ export const Process = () => {
                 0{i + 1}
               </div>
               <Icon size={32} strokeWidth={1.5} />
-              <h3 className="font-display mt-4 text-xl uppercase tracking-wider">{title}</h3>
+              <h3 className="font-display mt-4 text-xl tracking-tight">{title}</h3>
               <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{d}</p>
             </div>
           ))}

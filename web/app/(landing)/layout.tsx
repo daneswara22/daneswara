@@ -14,12 +14,12 @@ export default function LandingLayout({ children }: { children: React.ReactNode 
         className="dp-toaster"
         toastOptions={{
           style: {
-            border: '2px solid #1A1A1A',
-            borderRadius: 0,
-            background: '#F9F7F2',
-            color: '#1A1A1A',
-            fontFamily: "'Work Sans', sans-serif",
-            boxShadow: '4px 4px 0 0 #1A1A1A',
+            border: '1.5px solid #e6e6e6',
+            borderRadius: '0.9rem',
+            background: '#ffffff',
+            color: '#171717',
+            fontFamily: "'Plus Jakarta Sans', sans-serif",
+            boxShadow: '0 16px 40px rgba(17,17,17,0.12)',
           },
         }}
       />
