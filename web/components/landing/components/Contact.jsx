@@ -62,7 +62,7 @@ export const Contact = () => {
           <div className="text-xs uppercase tracking-[0.3em] text-primary font-bold">
             ★ {isID ? "Kontak" : "Contact Us"} ★
           </div>
-          <h2 className="font-display mt-3 text-4xl sm:text-5xl lg:text-6xl uppercase tracking-wider leading-none">
+          <h2 className="font-display mt-3 text-4xl sm:text-5xl lg:text-6xl tracking-tight leading-tight">
             {isID ? "Mampir ke store." : "Drop by the store."}
           </h2>
           <p className="mt-4 text-base sm:text-lg text-muted-foreground">
@@ -75,7 +75,7 @@ export const Contact = () => {
         <div className="mt-12 grid lg:grid-cols-12 gap-6 lg:gap-8">
           {/* Map */}
           <div className="lg:col-span-7 relative">
-            <div className="absolute -top-3 -left-3 w-full h-full bg-primary border-2 border-foreground" />
+            <div className="absolute -top-3 -left-3 w-full h-full bg-transparent border-2 border-foreground" />
             <div className="relative border-2 border-foreground bg-background overflow-hidden shadow-stamp-lg">
               <iframe
                 data-testid="contact-map"

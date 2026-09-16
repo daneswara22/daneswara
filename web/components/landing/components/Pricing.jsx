@@ -20,20 +20,6 @@ export const Pricing = ({ onSelectPackage }) => {
       link: "/price-list",
     },
     {
-      id: "screen",
-      title: t("pkg_screen_t"),
-      price: t("pkg_screen_p"),
-      desc: t("pkg_screen_d"),
-      bullets: [
-        t("pkg_screen_b1"),
-        t("pkg_screen_b2"),
-        t("pkg_screen_b3"),
-        t("pkg_screen_b4"),
-      ],
-      popular: false,
-      link: null,
-    },
-    {
       id: "bulk",
       title: t("pkg_bulk_t"),
       price: t("pkg_bulk_p"),
@@ -46,6 +32,20 @@ export const Pricing = ({ onSelectPackage }) => {
       ],
       popular: false,
       link: "/price-list-print-only",
+    },
+    {
+      id: "screen",
+      title: t("pkg_screen_t"),
+      price: t("pkg_screen_p"),
+      desc: t("pkg_screen_d"),
+      bullets: [
+        t("pkg_screen_b1"),
+        t("pkg_screen_b2"),
+        t("pkg_screen_b3"),
+        t("pkg_screen_b4"),
+      ],
+      popular: false,
+      link: null,
     },
   ];
 
@@ -60,7 +60,7 @@ export const Pricing = ({ onSelectPackage }) => {
           <div className="text-xs uppercase tracking-[0.3em] text-primary font-bold">
             ★ {t("pricing_eyebrow")} ★
           </div>
-          <h2 className="font-display mt-3 text-4xl sm:text-5xl lg:text-6xl uppercase tracking-wider leading-none">
+          <h2 className="font-display mt-3 text-4xl sm:text-5xl lg:text-6xl tracking-tight leading-tight">
             {t("pricing_title")}
           </h2>
           <p className="mt-4 text-base sm:text-lg text-muted-foreground">{t("pricing_sub")}</p>
@@ -80,7 +80,7 @@ export const Pricing = ({ onSelectPackage }) => {
                   ★ {t("pricing_popular")}
                 </div>
               )}
-              <div className="font-display text-2xl sm:text-3xl uppercase tracking-wider">
+              <div className="font-display text-2xl sm:text-3xl tracking-tight">
                 {p.title}
               </div>
               <div className="font-display text-3xl sm:text-4xl text-primary mt-2 leading-none">

@@ -25,7 +25,7 @@ export const Hero = ({ onQuoteClick, onGalleryClick }) => {
 
           <h1
             data-testid="hero-title"
-            className="font-display mt-6 text-5xl sm:text-7xl lg:text-[7.5rem] uppercase leading-[0.92] tracking-wide"
+            className="font-display mt-6 text-5xl sm:text-6xl lg:text-8xl leading-[0.98] tracking-tight"
           >
             {t("hero_title_a")}{" "}
             <span className="relative inline-block">
@@ -81,7 +81,7 @@ export const Hero = ({ onQuoteClick, onGalleryClick }) => {
 
         <div className="lg:col-span-5">
           <div className="relative">
-            <div className="absolute -top-4 -left-4 w-full h-full bg-primary border-2 border-foreground" />
+            <div className="absolute -top-4 -left-4 w-full h-full bg-transparent border-2 border-foreground" />
             <div
               data-testid="hero-image"
               className="relative w-full h-[420px] sm:h-[520px] grid place-items-center bg-card border-2 border-foreground p-10"
@@ -98,7 +98,7 @@ export const Hero = ({ onQuoteClick, onGalleryClick }) => {
                 We may not be the best, but we do our best on every project.
               </div>
             </div>
-            <div className="absolute -top-6 right-6 hidden sm:flex w-20 h-20 rounded-full border-2 border-foreground bg-background items-center justify-center font-display text-xs uppercase tracking-widest rotate-12">
+            <div className="absolute -top-6 right-6 hidden sm:flex w-20 h-20 rounded-full border-2 border-foreground bg-background items-center justify-center font-display text-xs tracking-tight rotate-12">
               <span className="text-center leading-tight">
                 Small
                 <br />
