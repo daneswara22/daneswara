@@ -12,7 +12,7 @@ import { toast } from "sonner";
 import {
   LayoutDashboard, Package, Tags, Warehouse, BarChart3, Users as UsersIcon,
   Settings as SettingsIcon, ShoppingCart, Sun, Moon, LogOut, Menu, X, Store,
-  UserCircle, Truck, ClipboardList, ShoppingBag, KeyRound, Wallet, DownloadCloud, HandCoins, ReceiptText, Images, Shirt,
+  UserCircle, Truck, ClipboardList, ShoppingBag, KeyRound, Wallet, DownloadCloud, HandCoins, ReceiptText, Images, Shirt, Palette,
 } from "lucide-react";
 
 const NAV = [
@@ -31,6 +31,7 @@ const NAV = [
   { to: "/app/ekspor", label: "Ekspor Data", icon: DownloadCloud, roles: ["Owner"] },
   { to: "/app/galeri-web", label: "Galeri Website", icon: Images, roles: ["Owner", "Manager"] },
   { to: "/app/mockup-kaos", label: "Mockup Kaos", icon: Shirt, roles: ["Owner", "Manager"] },
+  { to: "/custom-tees", label: "Custom Tees", icon: Palette, roles: ["Owner", "Manager"], dev: true },
   { to: "/app/pengguna", label: "Pengguna", icon: UsersIcon, roles: ["Owner", "Manager"] },
   { to: "/app/pengaturan", label: "Pengaturan", icon: SettingsIcon, roles: ["Owner", "Manager", "Kasir"] },
 ];
@@ -69,18 +70,18 @@ export default function Layout() {
     <div className="flex h-screen overflow-hidden bg-background">
       {/* Sidebar */}
       <aside
-        className={`fixed z-40 h-full w-64 shrink-0 border-r border-border bg-card transition-transform duration-300 lg:static lg:translate-x-0 ${
+        className={`fixed z-40 flex h-full w-64 shrink-0 flex-col border-r border-border bg-card transition-transform duration-300 lg:static lg:translate-x-0 ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
         data-testid="sidebar"
       >
-        <div className="flex h-16 items-center gap-2 border-b border-border px-6">
+        <div className="flex h-16 shrink-0 items-center gap-2 border-b border-border px-6">
           <div className="flex h-9 w-9 items-center justify-center rounded-md bg-neutral-900 p-1">
             <img src="/logo.png" alt="Daneswara POS" className="h-full w-full object-contain" />
           </div>
           <span className="font-display text-lg font-bold tracking-tight">Daneswara POS</span>
         </div>
-        <nav className="flex flex-col gap-1 p-4">
+        <nav className="flex flex-1 flex-col gap-1 overflow-y-auto p-4">
           {(items || []).map((n) => (
             <NavLink
               key={n.to}
@@ -97,11 +98,16 @@ export default function Layout() {
               }
             >
               <n.icon className="h-4.5 w-4.5" style={{ width: 18, height: 18 }} />
-              {n.label}
+              <span className="flex-1">{n.label}</span>
+              {n.dev && (
+                <span className="rounded bg-amber-400 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-950">
+                  Dev
+                </span>
+              )}
             </NavLink>
           ))}
         </nav>
-        <div className="absolute bottom-0 w-full border-t border-border p-4">
+        <div className="w-full shrink-0 border-t border-border p-4">
           <Button
             onClick={() => navigate("/pos")}
             className="w-full gap-2 font-semibold"
