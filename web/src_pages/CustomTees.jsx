@@ -27,10 +27,31 @@ const MOCKUPS = {
 
 const SIZES = ["S", "M", "L", "XL", "2XL", "3XL", "4XL", "5XL"];
 const COLOR_TABS = ["Populer", "Netral", "Merah", "Biru", "Hijau", "Lainnya"];
+/**
+ * Palet warna kaos.
+ * name = nama yang tampil di kartu "Warna Kaos"
+ * hex  = warna asli
+ * Catatan: warna putih tidak menerapkan overlay (kaos tetap putih asli).
+ */
 const SWATCHES = [
-  "#111111", "#ffffff", "#cbd0d6", "#2b3a67", "#5b1f1f", "#c0392b", "#2e7d32",
-  "#f1c40f", "#27ae60", "#e67e22", "#3b3b2f", "#7a7a2e", "#8ec7f0", "#f4b8cf",
-  "#d8c3a5", "#7d3cc9", "#1f3fae", "#2ea67a",
+  { name: "Putih",        hex: "#ffffff" },
+  { name: "Hitam",        hex: "#111111" },
+  { name: "Abu Muda",     hex: "#cbd0d6" },
+  { name: "Navy",         hex: "#2b3a67" },
+  { name: "Maroon",       hex: "#5b1f1f" },
+  { name: "Merah",        hex: "#c0392b" },
+  { name: "Hijau Tua",    hex: "#2e7d32" },
+  { name: "Kuning",       hex: "#f1c40f" },
+  { name: "Hijau Daun",   hex: "#27ae60" },
+  { name: "Oranye",       hex: "#e67e22" },
+  { name: "Olive Tua",    hex: "#3b3b2f" },
+  { name: "Olive",        hex: "#7a7a2e" },
+  { name: "Baby Blue",    hex: "#8ec7f0" },
+  { name: "Baby Pink",    hex: "#f4b8cf" },
+  { name: "Krem",         hex: "#d8c3a5" },
+  { name: "Ungu",         hex: "#7d3cc9" },
+  { name: "Biru Royal",   hex: "#1f3fae" },
+  { name: "Tosca",        hex: "#2ea67a" },
 ];
 const VIEWS = ["Depan", "Belakang", "Lengan Kiri", "Lengan Kanan"];
 
@@ -50,6 +71,8 @@ const STEPS = ["Produk", "Desain", "Preview", "Pesanan"];
 export default function CustomTees() {
   const navigate = useNavigate();
   const [view, setView] = useState("Depan");
+  const [color, setColor] = useState(SWATCHES[0]); // Putih (default)
+  const isWhite = color.hex.toLowerCase() === "#ffffff";
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-zinc-100 text-zinc-900">
@@ -155,9 +178,7 @@ export default function CustomTees() {
 
           {/* product card */}
           <div className="flex items-center gap-3 rounded-xl border border-zinc-200 p-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-zinc-100">
-              <img src={MOCKUPS["Depan"]} alt="Kaos" className="h-9 w-9 object-contain" />
-            </div>
+            <TintedThumb src={MOCKUPS["Depan"]} color={color.hex} alt="Kaos" size={48} inner={36} />
             <div className="leading-tight">
               <div className="text-[13px] font-semibold">24 COTTON LOCAL SIZE (BUILDUP TEES)</div>
               <div className="text-[11px] text-zinc-500">Kaos 24s Dengan ukuran local</div>
@@ -188,10 +209,14 @@ export default function CustomTees() {
             <button className="text-xs font-semibold text-zinc-500 underline-offset-2 hover:text-zinc-900 hover:underline">Lihat Semua Warna</button>
           </div>
           <div className="mt-2 flex items-center gap-3 rounded-xl border border-zinc-200 p-2.5">
-            <span className="h-8 w-8 rounded-full border border-zinc-300 bg-black" />
+            <span
+              className="h-8 w-8 rounded-full border border-zinc-300 shadow-inner transition-colors"
+              style={{ backgroundColor: color.hex }}
+              data-testid="active-color-swatch"
+            />
             <div className="leading-tight">
-              <div className="text-sm font-semibold">Black</div>
-              <div className="text-[11px] text-zinc-400">#000000</div>
+              <div className="text-sm font-semibold" data-testid="active-color-name">{color.name}</div>
+              <div className="text-[11px] uppercase text-zinc-400" data-testid="active-color-hex">{color.hex}</div>
             </div>
           </div>
 
@@ -209,16 +234,32 @@ export default function CustomTees() {
 
           {/* swatches */}
           <div className="mt-3 grid grid-cols-7 gap-2">
-            {SWATCHES.map((c, i) => (
-              <button
-                key={`${c}-${i}`}
-                title={c}
-                className={`aspect-square rounded-full border ${
-                  i === 0 ? "ring-2 ring-zinc-900 ring-offset-1" : "border-zinc-200"
-                }`}
-                style={{ backgroundColor: c }}
-              />
-            ))}
+            {SWATCHES.map((c) => {
+              const active = c.hex === color.hex;
+              const isLight = c.hex.toLowerCase() === "#ffffff";
+              return (
+                <button
+                  key={c.hex}
+                  onClick={() => setColor(c)}
+                  title={`${c.name} (${c.hex})`}
+                  aria-label={`Pilih warna ${c.name}`}
+                  data-testid={`swatch-${c.name.toLowerCase().replace(/\s+/g, "-")}`}
+                  className={`relative aspect-square rounded-full border transition ${
+                    active
+                      ? "ring-2 ring-zinc-900 ring-offset-1"
+                      : "border-zinc-200 hover:scale-110"
+                  } ${isLight ? "border-zinc-300" : ""}`}
+                  style={{ backgroundColor: c.hex }}
+                >
+                  {active && (
+                    <Check
+                      className="absolute inset-0 m-auto h-3.5 w-3.5"
+                      style={{ color: isLight ? "#111" : "#fff" }}
+                    />
+                  )}
+                </button>
+              );
+            })}
           </div>
 
           {/* detail produk */}
@@ -231,11 +272,49 @@ export default function CustomTees() {
         {/* -------- Canvas -------- */}
         <main className="relative flex min-w-0 flex-1 flex-col items-center justify-center bg-zinc-100">
           <div className="flex w-full max-w-[560px] flex-col items-center px-6">
-            <img
-              src={MOCKUPS[view]}
-              alt={`Kaos tampak ${view}`}
-              className="h-[62vh] w-auto max-w-full object-contain drop-shadow-sm"
-            />
+            {/*
+              Trik pewarnaan real-time:
+              - <img> mockup asli sebagai base
+              - Lapisan overlay warna dengan mix-blend-mode: multiply
+                → mewarnai area putih kaos, TIDAK menyentuh dark line/kulit/rambut.
+              - mask-image + mask-mode: luminance dari gambar mockup itu sendiri
+                → memastikan overlay hanya muncul pada area TERANG (kaos),
+                  bukan pada kulit/rambut/celana.
+              - Warna putih dilewati (overlay disembunyikan) supaya kaos benar-benar netral.
+            */}
+            <div
+              className="relative h-[62vh] w-auto"
+              data-testid="tee-canvas"
+            >
+              <img
+                src={MOCKUPS[view]}
+                alt={`Kaos tampak ${view}`}
+                className="h-full w-auto max-w-full object-contain drop-shadow-sm"
+                data-testid="tee-mockup-image"
+              />
+              {!isWhite && (
+                <div
+                  aria-hidden="true"
+                  data-testid="tee-color-overlay"
+                  className="pointer-events-none absolute inset-0 transition-[background-color] duration-200"
+                  style={{
+                    backgroundColor: color.hex,
+                    mixBlendMode: "multiply",
+                    WebkitMaskImage: `url(${MOCKUPS[view]})`,
+                    maskImage: `url(${MOCKUPS[view]})`,
+                    WebkitMaskSize: "contain",
+                    maskSize: "contain",
+                    WebkitMaskPosition: "center",
+                    maskPosition: "center",
+                    WebkitMaskRepeat: "no-repeat",
+                    maskRepeat: "no-repeat",
+                    // luminance: pixel terang (kaos putih) → opaque, gelap → transparan
+                    WebkitMaskMode: "luminance",
+                    maskMode: "luminance",
+                  }}
+                />
+              )}
+            </div>
             <div className="mt-6 w-full max-w-[430px] border-t border-dashed border-zinc-300 pt-2 text-center text-[11px] font-semibold tracking-[0.2em] text-zinc-400">
               AREA CETAK AMAN
             </div>
@@ -255,9 +334,7 @@ export default function CustomTees() {
                     view === v ? "border-zinc-900 bg-zinc-50 font-semibold" : "border-zinc-200 hover:border-zinc-400"
                   }`}
                 >
-                  <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-zinc-100">
-                    <img src={MOCKUPS[v]} alt={v} className="h-7 w-7 object-contain" />
-                  </span>
+                  <TintedThumb src={MOCKUPS[v]} color={color.hex} alt={v} />
                   {v}
                 </button>
               ))}
@@ -318,5 +395,48 @@ function ToolbarIcon({ icon: Icon, label }) {
       <Icon className="h-4.5 w-4.5" style={{ width: 18, height: 18 }} />
       <span className="text-[10px] leading-none">{label}</span>
     </button>
+  );
+}
+
+/**
+ * Thumbnail mockup yang ikut ter-tint sesuai warna aktif.
+ * Memakai teknik yang sama dengan kanvas: mask-image luminance + multiply.
+ */
+function TintedThumb({ src, color, alt, size = 36, inner = 28 }) {
+  const isWhite = color.toLowerCase() === "#ffffff";
+  return (
+    <span
+      className="relative flex items-center justify-center rounded-lg bg-zinc-100"
+      style={{ height: size, width: size }}
+    >
+      <img
+        src={src}
+        alt={alt}
+        className="object-contain"
+        style={{ height: inner, width: inner }}
+      />
+      {!isWhite && (
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute"
+          style={{
+            height: inner,
+            width: inner,
+            backgroundColor: color,
+            mixBlendMode: "multiply",
+            WebkitMaskImage: `url(${src})`,
+            maskImage: `url(${src})`,
+            WebkitMaskSize: "contain",
+            maskSize: "contain",
+            WebkitMaskPosition: "center",
+            maskPosition: "center",
+            WebkitMaskRepeat: "no-repeat",
+            maskRepeat: "no-repeat",
+            WebkitMaskMode: "luminance",
+            maskMode: "luminance",
+          }}
+        />
+      )}
+    </span>
   );
 }
