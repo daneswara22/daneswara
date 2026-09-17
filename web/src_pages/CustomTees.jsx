@@ -8,12 +8,12 @@
  * Skala warna dibuat eksplisit (light theme) supaya persis seperti rancangan,
  * tidak terpengaruh mode gelap admin.
  */
-import { useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Shirt, Upload, Type, Shapes, ImageIcon, LayoutTemplate, Layers,
   Undo2, Redo2, Save, HelpCircle, ChevronRight, ChevronDown, Check,
-  Minus, Plus, RotateCcw, ArrowRight, LifeBuoy,
+  Minus, Plus, RotateCcw, ArrowRight, LifeBuoy, Loader2, X,
 } from "lucide-react";
 
 /* ---------- t-shirt silhouette (dipakai untuk kanvas & thumbnail) ---------- */
@@ -82,11 +82,132 @@ const TOOLS = [
 
 const STEPS = ["Produk", "Desain", "Preview", "Pesanan"];
 
+/* ---------- Design state helpers ---------- */
+const DESIGNS_STORAGE_KEY = "custom-tees:designs:v1";
+const EMPTY_DESIGNS = {
+  "Depan": null,
+  "Belakang": null,
+  "Lengan Kiri": null,
+  "Lengan Kanan": null,
+};
+/**
+ * Default posisi & ukuran desain saat pertama kali di-upload.
+ * Nilai relatif terhadap kanvas (persentase) supaya adaptif di berbagai ukuran layar.
+ */
+function initialDesignFor(url, natW, natH) {
+  const aspect = natW && natH ? natW / natH : 1;
+  return {
+    url,
+    xPct: 50,       // titik pusat di tengah kanvas
+    yPct: 50,
+    widthPct: 32,   // lebar 32% dari lebar kanvas
+    aspect,         // rasio (w/h) → tinggi dihitung dari widthPct/aspect
+    rotation: 0,
+    natW,
+    natH,
+  };
+}
+
 export default function CustomTees() {
   const navigate = useNavigate();
   const [view, setView] = useState("Depan");
   const [color, setColor] = useState(SWATCHES[0]); // Putih (default)
   const isWhite = color.hex.toLowerCase() === "#ffffff";
+
+  /* ------------- Design upload state ------------- */
+  const [designs, setDesigns] = useState(() => {
+    // load dari localStorage (jika ada)
+    if (typeof window === "undefined") return { ...EMPTY_DESIGNS };
+    try {
+      const raw = window.localStorage.getItem(DESIGNS_STORAGE_KEY);
+      if (!raw) return { ...EMPTY_DESIGNS };
+      const parsed = JSON.parse(raw);
+      return { ...EMPTY_DESIGNS, ...parsed };
+    } catch {
+      return { ...EMPTY_DESIGNS };
+    }
+  });
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+  const [selectedDesign, setSelectedDesign] = useState(true); // seleksi otomatis setelah upload
+  const fileInputRef = useRef(null);
+
+  // Persist designs → localStorage (auto)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(DESIGNS_STORAGE_KEY, JSON.stringify(designs));
+    } catch { /* quota / disabled */ }
+  }, [designs]);
+
+  const currentDesign = designs[view];
+
+  const updateCurrentDesign = useCallback((patch) => {
+    setDesigns((prev) => {
+      const cur = prev[view];
+      if (!cur) return prev;
+      return { ...prev, [view]: { ...cur, ...patch } };
+    });
+  }, [view]);
+
+  const removeCurrentDesign = useCallback(() => {
+    setDesigns((prev) => ({ ...prev, [view]: null }));
+    setSelectedDesign(false);
+  }, [view]);
+
+  const openFilePicker = useCallback(() => {
+    setUploadError("");
+    fileInputRef.current?.click();
+  }, []);
+
+  const handleFileSelected = useCallback(async (e) => {
+    const file = e.target.files?.[0];
+    // reset input value agar bisa upload file sama dua kali
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    if (!file) return;
+    if (!/^image\/(png|jpeg|jpg)$/i.test(file.type)) {
+      setUploadError("Hanya PNG atau JPG yang didukung");
+      return;
+    }
+    if (file.size > 15 * 1024 * 1024) {
+      setUploadError("Ukuran file maksimal 15 MB");
+      return;
+    }
+    setUploading(true);
+    setUploadError("");
+    try {
+      // Baca dimensi natural untuk aspect ratio
+      const dims = await new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
+        img.onerror = () => reject(new Error("File gambar tidak valid"));
+        img.src = URL.createObjectURL(file);
+      });
+
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/upload?kind=misc", {
+        method: "POST",
+        body: fd,
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err?.detail || `Upload gagal (${res.status})`);
+      }
+      const info = await res.json();
+      const url = info.url;
+      setDesigns((prev) => ({
+        ...prev,
+        [view]: initialDesignFor(url, dims.w, dims.h),
+      }));
+      setSelectedDesign(true);
+    } catch (err) {
+      setUploadError(err?.message || "Upload gagal");
+    } finally {
+      setUploading(false);
+    }
+  }, [view]);
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-zinc-100 text-zinc-900">
@@ -158,17 +279,38 @@ export default function CustomTees() {
       <div className="flex min-h-0 flex-1">
         {/* -------- Tool rail -------- */}
         <nav className="hidden w-[92px] shrink-0 flex-col items-center gap-1 border-r border-zinc-200 bg-white py-3 md:flex">
+          {/* hidden file input untuk fitur Upload Desain */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/png,image/jpeg,image/jpg"
+            className="hidden"
+            onChange={handleFileSelected}
+            data-testid="design-file-input"
+          />
           {TOOLS.map((t, i) => {
             const active = i === 0;
+            const isDesign = t.label === "Desain";
+            const isBusy = isDesign && uploading;
             return (
               <button
                 key={t.label}
+                type="button"
+                onClick={isDesign ? openFilePicker : undefined}
+                disabled={isBusy}
+                data-testid={isDesign ? "tool-btn-desain" : undefined}
                 className={`flex w-[80px] flex-col items-center gap-1 rounded-xl px-1 py-2 text-center transition ${
                   active ? "bg-zinc-900 text-white" : "text-zinc-600 hover:bg-zinc-100"
-                }`}
+                } ${isBusy ? "cursor-wait opacity-70" : ""}`}
               >
-                <t.icon className="h-5 w-5" />
-                <span className="text-[11px] font-semibold leading-none">{t.label}</span>
+                {isBusy ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <t.icon className="h-5 w-5" />
+                )}
+                <span className="text-[11px] font-semibold leading-none">
+                  {isDesign && uploading ? "Mengupload…" : t.label}
+                </span>
                 <span className={`text-[9px] leading-tight ${active ? "text-zinc-300" : "text-zinc-400"}`}>{t.sub}</span>
               </button>
             );
@@ -299,11 +441,15 @@ export default function CustomTees() {
             <div
               className="relative h-[62vh] w-auto"
               data-testid="tee-canvas"
+              onPointerDown={(e) => {
+                // Deselect ketika klik area kanvas kosong
+                if (e.target === e.currentTarget) setSelectedDesign(false);
+              }}
             >
               <img
                 src={MOCKUPS[view]}
                 alt={`Kaos tampak ${view}`}
-                className="h-full w-auto max-w-full object-contain drop-shadow-sm"
+                className="pointer-events-none h-full w-auto max-w-full object-contain drop-shadow-sm"
                 data-testid="tee-mockup-image"
               />
               {!isWhite && (
@@ -327,11 +473,32 @@ export default function CustomTees() {
                   }}
                 />
               )}
+
+              {/* Desain user (draggable, resizable, rotatable) */}
+              {currentDesign && (
+                <DesignLayer
+                  design={currentDesign}
+                  selected={selectedDesign}
+                  onSelect={() => setSelectedDesign(true)}
+                  onUpdate={updateCurrentDesign}
+                  onRemove={removeCurrentDesign}
+                />
+              )}
             </div>
             <div className="mt-6 w-full max-w-[430px] border-t border-dashed border-zinc-300 pt-2 text-center text-[11px] font-semibold tracking-[0.2em] text-zinc-400">
               AREA CETAK AMAN
             </div>
           </div>
+          {/* Error / hint upload */}
+          {uploadError && (
+            <div
+              role="alert"
+              data-testid="design-upload-error"
+              className="pointer-events-none absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-rose-600 px-4 py-1.5 text-xs font-semibold text-white shadow"
+            >
+              {uploadError}
+            </div>
+          )}
         </main>
 
         {/* -------- Right view panel -------- */}
@@ -372,7 +539,13 @@ export default function CustomTees() {
 
       {/* ============================ BOTTOM BAR ============================ */}
       <footer className="flex h-16 shrink-0 items-center justify-between border-t border-zinc-200 bg-white px-4">
-        <button className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100">
+        <button
+          type="button"
+          onClick={removeCurrentDesign}
+          disabled={!currentDesign}
+          data-testid="btn-reset-design"
+          className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-zinc-600 transition hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+        >
           <RotateCcw className="h-4 w-4" /> Reset Desain
         </button>
 
@@ -450,5 +623,171 @@ function TintedThumb({ src, mask, color, alt, size = 36, inner = 28 }) {
         />
       )}
     </span>
+  );
+}
+
+/**
+ * DesignLayer — gambar user di atas kaos.
+ * Fitur:
+ *  • Drag  (klik body → geser)
+ *  • Resize (klik handle pojok kanan-bawah → tarik untuk perbesar/perkecil, aspect ratio dijaga)
+ *  • Rotate (klik handle atas → tarik untuk memutar)
+ *  • Delete (× di pojok kanan-atas)
+ *
+ * Koordinat: xPct/yPct = posisi TITIK PUSAT (0-100% dari kanvas).
+ *            widthPct  = lebar (%) dari lebar kanvas.
+ *            aspect    = rasio w/h natural → tinggi dihitung.
+ *
+ * Interaksi memakai Pointer Events → berlaku untuk mouse & touch.
+ */
+function DesignLayer({ design, selected, onSelect, onUpdate, onRemove }) {
+  const wrapRef = useRef(null);
+  const dragRef = useRef(null); // { kind, startX, startY, startState, canvasRect, centerXpx, centerYpx }
+
+  const beginInteraction = (kind) => (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const canvasEl = wrapRef.current?.parentElement;
+    if (!canvasEl) return;
+    const rect = canvasEl.getBoundingClientRect();
+    const cx = rect.left + rect.width * (design.xPct / 100);
+    const cy = rect.top + rect.height * (design.yPct / 100);
+    dragRef.current = {
+      kind,
+      startX: e.clientX,
+      startY: e.clientY,
+      startState: { ...design },
+      canvasRect: rect,
+      centerXpx: cx,
+      centerYpx: cy,
+    };
+    e.currentTarget.setPointerCapture(e.pointerId);
+    onSelect?.();
+  };
+
+  const onPointerMove = (e) => {
+    const d = dragRef.current;
+    if (!d) return;
+    const { kind, startX, startY, startState, canvasRect, centerXpx, centerYpx } = d;
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+
+    if (kind === "move") {
+      const newX = startState.xPct + (dx / canvasRect.width) * 100;
+      const newY = startState.yPct + (dy / canvasRect.height) * 100;
+      // clamp supaya tidak keluar kanvas terlalu jauh
+      onUpdate({
+        xPct: Math.max(-10, Math.min(110, newX)),
+        yPct: Math.max(-10, Math.min(110, newY)),
+      });
+    } else if (kind === "resize") {
+      // Jarak awal dari pusat, jarak sekarang dari pusat → rasio skala
+      const startDist = Math.hypot(startX - centerXpx, startY - centerYpx) || 1;
+      const nowDist = Math.hypot(e.clientX - centerXpx, e.clientY - centerYpx);
+      const factor = nowDist / startDist;
+      const newWidth = Math.max(5, Math.min(120, startState.widthPct * factor));
+      onUpdate({ widthPct: newWidth });
+    } else if (kind === "rotate") {
+      const startAngle = Math.atan2(startY - centerYpx, startX - centerXpx);
+      const nowAngle = Math.atan2(e.clientY - centerYpx, e.clientX - centerXpx);
+      let deg = startState.rotation + ((nowAngle - startAngle) * 180) / Math.PI;
+      // normalisasi ke -180..180
+      deg = ((deg + 540) % 360) - 180;
+      onUpdate({ rotation: Math.round(deg * 10) / 10 });
+    }
+  };
+
+  const endInteraction = (e) => {
+    if (!dragRef.current) return;
+    dragRef.current = null;
+    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* noop */ }
+  };
+
+  // Style: absolute-positioned wrapper terpusat di (xPct, yPct)
+  const heightPct = design.aspect ? design.widthPct / design.aspect : design.widthPct;
+  const style = {
+    position: "absolute",
+    left: `${design.xPct}%`,
+    top: `${design.yPct}%`,
+    width: `${design.widthPct}%`,
+    height: `${heightPct}%`,
+    transform: `translate(-50%, -50%) rotate(${design.rotation}deg)`,
+    transformOrigin: "center center",
+    touchAction: "none",
+  };
+
+  return (
+    <div
+      ref={wrapRef}
+      style={style}
+      className={`select-none ${selected ? "cursor-move" : "cursor-pointer"}`}
+      data-testid="design-layer"
+      onPointerDown={beginInteraction("move")}
+      onPointerMove={onPointerMove}
+      onPointerUp={endInteraction}
+      onPointerCancel={endInteraction}
+    >
+      {/* Gambar desain */}
+      <img
+        src={design.url}
+        alt="Desain custom"
+        draggable={false}
+        className="pointer-events-none h-full w-full select-none object-contain"
+        data-testid="design-image"
+      />
+
+      {/* Selection border + handles hanya tampil saat selected */}
+      {selected && (
+        <>
+          {/* Border putus-putus mengelilingi gambar */}
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 border border-dashed border-zinc-900/70"
+            style={{ transform: "translateZ(0)" }}
+          />
+          {/* Handle Rotate — di atas, dengan garis penghubung */}
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute left-1/2 top-0 h-6 w-px -translate-x-1/2 -translate-y-full bg-zinc-900/70"
+          />
+          <button
+            type="button"
+            title="Putar"
+            data-testid="design-handle-rotate"
+            onPointerDown={beginInteraction("rotate")}
+            onPointerMove={onPointerMove}
+            onPointerUp={endInteraction}
+            onPointerCancel={endInteraction}
+            className="absolute left-1/2 top-0 flex h-6 w-6 -translate-x-1/2 -translate-y-[calc(100%+8px)] cursor-grab items-center justify-center rounded-full border border-zinc-900 bg-white shadow"
+          >
+            <RotateCcw className="h-3 w-3 text-zinc-900" />
+          </button>
+
+          {/* Handle Resize — pojok kanan bawah */}
+          <button
+            type="button"
+            title="Ubah ukuran"
+            data-testid="design-handle-resize"
+            onPointerDown={beginInteraction("resize")}
+            onPointerMove={onPointerMove}
+            onPointerUp={endInteraction}
+            onPointerCancel={endInteraction}
+            className="absolute -bottom-1.5 -right-1.5 h-4 w-4 cursor-nwse-resize rounded-sm border border-zinc-900 bg-white shadow"
+          />
+
+          {/* Delete — pojok kanan atas */}
+          <button
+            type="button"
+            title="Hapus desain"
+            data-testid="design-btn-delete"
+            onPointerDown={(e) => { e.stopPropagation(); }}
+            onClick={(e) => { e.stopPropagation(); onRemove(); }}
+            className="absolute -right-3 -top-3 flex h-6 w-6 items-center justify-center rounded-full border border-zinc-900 bg-white text-zinc-900 shadow hover:bg-rose-50 hover:text-rose-600"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </>
+      )}
+    </div>
   );
 }
