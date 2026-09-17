@@ -289,9 +289,12 @@ export default function POS() {
   };
 
   const resetOrder = () => {
-    if (cart.length === 0 && !resumeOrder) return toast.info("Keranjang sudah kosong");
+    if (cart.length === 0 && !resumeOrder && !savedInfo) return toast.info("Keranjang sudah kosong");
     setCart([]); setDiscount(0); setDiscountTouched(false); setCustomerId(""); setChannel("Toko");
     if (resumeOrder) setResumeOrder(null);
+    // Hapus juga simpanan sementara supaya keranjang benar-benar kosong seperti awal.
+    try { localStorage.removeItem(SAVED_KEY); } catch { /* ignore */ }
+    setSavedInfo(null);
     toast.success("Keranjang dikosongkan — pesanan baru");
   };
   const filteredCustomers = useMemo(() => rankCustomers(customers, custQuery), [customers, custQuery]);
