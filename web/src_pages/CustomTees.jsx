@@ -25,6 +25,20 @@ const MOCKUPS = {
   "Lengan Kanan": "/mockups/lengan-kanan.webp",
 };
 
+/**
+ * Mask alpha per tampilan.
+ * Dihasilkan offline dari mockup masing-masing:
+ *   pixel opaque = area kaos putih saja.
+ *   Bagian kulit, tangan, leher, celana, background, outline, jahitan
+ *   TIDAK termasuk dalam mask → tidak akan ikut berwarna.
+ */
+const MOCKUP_MASKS = {
+  "Depan": "/mockups/depan-mask.webp",
+  "Belakang": "/mockups/belakang-mask.webp",
+  "Lengan Kiri": "/mockups/lengan-kiri-mask.webp",
+  "Lengan Kanan": "/mockups/lengan-kanan-mask.webp",
+};
+
 const SIZES = ["S", "M", "L", "XL", "2XL", "3XL", "4XL", "5XL"];
 const COLOR_TABS = ["Populer", "Netral", "Merah", "Biru", "Hijau", "Lainnya"];
 /**
@@ -178,7 +192,7 @@ export default function CustomTees() {
 
           {/* product card */}
           <div className="flex items-center gap-3 rounded-xl border border-zinc-200 p-3">
-            <TintedThumb src={MOCKUPS["Depan"]} color={color.hex} alt="Kaos" size={48} inner={36} />
+            <TintedThumb src={MOCKUPS["Depan"]} mask={MOCKUP_MASKS["Depan"]} color={color.hex} alt="Kaos" size={48} inner={36} />
             <div className="leading-tight">
               <div className="text-[13px] font-semibold">24 COTTON LOCAL SIZE (BUILDUP TEES)</div>
               <div className="text-[11px] text-zinc-500">Kaos 24s Dengan ukuran local</div>
@@ -300,17 +314,16 @@ export default function CustomTees() {
                   style={{
                     backgroundColor: color.hex,
                     mixBlendMode: "multiply",
-                    WebkitMaskImage: `url(${MOCKUPS[view]})`,
-                    maskImage: `url(${MOCKUPS[view]})`,
+                    // Mask alpha khusus: hanya area kaos yang opaque.
+                    // Kulit/tangan/leher/celana/bg/outline TIDAK termasuk → tidak ter-tint.
+                    WebkitMaskImage: `url(${MOCKUP_MASKS[view]})`,
+                    maskImage: `url(${MOCKUP_MASKS[view]})`,
                     WebkitMaskSize: "contain",
                     maskSize: "contain",
                     WebkitMaskPosition: "center",
                     maskPosition: "center",
                     WebkitMaskRepeat: "no-repeat",
                     maskRepeat: "no-repeat",
-                    // luminance: pixel terang (kaos putih) → opaque, gelap → transparan
-                    WebkitMaskMode: "luminance",
-                    maskMode: "luminance",
                   }}
                 />
               )}
@@ -334,7 +347,7 @@ export default function CustomTees() {
                     view === v ? "border-zinc-900 bg-zinc-50 font-semibold" : "border-zinc-200 hover:border-zinc-400"
                   }`}
                 >
-                  <TintedThumb src={MOCKUPS[v]} color={color.hex} alt={v} />
+                  <TintedThumb src={MOCKUPS[v]} mask={MOCKUP_MASKS[v]} color={color.hex} alt={v} />
                   {v}
                 </button>
               ))}
@@ -400,9 +413,10 @@ function ToolbarIcon({ icon: Icon, label }) {
 
 /**
  * Thumbnail mockup yang ikut ter-tint sesuai warna aktif.
- * Memakai teknik yang sama dengan kanvas: mask-image luminance + multiply.
+ * Memakai teknik yang sama dengan kanvas: mask alpha khusus + multiply.
+ * Hanya area kaos yang ter-tint; kulit/celana/outline tetap utuh.
  */
-function TintedThumb({ src, color, alt, size = 36, inner = 28 }) {
+function TintedThumb({ src, mask, color, alt, size = 36, inner = 28 }) {
   const isWhite = color.toLowerCase() === "#ffffff";
   return (
     <span
@@ -415,7 +429,7 @@ function TintedThumb({ src, color, alt, size = 36, inner = 28 }) {
         className="object-contain"
         style={{ height: inner, width: inner }}
       />
-      {!isWhite && (
+      {!isWhite && mask && (
         <span
           aria-hidden="true"
           className="pointer-events-none absolute"
@@ -424,16 +438,14 @@ function TintedThumb({ src, color, alt, size = 36, inner = 28 }) {
             width: inner,
             backgroundColor: color,
             mixBlendMode: "multiply",
-            WebkitMaskImage: `url(${src})`,
-            maskImage: `url(${src})`,
+            WebkitMaskImage: `url(${mask})`,
+            maskImage: `url(${mask})`,
             WebkitMaskSize: "contain",
             maskSize: "contain",
             WebkitMaskPosition: "center",
             maskPosition: "center",
             WebkitMaskRepeat: "no-repeat",
             maskRepeat: "no-repeat",
-            WebkitMaskMode: "luminance",
-            maskMode: "luminance",
           }}
         />
       )}
