@@ -19,7 +19,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Command, CommandInput, CommandList, CommandEmpty, CommandItem } from "@/components/ui/command";
 import { toast } from "sonner";
-import { Search, Plus, Minus, Trash2, X, ArrowLeft, ShoppingCart, ScanLine, CheckCircle2, PauseCircle, PlayCircle, HandCoins, Copy, MessageCircle, UserPlus, Check, ChevronsUpDown, Grid2x2, Grid3x3, LayoutGrid, Pencil, History, ChevronDown, ChevronRight, Phone, Loader2 } from "lucide-react";
+import { Search, Plus, Minus, Trash2, X, ArrowLeft, ShoppingCart, ScanLine, CheckCircle2, PauseCircle, PlayCircle, HandCoins, Copy, MessageCircle, UserPlus, Check, ChevronsUpDown, Grid2x2, Grid3x3, LayoutGrid, Pencil, History, ChevronDown, ChevronRight, Phone, Loader2, Save, RotateCcw } from "lucide-react";
 
 const METHODS = ["Tunai", "Bank Transfer", "QRIS", "E-Wallet"];
 const CHANNELS = ["Toko", "Shopee", "Tokopedia", "WhatsApp", "Lainnya"];
@@ -227,7 +227,76 @@ export default function POS() {
     } catch (e) { toast.error(formatApiError(e.response?.data?.detail)); }
   };
 
-  // Pencarian pelanggan: hasil terurut relevansi, item teratas otomatis ter-highlight & list di-scroll ke atas.
+  // ── Simpan / Ulangi Pesanan (keranjang sementara, disimpan di perangkat) ──
+  // Tombol "Simpan Pesanan" menyimpan isi keranjang terakhir ke localStorage.
+  // Setelah menutup & membuka lagi POS, keranjang akan kosong; klik tombol yang
+  // sama untuk memunculkan kembali pesanan terakhir. "Ulangi Pesanan" mengosongkan
+  // keranjang menjadi baru.
+  const SAVED_KEY = "pos_saved_order";
+  const [savedInfo, setSavedInfo] = useState(null); // { count, ts } | null
+  useEffect(() => {
+    let raw = null;
+    try { raw = localStorage.getItem(SAVED_KEY); } catch { raw = null; }
+    if (!raw) return;
+    try {
+      const s = JSON.parse(raw);
+      const items = Array.isArray(s?.items) ? s.items : [];
+      if (items.length > 0) {
+        setSavedInfo({ count: items.reduce((a, i) => a + (Number(i.qty) || 0), 0), ts: s.ts || null });
+      }
+    } catch { /* ignore corrupt data */ }
+  }, []);
+
+  const saveCurrentOrder = () => {
+    if (cart.length === 0) return toast.error("Keranjang kosong, tidak ada yang disimpan");
+    const snap = {
+      items: cart,
+      discount: Number(discount) || 0,
+      discountTouched,
+      customerId: customerId || "",
+      channel: channel || "Toko",
+      ts: Date.now(),
+    };
+    try { localStorage.setItem(SAVED_KEY, JSON.stringify(snap)); }
+    catch { return toast.error("Gagal menyimpan pesanan di perangkat"); }
+    setSavedInfo({ count: cart.reduce((a, i) => a + (Number(i.qty) || 0), 0), ts: snap.ts });
+    toast.success("Pesanan disimpan. Bisa dibuka lagi nanti.");
+  };
+
+  const restoreSavedOrder = () => {
+    let raw = null;
+    try { raw = localStorage.getItem(SAVED_KEY); } catch { raw = null; }
+    if (!raw) return toast.error("Tidak ada pesanan tersimpan");
+    let snap;
+    try { snap = JSON.parse(raw); } catch { return toast.error("Data pesanan tersimpan rusak"); }
+    const items = Array.isArray(snap?.items) ? snap.items : [];
+    if (items.length === 0) return toast.error("Tidak ada pesanan tersimpan");
+    setCart(items);
+    setDiscount(Number(snap.discount) || 0);
+    setDiscountTouched(!!snap.discountTouched);
+    setCustomerId(snap.customerId || "");
+    setChannel(snap.channel || "Toko");
+    setCartOpen(true);
+    toast.success("Pesanan terakhir dipulihkan");
+  };
+
+  // Satu tombol "Simpan Pesanan": jika keranjang ada isinya → simpan;
+  // jika keranjang kosong tetapi ada pesanan tersimpan → pulihkan.
+  const handleSaveOrder = () => {
+    if (cart.length > 0) return saveCurrentOrder();
+    if (savedInfo) return restoreSavedOrder();
+    return toast.error("Keranjang kosong");
+  };
+
+  const resetOrder = () => {
+    if (cart.length === 0 && !resumeOrder && !savedInfo) return toast.info("Keranjang sudah kosong");
+    setCart([]); setDiscount(0); setDiscountTouched(false); setCustomerId(""); setChannel("Toko");
+    if (resumeOrder) setResumeOrder(null);
+    // Hapus juga simpanan sementara supaya keranjang benar-benar kosong seperti awal.
+    try { localStorage.removeItem(SAVED_KEY); } catch { /* ignore */ }
+    setSavedInfo(null);
+    toast.success("Keranjang dikosongkan — pesanan baru");
+  };
   const filteredCustomers = useMemo(() => rankCustomers(customers, custQuery), [customers, custQuery]);
   const hasCustQuery = normalize(custQuery).length > 0;
   useEffect(() => {
@@ -869,6 +938,30 @@ export default function POS() {
         <Button onClick={() => { if (cart.length === 0) return toast.error("Keranjang kosong"); setDepositAmt(""); setDepositOpen(true); }} variant="outline" className="mt-2 h-11 w-full gap-2 font-semibold" data-testid="pos-deposit-button">
           <HandCoins className="h-4 w-4" /> Pesanan + Deposit (DP)
         </Button>
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          <Button
+            onClick={handleSaveOrder}
+            variant="outline"
+            className="relative h-11 w-full gap-2 font-semibold"
+            data-testid="pos-save-order-button"
+          >
+            <Save className="h-4 w-4" />
+            {cart.length === 0 && savedInfo ? "Buka Tersimpan" : "Simpan Pesanan"}
+            {savedInfo && cart.length === 0 && (
+              <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground" data-testid="pos-saved-badge">
+                {savedInfo.count}
+              </span>
+            )}
+          </Button>
+          <Button
+            onClick={resetOrder}
+            variant="outline"
+            className="h-11 w-full gap-2 font-semibold text-muted-foreground hover:text-foreground"
+            data-testid="pos-reset-order-button"
+          >
+            <RotateCcw className="h-4 w-4" /> Ulangi Pesanan
+          </Button>
+        </div>
       </div>
     </>
   );
