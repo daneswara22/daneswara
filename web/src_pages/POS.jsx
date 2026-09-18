@@ -297,6 +297,12 @@ export default function POS() {
     setSavedInfo(null);
     toast.success("Keranjang dikosongkan — pesanan baru");
   };
+  // Hapus "pesanan tersimpan" (device-local) tanpa toast. Dipakai setelah
+  // pembayaran/deposit selesai supaya POS benar-benar kembali kosong seperti awal.
+  const clearSavedOrder = () => {
+    try { localStorage.removeItem(SAVED_KEY); } catch { /* ignore */ }
+    setSavedInfo(null);
+  };
   const filteredCustomers = useMemo(() => rankCustomers(customers, custQuery), [customers, custQuery]);
   const hasCustQuery = normalize(custQuery).length > 0;
   useEffect(() => {
@@ -359,6 +365,7 @@ export default function POS() {
       });
       toast.success("Pesanan + deposit tersimpan");
       setDepositOpen(false); setDepositAmt(""); setCart([]); setDiscount(0); setDiscountTouched(false); setCustomerId(""); setCartOpen(false); setChannel("Toko");
+      clearSavedOrder();
       setNota(data);
     } catch (e) { toast.error(formatApiError(e.response?.data?.detail)); }
   };
@@ -589,6 +596,7 @@ export default function POS() {
       setCustomerId("");
       setChannel("Toko");
       setCartOpen(false);
+      clearSavedOrder();
       if (resumeOrder) { try { await api.delete(`/orders/${resumeOrder.id}`); } catch { /* ignore */ } setResumeOrder(null); }
       load();
       toast.success("Transaksi berhasil");
