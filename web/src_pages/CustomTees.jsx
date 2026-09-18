@@ -523,14 +523,6 @@ export default function CustomTees() {
 
       {/* ============================ BOTTOM BAR ============================ */}
       <footer className="flex h-16 shrink-0 items-center justify-between border-t border-zinc-200 bg-white px-4">
-        <button
-          onClick={resetView}
-          data-testid="reset-design-button"
-          className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100"
-        >
-          <RotateCcw className="h-4 w-4" /> Reset Desain
-        </button>
-
         <div className="flex items-center gap-3">
           <button
             onClick={() => resizeSelected(-5)}
@@ -556,6 +548,13 @@ export default function CustomTees() {
         <div className="flex items-center gap-2">
           <button className="flex items-center gap-2 rounded-lg border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50">
             <Save className="h-4 w-4" /> Simpan Desain
+          </button>
+          <button
+            onClick={resetView}
+            data-testid="reset-design-button"
+            className="flex items-center gap-2 rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-50"
+          >
+            <RotateCcw className="h-4 w-4" /> Reset Desain
           </button>
           <button className="flex items-center gap-2 rounded-lg bg-zinc-900 px-5 py-2 text-sm font-semibold text-white hover:bg-zinc-800">
             Lanjutkan <ArrowRight className="h-4 w-4" />
