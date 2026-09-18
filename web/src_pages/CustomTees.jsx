@@ -720,20 +720,19 @@ export default function CustomTees() {
 }
 
 /* =========================================================================
-   PREVIEW gabungan: render read-only tiap sisi (mockup + tint + objek desain).
-   Ukuran teks/curved memakai vh (sama seperti kanvas), lalu di-scale via CSS
-   transform agar pas dalam tile — hasil identik dengan kanvas.
+   PREVIEW gabungan: render read-only tiap sisi (mockup + tint + objek desain)
+   pada tinggi tetap (px). Ukuran teks/curved memakai px relatif stageH agar
+   proporsinya identik dengan kanvas (yang memakai 62vh).
    ========================================================================= */
-function PreviewStage({ view, color, layers, onReady }) {
+function PreviewStage({ view, color, layers, stageH = 300 }) {
   const white = (color?.hex || "#ffffff").toLowerCase() === "#ffffff";
   return (
-    <div className="relative h-[62vh] w-auto">
+    <div className="relative w-auto" style={{ height: stageH }}>
       <img
         src={MOCKUPS[view]}
         alt={`Kaos ${view}`}
-        onLoad={onReady}
         draggable={false}
-        className="pointer-events-none h-full w-auto max-w-full object-contain"
+        className="pointer-events-none h-full w-auto max-w-full object-contain drop-shadow-lg"
       />
       {!white && (
         <div
@@ -765,7 +764,7 @@ function PreviewStage({ view, color, layers, onReady }) {
           >
             {isTxt ? (
               l.curve ? (
-                <CurvedText text={l.text} curve={l.curve} color={l.color} font={l.font} bold={l.bold} italic={l.italic} wPct={l.wPct} />
+                <CurvedText text={l.text} curve={l.curve} color={l.color} font={l.font} bold={l.bold} italic={l.italic} wPct={l.wPct} stagePx={stageH} />
               ) : (
                 <span
                   className="block select-none leading-tight"
@@ -774,7 +773,7 @@ function PreviewStage({ view, color, layers, onReady }) {
                     fontWeight: l.bold ? 800 : 500,
                     fontStyle: l.italic ? "italic" : "normal",
                     textAlign: l.align, whiteSpace: "pre",
-                    fontSize: `${textFontVh(l.wPct)}vh`,
+                    fontSize: `${(l.wPct / 100) * stageH}px`,
                     textShadow: l.color.toLowerCase() === "#ffffff" ? "0 0 1px rgba(0,0,0,0.25)" : "none",
                   }}
                 >
@@ -787,39 +786,6 @@ function PreviewStage({ view, color, layers, onReady }) {
           </div>
         );
       })}
-    </div>
-  );
-}
-
-function PreviewScaledTile({ view, color, layers, targetH = 300 }) {
-  const ref = useRef(null);
-  const [scale, setScale] = useState(0);
-  const [w, setW] = useState(0);
-  const measure = useCallback(() => {
-    const el = ref.current;
-    if (!el) return;
-    const h = el.offsetHeight;   // layout size (tak terpengaruh transform)
-    const wd = el.offsetWidth;
-    if (h > 0 && wd > 0) {
-      const s = targetH / h;
-      setScale(s);
-      setW(wd * s);
-    }
-  }, [targetH]);
-  useLayoutEffect(() => { measure(); }, [measure, view, layers]);
-  useEffect(() => {
-    window.addEventListener("resize", measure);
-    return () => window.removeEventListener("resize", measure);
-  }, [measure]);
-
-  return (
-    <div className="relative mx-auto overflow-hidden" style={{ height: targetH, width: w || targetH * 0.82 }}>
-      <div
-        ref={ref}
-        style={{ position: "absolute", top: 0, left: 0, transformOrigin: "top left", transform: `scale(${scale || 0.01})`, opacity: scale ? 1 : 0 }}
-      >
-        <PreviewStage view={view} color={color} layers={layers} onReady={measure} />
-      </div>
     </div>
   );
 }
@@ -863,30 +829,21 @@ function PreviewModal({ open, onClose, design, color }) {
           </button>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          {PREVIEW_VIEWS.map((v) => {
-            const n = (design[v] || []).length;
-            return (
-              <div key={v} className="flex flex-col items-center rounded-xl border border-zinc-200 bg-zinc-50 p-3" data-testid={`preview-cell-${v.toLowerCase().replace(/\s+/g, "-")}`}>
-                <div className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-zinc-900 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-white">
-                  <Shirt className="h-3.5 w-3.5" /> {v}
-                </div>
-                <PreviewScaledTile view={v} color={color} layers={design[v] || []} targetH={280} />
-                <span className="mt-1 text-[11px] font-medium text-zinc-400">
-                  {n === 0 ? "Kosong" : `${n} objek`}
-                </span>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {PREVIEW_VIEWS.map((v) => (
+            <div
+              key={v}
+              data-testid={`preview-cell-${v.toLowerCase().replace(/\s+/g, "-")}`}
+              className="relative flex items-center justify-center overflow-hidden rounded-2xl bg-zinc-900 p-4"
+              style={{ minHeight: 340 }}
+            >
+              {/* label sisi (overlap di atas) */}
+              <div className="pointer-events-none absolute left-1/2 top-3 z-10 inline-flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-black/80 px-3.5 py-1 text-[11px] font-bold uppercase tracking-wide text-white ring-1 ring-white/15">
+                <Shirt className="h-3.5 w-3.5" /> {v}
               </div>
-            );
-          })}
-        </div>
-
-        <div className="mt-5 flex justify-end">
-          <button
-            onClick={onClose}
-            className="rounded-lg bg-zinc-900 px-5 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
-          >
-            Tutup
-          </button>
+              <PreviewStage view={v} color={color} layers={design[v] || []} stageH={300} />
+            </div>
+          ))}
         </div>
       </div>
     </div>
@@ -1145,7 +1102,7 @@ function ImagePanel({
    curve < 0 : melengkung ke bawah (∪, seperti teks bawah logo)
    Ukuran mengikuti wPct (skala relatif kaos) sama seperti teks lurus.
    ========================================================================= */
-function CurvedText({ testId, text, curve, color, font, bold, italic, wPct }) {
+function CurvedText({ testId, text, curve, color, font, bold, italic, wPct, stagePx }) {
   const measureRef = useRef(null);
   const [len, setLen] = useState(0);
   const rawId = useId();
@@ -1155,7 +1112,9 @@ function CurvedText({ testId, text, curve, color, font, bold, italic, wPct }) {
   const FS = 100;
   const fw = bold ? 800 : 500;
   const fst = italic ? "italic" : "normal";
-  const scale = textFontVh(wPct) / FS; // vh per satuan SVG
+  const unit = stagePx ? "px" : "vh";                                  // preview pakai px, kanvas pakai vh
+  const fontMain = stagePx ? (wPct / 100) * stagePx : textFontVh(wPct); // ukuran font (angka)
+  const scale = fontMain / FS;                                          // satuan per unit SVG
 
   useLayoutEffect(() => {
     if (!measureRef.current) return;
@@ -1180,7 +1139,7 @@ function CurvedText({ testId, text, curve, color, font, bold, italic, wPct }) {
           data-testid={testId}
           style={{
             color, fontFamily: font, fontWeight: fw, fontStyle: fst,
-            whiteSpace: "pre", fontSize: `${textFontVh(wPct)}vh`,
+            whiteSpace: "pre", fontSize: `${fontMain}${unit}`,
             textShadow: color.toLowerCase() === "#ffffff" ? "0 0 1px rgba(0,0,0,0.25)" : "none",
           }}
         >
@@ -1221,8 +1180,8 @@ function CurvedText({ testId, text, curve, color, font, bold, italic, wPct }) {
       <svg
         data-testid={testId}
         viewBox={`${vbX} ${vbY} ${vbW} ${vbH}`}
-        width={`${vbW * scale}vh`}
-        height={`${vbH * scale}vh`}
+        width={`${vbW * scale}${unit}`}
+        height={`${vbH * scale}${unit}`}
         className="pointer-events-none block select-none overflow-visible"
         style={{ display: "block" }}
       >
