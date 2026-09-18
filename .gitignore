@@ -34,3 +34,11 @@ web/.next/cache/webpack/server-production/0.pack
 web/.next/cache/webpack/client-production/0.pack
 frontend/node_modules/@next/swc-linux-arm64-gnu/next-swc.linux-arm64-gnu.node
 frontend/node_modules/@next/swc-linux-arm64-musl/next-swc.linux-arm64-musl.node
+
+# sandbox dummy DB data (Emergent preview)
+/.mariadb/
+web/scripts/seed-dummy.ts
+scripts/start-mariadb.sh
+
+# clip-art source sheet & temp (sandbox)
+scripts/clipart_src/
