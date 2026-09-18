@@ -9,13 +9,16 @@
  * Skala warna dibuat eksplisit (light theme) supaya persis seperti rancangan,
  * tidak terpengaruh mode gelap admin.
  */
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useLayoutEffect, useId } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import api, { formatApiError } from "@/lib/api";
 import {
   Shirt, Upload, Type, Shapes, ImageIcon, LayoutTemplate, Layers,
   Undo2, Redo2, Save, HelpCircle, ChevronRight, ChevronDown, Check,
   Minus, Plus, RotateCcw, RotateCw, ArrowRight, LifeBuoy, Trash2, X, Move,
+  Bold, Italic, AlignLeft, AlignCenter, AlignRight, Search, Loader2,
+  ArrowUp, ArrowDown, ChevronsUp, ChevronsDown,
 } from "lucide-react";
 
 /* ---------- gambar mockup kaos (WebP ringan) per tampilan ---------- */
@@ -63,11 +66,9 @@ const VIEWS = ["Depan", "Belakang", "Lengan Kiri", "Lengan Kanan"];
 /* ---------- tool rail ---------- */
 const TOOLS = [
   { icon: Shirt, label: "Produk", sub: "Warna & Ukuran" },
-  { icon: Upload, label: "Desain", sub: "Upload Template" },
   { icon: Type, label: "Teks", sub: "Tambah Tulisan" },
   { icon: Shapes, label: "Clipart", sub: "Gambar & Bentuk" },
   { icon: ImageIcon, label: "Gambar Saya", sub: "File yang diupload" },
-  { icon: LayoutTemplate, label: "Template", sub: "Desain Siap Pakai" },
   { icon: Layers, label: "Layer", sub: "Atur Urutan Objek" },
 ];
 
@@ -75,6 +76,26 @@ const STEPS = ["Produk", "Desain", "Preview", "Pesanan"];
 
 const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
 const emptyDesign = () => ({ "Depan": [], "Belakang": [], "Lengan Kiri": [], "Lengan Kanan": [] });
+
+/* ---------- teks: pilihan font & warna ---------- */
+const FONTS = [
+  { label: "Sans (Default)", value: '"Inter", "Helvetica Neue", Arial, sans-serif' },
+  { label: "Serif", value: 'Georgia, "Times New Roman", serif' },
+  { label: "Mono", value: '"Courier New", ui-monospace, monospace' },
+  { label: "Impact", value: 'Impact, "Arial Black", sans-serif' },
+  { label: "Arial Black", value: '"Arial Black", Gadget, sans-serif' },
+  { label: "Script", value: '"Brush Script MT", "Segoe Script", cursive' },
+  { label: "Comic", value: '"Comic Sans MS", "Comic Neue", cursive' },
+  { label: "Trebuchet", value: '"Trebuchet MS", Verdana, sans-serif' },
+];
+const TEXT_COLORS = [
+  "#111111", "#ffffff", "#c0392b", "#e67e22", "#f1c40f",
+  "#27ae60", "#1f3fae", "#7d3cc9", "#2ea67a", "#f4b8cf",
+];
+// canvas tinggi = 62vh; fontSize teks = (wPct/100) * 62vh agar skala relatif terhadap kaos
+const CANVAS_VH = 62;
+const textFontVh = (wPct) => (wPct / 100) * CANVAS_VH;
+const isTextLayer = (l) => l && l.type === "text";
 
 export default function CustomTees() {
   const navigate = useNavigate();
@@ -86,6 +107,7 @@ export default function CustomTees() {
   // Desain objek per-tampilan: { [view]: [ {id, src, cx, cy, wPct, rot} ] }
   const [design, setDesign] = useState(emptyDesign);
   const [selectedId, setSelectedId] = useState(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   const canvasRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -189,7 +211,7 @@ export default function CustomTees() {
     const reader = new FileReader();
     reader.onload = () => {
       const id = "img_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-      const layer = { id, src: reader.result, name: file.name, cx: 50, cy: 42, wPct: 42, rot: 0 };
+      const layer = { id, type: "image", src: reader.result, name: file.name, cx: 50, cy: 42, wPct: 42, rot: 0 };
       setDesign((d) => ({ ...d, [view]: [...(d[view] || []), layer] }));
       setSelectedId(id);
       setActiveTool("Gambar Saya");
@@ -201,6 +223,41 @@ export default function CustomTees() {
 
   const onInputChange = (e) => { handleFiles(e.target.files); e.target.value = ""; };
   const triggerUpload = () => fileInputRef.current?.click();
+
+  /* ---------- teks: tambah & ubah objek teks ---------- */
+  const addText = useCallback((preset = {}) => {
+    const id = "txt_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    const layer = {
+      id, type: "text",
+      text: preset.text || "Teks kamu",
+      color: preset.color || "#111111",
+      font: preset.font || FONTS[0].value,
+      bold: preset.bold ?? true,
+      italic: preset.italic ?? false,
+      align: preset.align || "center",
+      curve: preset.curve ?? 0,
+      cx: 50, cy: 42, wPct: preset.wPct || 12, rot: 0,
+    };
+    setDesign((d) => ({ ...d, [view]: [...(d[view] || []), layer] }));
+    setSelectedId(id);
+    setActiveTool("Teks");
+    toast.success("Teks ditambahkan. Ketik isinya, lalu geser / ubah ukuran / putar.");
+  }, [view]);
+
+  const updateSelectedText = useCallback((patch) => {
+    if (!selectedId) return;
+    applyPatch(view, selectedId, patch);
+  }, [selectedId, view, applyPatch]);
+
+  /* ---------- clip art: tambah aset ke desain ---------- */
+  const addClipart = useCallback((asset) => {
+    if (!asset || !asset.url) return;
+    const id = "clip_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    const layer = { id, type: "image", src: asset.url, name: asset.name || "Clipart", cx: 50, cy: 42, wPct: 38, rot: 0 };
+    setDesign((d) => ({ ...d, [view]: [...(d[view] || []), layer] }));
+    setSelectedId(id);
+    toast.success(`"${asset.name || "Clipart"}" ditambahkan ke desain.`);
+  }, [view]);
 
   /* ---------- kontrol objek terpilih ---------- */
   const resizeSelected = (delta) => {
@@ -217,6 +274,24 @@ export default function CustomTees() {
     setDesign((d) => ({ ...d, [view]: (d[view] || []).filter((l) => l.id !== id) }));
     setSelectedId((s) => (s === id ? null : s));
   };
+
+  /* ---------- urutan layer (z-order): akhir array = paling depan ---------- */
+  const moveLayer = useCallback((id, dir) => {
+    setDesign((d) => {
+      const arr = [...(d[view] || [])];
+      const i = arr.findIndex((l) => l.id === id);
+      if (i < 0) return d;
+      const [item] = arr.splice(i, 1);
+      let j;
+      if (dir === "up") j = Math.min(arr.length, i + 1);        // maju (ke depan)
+      else if (dir === "down") j = Math.max(0, i - 1);          // mundur (ke belakang)
+      else if (dir === "front") j = arr.length;                 // paling depan
+      else j = 0;                                               // paling belakang
+      arr.splice(j, 0, item);
+      return { ...d, [view]: arr };
+    });
+    setSelectedId(id);
+  }, [view]);
   const resetView = () => {
     if ((design[view] || []).length === 0) return toast.info("Tampilan ini masih kosong");
     setDesign((d) => ({ ...d, [view]: [] }));
@@ -335,7 +410,7 @@ export default function CustomTees() {
         <aside className="hidden w-[300px] shrink-0 flex-col overflow-y-auto border-r border-zinc-200 bg-white p-4 lg:flex">
           {activeTool === "Gambar Saya" ? (
             <ImagePanel
-              layers={layers}
+              layers={layers.filter((l) => !isTextLayer(l))}
               view={view}
               selectedLayer={selectedLayer}
               setSelectedId={setSelectedId}
@@ -345,6 +420,30 @@ export default function CustomTees() {
               rotateSelected={rotateSelected}
               resetRotation={resetRotation}
               centerSelected={centerSelected}
+              deleteLayer={deleteLayer}
+            />
+          ) : activeTool === "Teks" ? (
+            <TextPanel
+              layers={layers.filter(isTextLayer)}
+              view={view}
+              selectedLayer={isTextLayer(selectedLayer) ? selectedLayer : null}
+              setSelectedId={setSelectedId}
+              addText={addText}
+              updateSelectedText={updateSelectedText}
+              resizeSelected={resizeSelected}
+              rotateSelected={rotateSelected}
+              resetRotation={resetRotation}
+              centerSelected={centerSelected}
+              deleteLayer={deleteLayer}
+            />
+          ) : activeTool === "Clipart" ? (
+            <ClipartPanel addClipart={addClipart} />
+          ) : activeTool === "Layer" ? (
+            <LayerPanel
+              layers={layers}
+              selectedId={selectedId}
+              setSelectedId={setSelectedId}
+              moveLayer={moveLayer}
               deleteLayer={deleteLayer}
             />
           ) : activeTool === "Produk" ? (
@@ -357,6 +456,14 @@ export default function CustomTees() {
         {/* -------- Canvas -------- */}
         <main className="relative flex min-w-0 flex-1 flex-col items-center justify-center bg-zinc-100">
           <div className="flex w-full max-w-[560px] flex-col items-center px-6">
+            {/* Label tampilan aktif */}
+            <div
+              className="mb-3 inline-flex items-center gap-2 rounded-full bg-zinc-900 px-4 py-1.5 text-sm font-bold uppercase tracking-wide text-white shadow-sm"
+              data-testid="active-view-label"
+            >
+              <Shirt className="h-4 w-4" />
+              {view}
+            </div>
             <div
               ref={canvasRef}
               className="relative h-[62vh] w-auto"
@@ -391,8 +498,9 @@ export default function CustomTees() {
               )}
 
               {/* ---------- Objek desain (gambar upload) ---------- */}
-              {layers.map((l) => {
+              {layers.map((l, idx) => {
                 const selected = l.id === selectedId;
+                const isTxt = isTextLayer(l);
                 return (
                   <div
                     key={l.id}
@@ -402,18 +510,50 @@ export default function CustomTees() {
                     style={{
                       left: `${l.cx}%`,
                       top: `${l.cy}%`,
-                      width: `${l.wPct}%`,
+                      width: isTxt ? "auto" : `${l.wPct}%`,
                       transform: `translate(-50%, -50%) rotate(${l.rot}deg)`,
                       touchAction: "none",
-                      zIndex: selected ? 30 : 20,
+                      zIndex: idx + 1,
                     }}
                   >
-                    <img
-                      src={l.src}
-                      alt={l.name || "Gambar desain"}
-                      draggable={false}
-                      className="pointer-events-none block h-auto w-full select-none"
-                    />
+                    {isTxt ? (
+                      l.curve ? (
+                        <CurvedText
+                          testId={`design-text-${l.id}`}
+                          text={l.text}
+                          curve={l.curve}
+                          color={l.color}
+                          font={l.font}
+                          bold={l.bold}
+                          italic={l.italic}
+                          wPct={l.wPct}
+                        />
+                      ) : (
+                        <span
+                          className="pointer-events-none block select-none leading-tight"
+                          data-testid={`design-text-${l.id}`}
+                          style={{
+                            color: l.color,
+                            fontFamily: l.font,
+                            fontWeight: l.bold ? 800 : 500,
+                            fontStyle: l.italic ? "italic" : "normal",
+                            textAlign: l.align,
+                            whiteSpace: "pre",
+                            fontSize: `${textFontVh(l.wPct)}vh`,
+                            textShadow: l.color.toLowerCase() === "#ffffff" ? "0 0 1px rgba(0,0,0,0.25)" : "none",
+                          }}
+                        >
+                          {l.text || " "}
+                        </span>
+                      )
+                    ) : (
+                      <img
+                        src={l.src}
+                        alt={l.name || "Gambar desain"}
+                        draggable={false}
+                        className="pointer-events-none block h-auto w-full select-none"
+                      />
+                    )}
                     {!selected && (
                       <>
                         {/* garis putus-putus menandai area gambar yang bisa diklik */}
@@ -424,7 +564,7 @@ export default function CustomTees() {
                           style={{ transform: `translateX(-50%) rotate(${-l.rot}deg)` }}
                           data-testid={`design-hint-${l.id}`}
                         >
-                          Klik gambar untuk melakukan perubahan
+                          {isTxt ? "Klik teks untuk mengubah" : "Klik gambar untuk melakukan perubahan"}
                         </div>
                       </>
                     )}
@@ -546,7 +686,11 @@ export default function CustomTees() {
         </div>
 
         <div className="flex items-center gap-2">
-          <button className="flex items-center gap-2 rounded-lg border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50">
+          <button
+            onClick={() => setPreviewOpen(true)}
+            data-testid="save-design-button"
+            className="flex items-center gap-2 rounded-lg border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
+          >
             <Save className="h-4 w-4" /> Simpan Desain
           </button>
           <button
@@ -563,6 +707,188 @@ export default function CustomTees() {
       </footer>
       </div>
       {/* /Desktop designer */}
+
+      {/* Preview gabungan semua sisi */}
+      <PreviewModal
+        open={previewOpen}
+        onClose={() => setPreviewOpen(false)}
+        design={design}
+        color={color}
+      />
+    </div>
+  );
+}
+
+/* =========================================================================
+   PREVIEW gabungan: render read-only tiap sisi (mockup + tint + objek desain).
+   Ukuran teks/curved memakai vh (sama seperti kanvas), lalu di-scale via CSS
+   transform agar pas dalam tile — hasil identik dengan kanvas.
+   ========================================================================= */
+function PreviewStage({ view, color, layers, onReady }) {
+  const white = (color?.hex || "#ffffff").toLowerCase() === "#ffffff";
+  return (
+    <div className="relative h-[62vh] w-auto">
+      <img
+        src={MOCKUPS[view]}
+        alt={`Kaos ${view}`}
+        onLoad={onReady}
+        draggable={false}
+        className="pointer-events-none h-full w-auto max-w-full object-contain"
+      />
+      {!white && (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0"
+          style={{
+            backgroundColor: color.hex,
+            mixBlendMode: "multiply",
+            WebkitMaskImage: `url(${MOCKUP_MASKS[view]})`,
+            maskImage: `url(${MOCKUP_MASKS[view]})`,
+            WebkitMaskSize: "contain", maskSize: "contain",
+            WebkitMaskPosition: "center", maskPosition: "center",
+            WebkitMaskRepeat: "no-repeat", maskRepeat: "no-repeat",
+          }}
+        />
+      )}
+      {layers.map((l, idx) => {
+        const isTxt = isTextLayer(l);
+        return (
+          <div
+            key={l.id}
+            className="absolute"
+            style={{
+              left: `${l.cx}%`, top: `${l.cy}%`,
+              width: isTxt ? "auto" : `${l.wPct}%`,
+              transform: `translate(-50%, -50%) rotate(${l.rot}deg)`,
+              zIndex: idx + 1,
+            }}
+          >
+            {isTxt ? (
+              l.curve ? (
+                <CurvedText text={l.text} curve={l.curve} color={l.color} font={l.font} bold={l.bold} italic={l.italic} wPct={l.wPct} />
+              ) : (
+                <span
+                  className="block select-none leading-tight"
+                  style={{
+                    color: l.color, fontFamily: l.font,
+                    fontWeight: l.bold ? 800 : 500,
+                    fontStyle: l.italic ? "italic" : "normal",
+                    textAlign: l.align, whiteSpace: "pre",
+                    fontSize: `${textFontVh(l.wPct)}vh`,
+                    textShadow: l.color.toLowerCase() === "#ffffff" ? "0 0 1px rgba(0,0,0,0.25)" : "none",
+                  }}
+                >
+                  {l.text || " "}
+                </span>
+              )
+            ) : (
+              <img src={l.src} alt={l.name || "desain"} draggable={false} className="block h-auto w-full select-none" />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function PreviewScaledTile({ view, color, layers, targetH = 300 }) {
+  const ref = useRef(null);
+  const [scale, setScale] = useState(0);
+  const [w, setW] = useState(0);
+  const measure = useCallback(() => {
+    const el = ref.current;
+    if (!el) return;
+    const h = el.offsetHeight;   // layout size (tak terpengaruh transform)
+    const wd = el.offsetWidth;
+    if (h > 0 && wd > 0) {
+      const s = targetH / h;
+      setScale(s);
+      setW(wd * s);
+    }
+  }, [targetH]);
+  useLayoutEffect(() => { measure(); }, [measure, view, layers]);
+  useEffect(() => {
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [measure]);
+
+  return (
+    <div className="relative mx-auto overflow-hidden" style={{ height: targetH, width: w || targetH * 0.82 }}>
+      <div
+        ref={ref}
+        style={{ position: "absolute", top: 0, left: 0, transformOrigin: "top left", transform: `scale(${scale || 0.01})`, opacity: scale ? 1 : 0 }}
+      >
+        <PreviewStage view={view} color={color} layers={layers} onReady={measure} />
+      </div>
+    </div>
+  );
+}
+
+const PREVIEW_VIEWS = ["Depan", "Belakang", "Lengan Kiri", "Lengan Kanan"];
+
+function PreviewModal({ open, onClose, design, color }) {
+  useEffect(() => {
+    if (!open) return;
+    const h = (e) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [open, onClose]);
+  if (!open) return null;
+
+  const total = PREVIEW_VIEWS.reduce((n, v) => n + ((design[v] || []).length), 0);
+
+  return (
+    <div
+      className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 p-4"
+      data-testid="preview-modal"
+      onClick={onClose}
+    >
+      <div
+        className="max-h-[92vh] w-full max-w-4xl overflow-auto rounded-2xl bg-white p-5 shadow-2xl sm:p-6"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-bold text-zinc-900">Preview Desain — Semua Sisi</h2>
+            <p className="text-[12px] text-zinc-500">
+              {total} objek desain · warna kaos {color?.label || "Putih"}
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            data-testid="preview-close"
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-300 text-zinc-500 hover:bg-zinc-100"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          {PREVIEW_VIEWS.map((v) => {
+            const n = (design[v] || []).length;
+            return (
+              <div key={v} className="flex flex-col items-center rounded-xl border border-zinc-200 bg-zinc-50 p-3" data-testid={`preview-cell-${v.toLowerCase().replace(/\s+/g, "-")}`}>
+                <div className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-zinc-900 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-white">
+                  <Shirt className="h-3.5 w-3.5" /> {v}
+                </div>
+                <PreviewScaledTile view={v} color={color} layers={design[v] || []} targetH={280} />
+                <span className="mt-1 text-[11px] font-medium text-zinc-400">
+                  {n === 0 ? "Kosong" : `${n} objek`}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="mt-5 flex justify-end">
+          <button
+            onClick={onClose}
+            className="rounded-lg bg-zinc-900 px-5 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
+          >
+            Tutup
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -807,6 +1133,622 @@ function ImagePanel({
           <p className="mt-3 text-[11px] leading-tight text-zinc-400">
             Tip: geser gambar untuk memindahkan, tarik kotak biru di pojok untuk mengubah ukuran, dan tarik lingkaran di atas untuk memutar.
           </p>
+        </div>
+      )}
+    </>
+  );
+}
+
+/* =========================================================================
+   Teks melengkung (arch) — dirender via SVG <textPath> mengikuti busur lingkaran.
+   curve > 0 : melengkung ke atas (∩, seperti pelangi / teks atas logo)
+   curve < 0 : melengkung ke bawah (∪, seperti teks bawah logo)
+   Ukuran mengikuti wPct (skala relatif kaos) sama seperti teks lurus.
+   ========================================================================= */
+function CurvedText({ testId, text, curve, color, font, bold, italic, wPct }) {
+  const measureRef = useRef(null);
+  const [len, setLen] = useState(0);
+  const rawId = useId();
+  const pathId = `arc-${rawId.replace(/[^a-zA-Z0-9]/g, "")}`;
+
+  const clean = (text || " ").replace(/\s*\n+\s*/g, " ");
+  const FS = 100;
+  const fw = bold ? 800 : 500;
+  const fst = italic ? "italic" : "normal";
+  const scale = textFontVh(wPct) / FS; // vh per satuan SVG
+
+  useLayoutEffect(() => {
+    if (!measureRef.current) return;
+    try { setLen(measureRef.current.getComputedTextLength() || 0); } catch { setLen(0); }
+  }, [clean, font, bold, italic]);
+
+  // SVG pengukur (tersembunyi) untuk mengetahui panjang teks pada FS tetap
+  const measurer = (
+    <svg width="0" height="0" style={{ position: "absolute", width: 0, height: 0, overflow: "hidden" }} aria-hidden="true">
+      <text ref={measureRef} x="0" y="0" fontFamily={font} fontSize={FS} fontWeight={fw} fontStyle={fst}>{clean}</text>
+    </svg>
+  );
+
+  const theta = Math.abs(curve) * Math.PI / 180;
+  if (!len || theta < 0.02) {
+    // fallback: teks lurus (belum terukur / lengkung ~0)
+    return (
+      <>
+        {measurer}
+        <span
+          className="pointer-events-none block select-none leading-tight"
+          data-testid={testId}
+          style={{
+            color, fontFamily: font, fontWeight: fw, fontStyle: fst,
+            whiteSpace: "pre", fontSize: `${textFontVh(wPct)}vh`,
+            textShadow: color.toLowerCase() === "#ffffff" ? "0 0 1px rgba(0,0,0,0.25)" : "none",
+          }}
+        >
+          {clean}
+        </span>
+      </>
+    );
+  }
+
+  const R = len / theta;            // radius agar panjang busur == panjang teks
+  const half = theta / 2;
+  const ex = R * Math.sin(half);    // setengah lebar (x endpoint)
+  const cosH = Math.cos(half);
+  const large = theta > Math.PI ? 1 : 0;
+  const up = curve > 0;
+
+  let d, yEnd;
+  if (up) {
+    yEnd = R * (1 - cosH);          // endpoint di bawah titik puncak (y=0)
+    d = `M ${-ex} ${yEnd} A ${R} ${R} 0 ${large} 1 ${ex} ${yEnd}`;
+  } else {
+    yEnd = R * (cosH - 1);          // endpoint di atas titik terendah (y=0)
+    d = `M ${-ex} ${yEnd} A ${R} ${R} 0 ${large} 0 ${ex} ${yEnd}`;
+  }
+
+  // viewBox: padding FS di atas & bawah agar glyph tidak terpotong
+  const padX = FS * 0.7;
+  const yMin = Math.min(0, yEnd) - FS;
+  const yMax = Math.max(0, yEnd) + FS;
+  const vbX = -(ex + padX);
+  const vbW = 2 * (ex + padX);
+  const vbY = yMin;
+  const vbH = yMax - yMin;
+
+  return (
+    <>
+      {measurer}
+      <svg
+        data-testid={testId}
+        viewBox={`${vbX} ${vbY} ${vbW} ${vbH}`}
+        width={`${vbW * scale}vh`}
+        height={`${vbH * scale}vh`}
+        className="pointer-events-none block select-none overflow-visible"
+        style={{ display: "block" }}
+      >
+        <defs>
+          <path id={pathId} d={d} fill="none" />
+        </defs>
+        <text
+          fontFamily={font}
+          fontSize={FS}
+          fontWeight={fw}
+          fontStyle={fst}
+          fill={color}
+          textAnchor="middle"
+          stroke={color.toLowerCase() === "#ffffff" ? "rgba(0,0,0,0.18)" : "none"}
+          strokeWidth={color.toLowerCase() === "#ffffff" ? 1 : 0}
+          paintOrder="stroke"
+        >
+          <textPath href={`#${pathId}`} xlinkHref={`#${pathId}`} startOffset="50%">
+            {clean}
+          </textPath>
+        </text>
+      </svg>
+    </>
+  );
+}
+
+/* =========================================================================
+   PANEL: Teks (tambah tulisan + atur font, ukuran, warna, gaya)
+   ========================================================================= */
+function TextPanel({
+  layers, view, selectedLayer, setSelectedId, addText, updateSelectedText,
+  resizeSelected, rotateSelected, resetRotation, centerSelected, deleteLayer,
+}) {
+  const rot = selectedLayer ? (((selectedLayer.rot % 360) + 360) % 360) : 0;
+  return (
+    <>
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="text-base font-bold">Teks</h2>
+        <span className="text-[11px] text-zinc-400">Tampilan {view}</span>
+      </div>
+
+      {/* Tambah teks */}
+      <button
+        onClick={() => addText()}
+        data-testid="custom-add-text-button"
+        className="flex w-full items-center justify-center gap-2 rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-zinc-800"
+      >
+        <Type className="h-4 w-4" /> Tambah Teks
+      </button>
+      <p className="mt-2 text-[11px] leading-tight text-zinc-500">
+        Klik <b>Tambah Teks</b>, lalu ketik isinya di bawah. Geser di kanvas untuk memindahkan, tarik pojok untuk ubah ukuran, dan tarik lingkaran atas untuk memutar.
+      </p>
+
+      {/* Daftar teks pada tampilan ini */}
+      <div className="mt-5">
+        <h3 className="mb-2 text-sm font-bold">Teks di tampilan ini</h3>
+        {layers.length === 0 ? (
+          <p className="rounded-lg bg-zinc-50 px-3 py-3 text-center text-[12px] text-zinc-500">
+            Belum ada teks. Tekan tombol di atas untuk menambah.
+          </p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {layers.map((l) => {
+              const active = selectedLayer && selectedLayer.id === l.id;
+              return (
+                <div
+                  key={l.id}
+                  onClick={() => setSelectedId(l.id)}
+                  data-testid={`text-row-${l.id}`}
+                  className={`flex cursor-pointer items-center gap-2.5 rounded-lg border p-2 transition ${
+                    active ? "border-zinc-900 bg-zinc-50" : "border-zinc-200 hover:border-zinc-400"
+                  }`}
+                >
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-500">
+                    <Type className="h-4 w-4" />
+                  </span>
+                  <span
+                    className="min-w-0 flex-1 truncate text-[13px] font-semibold text-zinc-700"
+                    style={{ fontFamily: l.font, fontStyle: l.italic ? "italic" : "normal" }}
+                  >
+                    {l.text || "(kosong)"}
+                  </span>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); deleteLayer(l.id); }}
+                    title="Hapus"
+                    className="flex h-7 w-7 items-center justify-center rounded-md text-zinc-400 hover:bg-rose-50 hover:text-rose-600"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Editor teks terpilih */}
+      {selectedLayer && (
+        <div className="mt-5 rounded-xl border border-zinc-200 p-3">
+          <h3 className="mb-3 text-sm font-bold">Atur Teks</h3>
+
+          {/* Isi teks */}
+          <label className="mb-1 block text-[12px] font-semibold text-zinc-600">Isi teks</label>
+          <textarea
+            value={selectedLayer.text}
+            onChange={(e) => updateSelectedText({ text: e.target.value })}
+            rows={2}
+            placeholder="Ketik teksmu di sini"
+            data-testid="text-content-input"
+            className="w-full resize-none rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-900"
+          />
+
+          {/* Font */}
+          <label className="mb-1 mt-3 block text-[12px] font-semibold text-zinc-600">Jenis Font</label>
+          <select
+            value={selectedLayer.font}
+            onChange={(e) => updateSelectedText({ font: e.target.value })}
+            data-testid="text-font-select"
+            className="w-full rounded-lg border border-zinc-300 px-2 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-900"
+            style={{ fontFamily: selectedLayer.font }}
+          >
+            {FONTS.map((f) => (
+              <option key={f.label} value={f.value} style={{ fontFamily: f.value }}>{f.label}</option>
+            ))}
+          </select>
+
+          {/* Gaya & perataan */}
+          <div className="mt-3 flex items-center gap-2">
+            <button
+              onClick={() => updateSelectedText({ bold: !selectedLayer.bold })}
+              data-testid="text-bold-toggle"
+              title="Tebal"
+              className={`flex h-8 w-8 items-center justify-center rounded-md border ${selectedLayer.bold ? "border-zinc-900 bg-zinc-900 text-white" : "border-zinc-300 text-zinc-600 hover:bg-zinc-50"}`}
+            ><Bold className="h-4 w-4" /></button>
+            <button
+              onClick={() => updateSelectedText({ italic: !selectedLayer.italic })}
+              data-testid="text-italic-toggle"
+              title="Miring"
+              className={`flex h-8 w-8 items-center justify-center rounded-md border ${selectedLayer.italic ? "border-zinc-900 bg-zinc-900 text-white" : "border-zinc-300 text-zinc-600 hover:bg-zinc-50"}`}
+            ><Italic className="h-4 w-4" /></button>
+            <span className="mx-1 h-6 w-px bg-zinc-200" />
+            {[
+              { v: "left", Icon: AlignLeft },
+              { v: "center", Icon: AlignCenter },
+              { v: "right", Icon: AlignRight },
+            ].map(({ v, Icon }) => (
+              <button
+                key={v}
+                onClick={() => updateSelectedText({ align: v })}
+                data-testid={`text-align-${v}`}
+                title={`Rata ${v}`}
+                className={`flex h-8 w-8 items-center justify-center rounded-md border ${selectedLayer.align === v ? "border-zinc-900 bg-zinc-900 text-white" : "border-zinc-300 text-zinc-600 hover:bg-zinc-50"}`}
+              ><Icon className="h-4 w-4" /></button>
+            ))}
+          </div>
+
+          {/* Warna */}
+          <label className="mb-1 mt-3 block text-[12px] font-semibold text-zinc-600">Warna Teks</label>
+          <div className="flex flex-wrap items-center gap-2">
+            {TEXT_COLORS.map((hex) => {
+              const active = selectedLayer.color.toLowerCase() === hex.toLowerCase();
+              return (
+                <button
+                  key={hex}
+                  onClick={() => updateSelectedText({ color: hex })}
+                  data-testid={`text-color-${hex.replace('#','')}`}
+                  title={hex}
+                  className={`relative h-7 w-7 rounded-full border transition ${active ? "ring-2 ring-zinc-900 ring-offset-1" : "border-zinc-300 hover:scale-110"}`}
+                  style={{ backgroundColor: hex }}
+                >
+                  {active && <Check className="absolute inset-0 m-auto h-3.5 w-3.5" style={{ color: hex.toLowerCase() === "#ffffff" ? "#111" : "#fff" }} />}
+                </button>
+              );
+            })}
+            <label className="flex h-7 w-7 cursor-pointer items-center justify-center overflow-hidden rounded-full border border-zinc-300" title="Warna khusus">
+              <input
+                type="color"
+                value={/^#([0-9a-f]{6})$/i.test(selectedLayer.color) ? selectedLayer.color : "#111111"}
+                onChange={(e) => updateSelectedText({ color: e.target.value })}
+                data-testid="text-color-custom"
+                className="h-10 w-10 cursor-pointer border-0 bg-transparent p-0"
+                style={{ transform: "translate(-4px,-4px)" }}
+              />
+            </label>
+          </div>
+
+          {/* Ukuran */}
+          <div className="mb-3 mt-4">
+            <div className="mb-1 flex items-center justify-between text-[12px] font-semibold text-zinc-600">
+              <span>Ukuran</span>
+              <span>{Math.round(selectedLayer.wPct)}%</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button onClick={() => resizeSelected(-2)} className="flex h-8 w-8 items-center justify-center rounded-md border border-zinc-300 hover:bg-zinc-50" data-testid="text-size-minus"><Minus className="h-4 w-4" /></button>
+              <input
+                type="range" min={5} max={60} value={Math.round(selectedLayer.wPct)}
+                onChange={(e) => resizeSelected(Number(e.target.value) - selectedLayer.wPct)}
+                className="h-1.5 flex-1 cursor-pointer accent-zinc-900"
+                data-testid="text-size-range"
+              />
+              <button onClick={() => resizeSelected(2)} className="flex h-8 w-8 items-center justify-center rounded-md border border-zinc-300 hover:bg-zinc-50" data-testid="text-size-plus"><Plus className="h-4 w-4" /></button>
+            </div>
+          </div>
+
+          {/* Putar */}
+          <div className="mb-3">
+            <div className="mb-1 flex items-center justify-between text-[12px] font-semibold text-zinc-600">
+              <span>Putar</span>
+              <span>{rot}°</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button onClick={() => rotateSelected(-15)} className="flex h-8 w-8 items-center justify-center rounded-md border border-zinc-300 hover:bg-zinc-50" data-testid="text-rotate-left"><RotateCcw className="h-4 w-4" /></button>
+              <input
+                type="range" min={0} max={360} value={rot}
+                onChange={(e) => rotateSelected(Number(e.target.value) - rot)}
+                className="h-1.5 flex-1 cursor-pointer accent-zinc-900"
+                data-testid="text-rotate-range"
+              />
+              <button onClick={() => rotateSelected(15)} className="flex h-8 w-8 items-center justify-center rounded-md border border-zinc-300 hover:bg-zinc-50" data-testid="text-rotate-right"><RotateCw className="h-4 w-4" /></button>
+            </div>
+          </div>
+
+          {/* Lengkung (arch) */}
+          <div className="mb-3">
+            <div className="mb-1 flex items-center justify-between text-[12px] font-semibold text-zinc-600">
+              <span>Lengkung Teks</span>
+              <span data-testid="text-curve-value">{Math.round(selectedLayer.curve || 0)}°</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => updateSelectedText({ curve: clamp((selectedLayer.curve || 0) - 10, -180, 180) })}
+                className="flex h-8 w-8 items-center justify-center rounded-md border border-zinc-300 hover:bg-zinc-50"
+                data-testid="text-curve-minus"
+                title="Lengkungkan ke bawah"
+              ><Minus className="h-4 w-4" /></button>
+              <input
+                type="range" min={-180} max={180} step={5}
+                value={Math.round(selectedLayer.curve || 0)}
+                onChange={(e) => updateSelectedText({ curve: Number(e.target.value) })}
+                className="h-1.5 flex-1 cursor-pointer accent-zinc-900"
+                data-testid="text-curve-range"
+              />
+              <button
+                onClick={() => updateSelectedText({ curve: clamp((selectedLayer.curve || 0) + 10, -180, 180) })}
+                className="flex h-8 w-8 items-center justify-center rounded-md border border-zinc-300 hover:bg-zinc-50"
+                data-testid="text-curve-plus"
+                title="Lengkungkan ke atas"
+              ><Plus className="h-4 w-4" /></button>
+            </div>
+            <div className="mt-2 grid grid-cols-3 gap-2">
+              <button
+                onClick={() => updateSelectedText({ curve: 120 })}
+                data-testid="text-curve-top"
+                className="rounded-md border border-zinc-300 py-1.5 text-[11px] font-semibold text-zinc-700 hover:bg-zinc-50"
+              >Atas ⌢</button>
+              <button
+                onClick={() => updateSelectedText({ curve: 0 })}
+                data-testid="text-curve-straight"
+                className="rounded-md border border-zinc-300 py-1.5 text-[11px] font-semibold text-zinc-700 hover:bg-zinc-50"
+              >Lurus —</button>
+              <button
+                onClick={() => updateSelectedText({ curve: -120 })}
+                data-testid="text-curve-bottom"
+                className="rounded-md border border-zinc-300 py-1.5 text-[11px] font-semibold text-zinc-700 hover:bg-zinc-50"
+              >Bawah ⌣</button>
+            </div>
+            <p className="mt-1.5 text-[10px] leading-tight text-zinc-400">
+              Untuk logo lingkaran: buat satu teks <b>Atas ⌢</b> dan satu teks <b>Bawah ⌣</b>.
+            </p>
+          </div>
+
+          {/* Aksi cepat */}
+          <div className="flex items-center gap-2">
+            <button onClick={centerSelected} className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-zinc-300 py-2 text-[12px] font-semibold text-zinc-700 hover:bg-zinc-50" data-testid="text-center"><Move className="h-3.5 w-3.5" /> Tengah</button>
+            <button onClick={resetRotation} className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-zinc-300 py-2 text-[12px] font-semibold text-zinc-700 hover:bg-zinc-50" data-testid="text-reset-rotate"><RotateCcw className="h-3.5 w-3.5" /> 0°</button>
+            <button onClick={() => deleteLayer(selectedLayer.id)} className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-rose-200 py-2 text-[12px] font-semibold text-rose-600 hover:bg-rose-50" data-testid="text-delete"><Trash2 className="h-3.5 w-3.5" /> Hapus</button>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+/* =========================================================================
+   PANEL: Clipart (pustaka aset transparan + upload sheet untuk auto-segmentasi)
+   ========================================================================= */
+function ClipartPanel({ addClipart }) {
+  const [items, setItems] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [q, setQ] = useState("");
+  const [cat, setCat] = useState("Semua");
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data } = await api.get("/cliparts");
+      setItems(data.items || []);
+      setCategories(data.categories || []);
+    } catch (e) {
+      toast.error(formatApiError(e?.response?.data?.detail) || "Gagal memuat pustaka clip art.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const filtered = items.filter((it) => {
+    const okCat = cat === "Semua" || it.category === cat;
+    const hay = `${it.name} ${it.category} ${(it.tags || []).join(" ")}`.toLowerCase();
+    const okQ = !q.trim() || hay.includes(q.toLowerCase());
+    return okCat && okQ;
+  });
+
+  const onSheet = (file) => {
+    if (!file) return;
+    if (!/^image\//.test(file.type)) { toast.error("Pilih file gambar (PNG/JPG)."); return; }
+    if (file.size > 20 * 1024 * 1024) { toast.error("Ukuran gambar maks 20MB."); return; }
+    setUploading(true);
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        const { data } = await api.post("/cliparts/process", { image: reader.result });
+        toast.success(`${data.added?.length || 0} clip art baru diproses & masuk pustaka.`);
+        await load();
+        if ((data.added || []).length) setCat("Uncategorized");
+      } catch (e) {
+        toast.error(formatApiError(e?.response?.data?.detail) || "Gagal memproses sheet.");
+      } finally {
+        setUploading(false);
+      }
+    };
+    reader.onerror = () => { setUploading(false); toast.error("Gagal membaca file."); };
+    reader.readAsDataURL(file);
+  };
+
+  return (
+    <>
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="text-base font-bold">Clipart</h2>
+        <span className="text-[11px] text-zinc-400">{items.length} aset</span>
+      </div>
+
+      {/* Upload sheet -> auto segmentasi */}
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/png,image/jpeg,image/webp"
+        className="hidden"
+        data-testid="clipart-sheet-input"
+        onChange={(e) => { onSheet(e.target.files?.[0]); e.target.value = ""; }}
+      />
+      <button
+        onClick={() => fileRef.current?.click()}
+        disabled={uploading}
+        data-testid="clipart-upload-sheet"
+        className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-zinc-300 px-3 py-2.5 text-sm font-semibold text-zinc-700 hover:border-zinc-500 hover:bg-zinc-50 disabled:opacity-60"
+      >
+        {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+        {uploading ? "Memproses sheet…" : "Upload Sheet Clip Art"}
+      </button>
+      <p className="mt-1.5 text-[10px] leading-tight text-zinc-400">
+        Unggah 1 gambar berisi banyak clip art (latar terang). Sistem memisahkan tiap gambar otomatis jadi PNG transparan.
+      </p>
+
+      {/* Cari */}
+      <div className="mt-4 flex items-center gap-2 rounded-lg border border-zinc-300 px-2.5 py-1.5">
+        <Search className="h-4 w-4 text-zinc-400" />
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Cari clip art…"
+          data-testid="clipart-search"
+          className="w-full bg-transparent text-sm text-zinc-900 outline-none placeholder:text-zinc-400"
+        />
+      </div>
+
+      {/* Kategori */}
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {["Semua", ...categories].map((c) => (
+          <button
+            key={c}
+            onClick={() => setCat(c)}
+            data-testid={`clipart-cat-${c.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
+            className={`rounded-full px-2.5 py-1 text-[11px] font-semibold transition ${
+              cat === c ? "bg-zinc-900 text-white" : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+            }`}
+          >
+            {c}
+          </button>
+        ))}
+      </div>
+
+      {/* Grid aset */}
+      <div className="mt-3">
+        {loading ? (
+          <div className="flex items-center justify-center gap-2 py-10 text-sm text-zinc-500">
+            <Loader2 className="h-4 w-4 animate-spin" /> Memuat…
+          </div>
+        ) : filtered.length === 0 ? (
+          <p className="rounded-lg bg-zinc-50 px-3 py-6 text-center text-[12px] text-zinc-500">
+            Tidak ada clip art yang cocok.
+          </p>
+        ) : (
+          <div className="grid grid-cols-3 gap-2" data-testid="clipart-grid">
+            {filtered.map((it) => (
+              <button
+                key={it.id}
+                onClick={() => addClipart(it)}
+                title={`${it.name} · ${it.category}`}
+                data-testid={`clipart-item-${it.id}`}
+                className="group flex aspect-square items-center justify-center rounded-lg border border-zinc-200 bg-white p-1.5 transition hover:border-zinc-900 hover:shadow-sm"
+              >
+                <img
+                  src={it.thumb}
+                  alt={it.name}
+                  loading="lazy"
+                  className="max-h-full max-w-full object-contain transition group-hover:scale-105"
+                  draggable={false}
+                />
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+/* =========================================================================
+   PANEL: Layer (atur urutan / tumpuk objek desain — z-order)
+   Urutan tampil = paling depan di atas. (akhir array = depan)
+   ========================================================================= */
+function LayerPanel({ layers, selectedId, setSelectedId, moveLayer, deleteLayer }) {
+  // tampilkan front-most dulu (kebalikan urutan array)
+  const ordered = [...layers].reverse();
+  const total = layers.length;
+
+  return (
+    <>
+      <div className="mb-1 flex items-center justify-between">
+        <h2 className="text-base font-bold">Layer</h2>
+        <span className="text-[11px] text-zinc-400">{total} objek</span>
+      </div>
+      <p className="mb-3 text-[11px] leading-tight text-zinc-500">
+        Objek paling atas berada di <b>depan</b>. Geser urutan untuk menumpuk desain.
+      </p>
+
+      {total === 0 ? (
+        <p className="rounded-lg bg-zinc-50 px-3 py-6 text-center text-[12px] text-zinc-500">
+          Belum ada objek di tampilan ini. Tambah teks, clip art, atau gambar dulu.
+        </p>
+      ) : (
+        <div className="flex flex-col gap-2" data-testid="layer-list">
+          {ordered.map((l, i) => {
+            const isTxt = isTextLayer(l);
+            const active = l.id === selectedId;
+            const isFront = i === 0;
+            const isBack = i === ordered.length - 1;
+            return (
+              <div
+                key={l.id}
+                onClick={() => setSelectedId(l.id)}
+                data-testid={`layer-item-${l.id}`}
+                className={`flex items-center gap-2 rounded-lg border p-2 transition ${
+                  active ? "border-zinc-900 bg-zinc-50" : "border-zinc-200 hover:border-zinc-400"
+                }`}
+              >
+                {/* thumbnail */}
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-md border border-zinc-200 bg-white">
+                  {isTxt ? (
+                    <span className="text-[9px] font-bold leading-none text-zinc-700" style={{ fontFamily: l.font }}>
+                      {(l.text || "T").slice(0, 3) || "T"}
+                    </span>
+                  ) : (
+                    <img src={l.src} alt={l.name || "objek"} className="h-full w-full object-contain" draggable={false} />
+                  )}
+                </span>
+
+                {/* nama */}
+                <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-zinc-700">
+                  {isTxt ? (l.text || "Teks") : (l.name || "Gambar")}
+                </span>
+
+                {/* kontrol urutan */}
+                <div className="flex items-center gap-0.5">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); moveLayer(l.id, "front"); }}
+                    disabled={isFront}
+                    title="Paling depan"
+                    data-testid={`layer-front-${l.id}`}
+                    className="flex h-7 w-7 items-center justify-center rounded-md text-zinc-500 hover:bg-zinc-100 disabled:opacity-30"
+                  ><ChevronsUp className="h-4 w-4" /></button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); moveLayer(l.id, "up"); }}
+                    disabled={isFront}
+                    title="Maju ke depan"
+                    data-testid={`layer-up-${l.id}`}
+                    className="flex h-7 w-7 items-center justify-center rounded-md text-zinc-500 hover:bg-zinc-100 disabled:opacity-30"
+                  ><ArrowUp className="h-4 w-4" /></button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); moveLayer(l.id, "down"); }}
+                    disabled={isBack}
+                    title="Mundur ke belakang"
+                    data-testid={`layer-down-${l.id}`}
+                    className="flex h-7 w-7 items-center justify-center rounded-md text-zinc-500 hover:bg-zinc-100 disabled:opacity-30"
+                  ><ArrowDown className="h-4 w-4" /></button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); moveLayer(l.id, "back"); }}
+                    disabled={isBack}
+                    title="Paling belakang"
+                    data-testid={`layer-back-${l.id}`}
+                    className="flex h-7 w-7 items-center justify-center rounded-md text-zinc-500 hover:bg-zinc-100 disabled:opacity-30"
+                  ><ChevronsDown className="h-4 w-4" /></button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); deleteLayer(l.id); }}
+                    title="Hapus"
+                    data-testid={`layer-delete-${l.id}`}
+                    className="flex h-7 w-7 items-center justify-center rounded-md text-zinc-400 hover:bg-rose-50 hover:text-rose-600"
+                  ><Trash2 className="h-4 w-4" /></button>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </>
