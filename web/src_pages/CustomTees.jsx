@@ -791,34 +791,57 @@ function PreviewStage({ view, color, layers, onReady }) {
   );
 }
 
-function PreviewScaledTile({ view, color, layers, targetH = 300 }) {
-  const ref = useRef(null);
-  const [scale, setScale] = useState(0);
-  const [w, setW] = useState(0);
+// Scales the read-only stage (mockup + tint + desain customer) to FIT inside its
+// parent cell using object-fit:contain semantics — whole shirt + sleeves visible,
+// never cropped. The stage is laid out at its NATURAL size (so the mockup image is
+// not clamped by max-width) and then transform-scaled into a clip box, keeping the
+// vh-based text/positions identical to the canvas.
+function PreviewFitTile({ view, color, layers }) {
+  const wrapRef = useRef(null);   // available cell area
+  const stageRef = useRef(null);  // wraps PreviewStage (accurate layout height)
+  const [s, setS] = useState({ scale: 0, w: 0, h: 0, nw: 0, nh: 0 });
+
   const measure = useCallback(() => {
-    const el = ref.current;
-    if (!el) return;
-    const h = el.offsetHeight;   // layout size (tak terpengaruh transform)
-    const wd = el.offsetWidth;
-    if (h > 0 && wd > 0) {
-      const s = targetH / h;
-      setScale(s);
-      setW(wd * s);
+    const wrap = wrapRef.current, st = stageRef.current;
+    if (!wrap || !st) return;
+    const availW = wrap.clientWidth, availH = wrap.clientHeight;
+    const realH = st.offsetHeight;             // h-[62vh], not width-clamped
+    const img = st.querySelector("img");
+    const nW = img && img.naturalWidth ? img.naturalWidth : 0;
+    const nH = img && img.naturalHeight ? img.naturalHeight : 0;
+    if (availW > 0 && availH > 0 && realH > 0 && nW > 0 && nH > 0) {
+      const stageW = realH * (nW / nH);        // true natural width for this height
+      const scale = Math.min(availW / stageW, availH / realH); // contain
+      setS({ scale, w: stageW * scale, h: realH * scale, nw: stageW, nh: realH });
     }
-  }, [targetH]);
+  }, []);
+
   useLayoutEffect(() => { measure(); }, [measure, view, layers]);
   useEffect(() => {
+    measure();
+    const id = window.setTimeout(measure, 120);
     window.addEventListener("resize", measure);
-    return () => window.removeEventListener("resize", measure);
+    return () => { window.clearTimeout(id); window.removeEventListener("resize", measure); };
   }, [measure]);
 
   return (
-    <div className="relative mx-auto overflow-hidden" style={{ height: targetH, width: w || targetH * 0.82 }}>
-      <div
-        ref={ref}
-        style={{ position: "absolute", top: 0, left: 0, transformOrigin: "top left", transform: `scale(${scale || 0.01})`, opacity: scale ? 1 : 0 }}
-      >
-        <PreviewStage view={view} color={color} layers={layers} onReady={measure} />
+    <div ref={wrapRef} className="relative min-h-0 min-w-0 w-full flex-1 overflow-hidden">
+      <div className="absolute inset-0 flex items-center justify-center">
+        <div className="relative overflow-hidden" style={{ width: s.w || 1, height: s.h || 1 }}>
+          <div
+            style={{
+              width: s.nw || 1, height: s.nh || 1,
+              position: "absolute", top: 0, left: 0,
+              transformOrigin: "top left",
+              transform: `scale(${s.scale || 0.01})`,
+              opacity: s.scale ? 1 : 0,
+            }}
+          >
+            <div ref={stageRef} className="inline-block">
+              <PreviewStage view={view} color={color} layers={layers} onReady={measure} />
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -827,29 +850,51 @@ function PreviewScaledTile({ view, color, layers, targetH = 300 }) {
 const PREVIEW_VIEWS = ["Depan", "Belakang", "Lengan Kiri", "Lengan Kanan"];
 
 function PreviewModal({ open, onClose, design, color }) {
+  const bodyRef = useRef(null);
+  const [side, setSide] = useState(0);
+
   useEffect(() => {
     if (!open) return;
     const h = (e) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
   }, [open, onClose]);
+
+  // Largest square that fits the available body area -> keeps 2x2 preview 1:1.
+  const measureSide = useCallback(() => {
+    const el = bodyRef.current;
+    if (!el) return;
+    const s = Math.min(el.clientWidth, el.clientHeight);
+    if (s > 0) setSide(s);
+  }, []);
+  useLayoutEffect(() => { if (open) measureSide(); }, [open, measureSide]);
+  useEffect(() => {
+    if (!open) return;
+    measureSide();
+    const id = window.setTimeout(measureSide, 80);
+    window.addEventListener("resize", measureSide);
+    return () => { window.clearTimeout(id); window.removeEventListener("resize", measureSide); };
+  }, [open, measureSide]);
+
   if (!open) return null;
 
   const total = PREVIEW_VIEWS.reduce((n, v) => n + ((design[v] || []).length), 0);
 
   return (
     <div
-      className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 p-4"
+      className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 p-2 sm:p-4"
       data-testid="preview-modal"
       onClick={onClose}
     >
       <div
-        className="max-h-[92vh] w-full max-w-4xl overflow-auto rounded-2xl bg-white p-5 shadow-2xl sm:p-6"
+        className="flex w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+        style={{ height: "96vh", maxHeight: "100vh" }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="mb-4 flex items-start justify-between gap-3">
+        {/* Header */}
+        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-zinc-100 px-4 py-3 sm:px-5 sm:py-4">
           <div>
-            <h2 className="text-lg font-bold text-zinc-900">Preview Desain — Semua Sisi</h2>
+            <h2 className="text-base font-bold text-zinc-900 sm:text-lg">Preview Desain — Semua Sisi</h2>
             <p className="text-[12px] text-zinc-500">
               {total} objek desain · warna kaos {color?.label || "Putih"}
             </p>
@@ -857,30 +902,46 @@ function PreviewModal({ open, onClose, design, color }) {
           <button
             onClick={onClose}
             data-testid="preview-close"
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-300 text-zinc-500 hover:bg-zinc-100"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-zinc-300 text-zinc-500 hover:bg-zinc-100"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          {PREVIEW_VIEWS.map((v) => {
-            const n = (design[v] || []).length;
-            return (
-              <div key={v} className="flex flex-col items-center rounded-xl border border-zinc-200 bg-zinc-50 p-3" data-testid={`preview-cell-${v.toLowerCase().replace(/\s+/g, "-")}`}>
-                <div className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-zinc-900 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-white">
-                  <Shirt className="h-3.5 w-3.5" /> {v}
+        {/* Body: centered largest 1:1 square holding a symmetric 2x2 grid */}
+        <div ref={bodyRef} className="flex min-h-0 flex-1 items-center justify-center p-2 sm:p-3">
+          <div
+            className="grid gap-2 sm:gap-3"
+            style={{
+              width: side ? `${side}px` : "100%",
+              height: side ? `${side}px` : "100%",
+              gridTemplateColumns: "1fr 1fr",
+              gridTemplateRows: "1fr 1fr",
+            }}
+          >
+            {PREVIEW_VIEWS.map((v) => {
+              const n = (design[v] || []).length;
+              return (
+                <div
+                  key={v}
+                  className="relative flex min-h-0 min-w-0 flex-col rounded-xl border border-zinc-200 bg-zinc-50 p-1.5 sm:p-2"
+                  data-testid={`preview-cell-${v.toLowerCase().replace(/\s+/g, "-")}`}
+                >
+                  <div className="z-10 mx-auto mb-1 inline-flex shrink-0 items-center gap-1.5 rounded-full bg-zinc-900 px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-white sm:text-[11px]">
+                    <Shirt className="h-3.5 w-3.5" /> {v}
+                  </div>
+                  <PreviewFitTile view={v} color={color} layers={design[v] || []} />
+                  <span className="pointer-events-none absolute bottom-1.5 right-2 text-[10px] font-medium text-zinc-400">
+                    {n === 0 ? "Kosong" : `${n} objek`}
+                  </span>
                 </div>
-                <PreviewScaledTile view={v} color={color} layers={design[v] || []} targetH={280} />
-                <span className="mt-1 text-[11px] font-medium text-zinc-400">
-                  {n === 0 ? "Kosong" : `${n} objek`}
-                </span>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
 
-        <div className="mt-5 flex justify-end">
+        {/* Footer */}
+        <div className="flex shrink-0 justify-end border-t border-zinc-100 px-4 py-3 sm:px-5">
           <button
             onClick={onClose}
             className="rounded-lg bg-zinc-900 px-5 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
