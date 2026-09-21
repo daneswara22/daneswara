@@ -45,6 +45,22 @@ export default function Layout() {
   const [pw, setPw] = useState({ current_password: "", new_password: "", confirm: "" });
   const [pwLoading, setPwLoading] = useState(false);
   const items = NAV.filter((n) => n.roles.includes(user?.role));
+  const [customTeeNew, setCustomTeeNew] = useState(0);
+
+  // Badge pesanan Custom Tees baru (hanya untuk role yang punya menunya).
+  useEffect(() => {
+    if (!["Owner", "Manager"].includes(user?.role)) return;
+    let alive = true;
+    const load = async () => {
+      try {
+        const { data } = await api.get("/custom-tees/orders/count");
+        if (alive) setCustomTeeNew(Number(data?.new || 0));
+      } catch { /* badge opsional */ }
+    };
+    load();
+    const id = window.setInterval(load, 30000);
+    return () => { alive = false; window.clearInterval(id); };
+  }, [user?.role]);
 
   // Restore a previously-connected Bluetooth printer on ANY page/refresh so the
   // link stays alive for cashiers regardless of the landing route.
@@ -99,6 +115,14 @@ export default function Layout() {
             >
               <n.icon className="h-4.5 w-4.5" style={{ width: 18, height: 18 }} />
               <span className="flex-1">{n.label}</span>
+              {n.to === "/custom-tees" && customTeeNew > 0 && (
+                <span
+                  data-testid="nav-custom-tees-badge"
+                  className="inline-flex min-w-[20px] items-center justify-center rounded-full bg-blue-600 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white"
+                >
+                  {customTeeNew}
+                </span>
+              )}
               {n.dev && (
                 <span className="rounded bg-amber-400 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-950">
                   Dev

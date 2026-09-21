@@ -107,6 +107,33 @@ model custom_mockups {
   @@index([product_key], map: "ix_custom_mockups_product_key")
 }
 
+model custom_tee_orders {
+  id             String    @id @db.VarChar(36)
+  tenant_id      String    @db.VarChar(36)
+  order_code     String    @db.VarChar(40)
+  status         String    @db.VarChar(20)
+  customer_name  String    @db.VarChar(160)
+  customer_phone String    @db.VarChar(40)
+  customer_email String?   @db.VarChar(160)
+  product_key    String    @db.VarChar(80)
+  product_title  String    @db.VarChar(200)
+  size           String    @db.VarChar(120)
+  size_items_json String?  @db.Text
+  qty            Int       @default(1)
+  color_name     String    @db.VarChar(60)
+  color_hex      String    @db.VarChar(9)
+  objects_count  Int       @default(0)
+  design_json    String    @db.LongText
+  note           String?   @db.Text
+  submitted_at   DateTime? @db.DateTime(0)
+  created_at     DateTime  @db.DateTime(0)
+  updated_at     DateTime  @db.DateTime(0)
+
+  @@index([tenant_id], map: "ix_custom_tee_orders_tenant_id")
+  @@index([status], map: "ix_custom_tee_orders_status")
+  @@index([created_at], map: "ix_custom_tee_orders_created_at")
+}
+
 model custom_products {
   id               String   @id @db.VarChar(36)
   tenant_id        String   @db.VarChar(36)

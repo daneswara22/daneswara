@@ -169,6 +169,35 @@ export const galleryInputSchema = z.object({
   sort_order: z.number().int().nullable().optional().default(0),
 });
 
+/* ---------- Custom Tees order flow ---------- */
+const customTeeBase = {
+  product_key: z.string().optional().default('premium-cotton-7200'),
+  product_title: z.string().optional().default('Custom Tees'),
+  size: z.string().optional().default('L'),
+  size_items: z.array(z.object({
+    size: z.string().min(1),
+    qty: z.coerce.number().int().min(1).max(9999),
+  })).optional().default([]),
+  qty: z.coerce.number().int().min(1).max(99999).optional().default(1),
+  color_name: z.string().optional().default('Putih'),
+  color_hex: z.string().optional().default('#ffffff'),
+  note: z.string().optional().default(''),
+};
+
+export const customTeeDraftSchema = z.object({
+  ...customTeeBase,
+  design: z.record(z.string(), z.array(z.any())).optional().default({}),
+});
+
+export const customTeeOrderSchema = z.object({
+  ...customTeeBase,
+  draft_id: z.string().nullable().optional(),
+  customer_name: z.string().optional().default(''),
+  customer_phone: z.string().optional().default(''),
+  customer_email: z.string().nullable().optional().default(''),
+  design: z.record(z.string(), z.array(z.any())).nullable().optional(),
+});
+
 export function parseBody<T extends z.ZodTypeAny>(schema: T, body: unknown): z.infer<T> {
   const r = schema.safeParse(body);
   if (!r.success) {
