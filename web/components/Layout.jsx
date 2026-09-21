@@ -31,7 +31,7 @@ const NAV = [
   { to: "/app/ekspor", label: "Ekspor Data", icon: DownloadCloud, roles: ["Owner"] },
   { to: "/app/galeri-web", label: "Galeri Website", icon: Images, roles: ["Owner", "Manager"] },
   { to: "/app/mockup-kaos", label: "Mockup Kaos", icon: Shirt, roles: ["Owner", "Manager"] },
-  { to: "/custom-tees", label: "Custom Tees", icon: Palette, roles: ["Owner", "Manager"], dev: true },
+  { to: "/app/custom-tees", label: "Custom Tees", icon: Palette, roles: ["Owner", "Manager"] },
   { to: "/app/pengguna", label: "Pengguna", icon: UsersIcon, roles: ["Owner", "Manager"] },
   { to: "/app/pengaturan", label: "Pengaturan", icon: SettingsIcon, roles: ["Owner", "Manager", "Kasir"] },
 ];
@@ -44,11 +44,26 @@ export default function Layout() {
   const [pwOpen, setPwOpen] = useState(false);
   const [pw, setPw] = useState({ current_password: "", new_password: "", confirm: "" });
   const [pwLoading, setPwLoading] = useState(false);
+  const [ctoCount, setCtoCount] = useState(0); // badge pesanan Custom Tees baru
   const items = NAV.filter((n) => n.roles.includes(user?.role));
 
   // Restore a previously-connected Bluetooth printer on ANY page/refresh so the
   // link stays alive for cashiers regardless of the landing route.
   useEffect(() => { restorePrinterConnection().catch(() => {}); }, []);
+
+  // Poll unread/pending Custom Tees order count for the sidebar badge.
+  useEffect(() => {
+    if (!(user?.role === "Owner" || user?.role === "Manager")) return;
+    let alive = true;
+    const fetchCount = () => api.get("/custom-tees-orders/count")
+      .then((r) => { if (alive) setCtoCount(r.data?.count || 0); })
+      .catch(() => {});
+    fetchCount();
+    const t = setInterval(fetchCount, 30000);
+    const onFocus = () => fetchCount();
+    window.addEventListener("focus", onFocus);
+    return () => { alive = false; clearInterval(t); window.removeEventListener("focus", onFocus); };
+  }, [user?.role]);
 
   const changePassword = async () => {
     if (pw.new_password !== pw.confirm) return toast.error("Konfirmasi password tidak cocok");
@@ -99,6 +114,14 @@ export default function Layout() {
             >
               <n.icon className="h-4.5 w-4.5" style={{ width: 18, height: 18 }} />
               <span className="flex-1">{n.label}</span>
+              {n.label === "Custom Tees" && ctoCount > 0 && (
+                <span
+                  data-testid="cto-nav-badge"
+                  className="ml-auto inline-flex min-w-[20px] items-center justify-center rounded-full bg-blue-600 px-1.5 py-0.5 text-[11px] font-bold leading-none text-white"
+                >
+                  {ctoCount}
+                </span>
+              )}
               {n.dev && (
                 <span className="rounded bg-amber-400 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-950">
                   Dev

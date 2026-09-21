@@ -123,6 +123,30 @@ model custom_products {
   @@index([tenant_id], map: "ix_custom_products_tenant_id")
 }
 
+model custom_tees_orders {
+  id             String   @id @db.VarChar(36)
+  tenant_id      String   @db.VarChar(36)
+  order_code     String   @db.VarChar(40)
+  customer_name  String   @db.VarChar(160)
+  customer_phone String   @db.VarChar(60)
+  customer_email String?  @db.VarChar(160)
+  product_name   String   @db.VarChar(200)
+  shirt_size     String   @db.VarChar(20)
+  color_name     String   @db.VarChar(60)
+  color_hex      String   @db.VarChar(20)
+  design         String   @db.LongText
+  status         String   @default("Baru") @db.VarChar(30)
+  seen           Boolean  @default(false)
+  note           String?  @db.Text
+  created_at     DateTime @db.DateTime(0)
+  updated_at     DateTime @db.DateTime(0)
+
+  @@index([tenant_id], map: "ix_cto_tenant_id")
+  @@index([status], map: "ix_cto_status")
+  @@index([created_at], map: "ix_cto_created_at")
+}
+
+
 model held_orders {
   id         String   @id @db.VarChar(36)
   tenant_id  String   @db.VarChar(36)

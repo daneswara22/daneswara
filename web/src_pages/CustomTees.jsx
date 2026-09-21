@@ -40,6 +40,7 @@ const MOCKUP_MASKS = {
 };
 
 const SIZES = ["S", "M", "L", "XL", "2XL", "3XL", "4XL", "5XL"];
+const PRODUCT_NAME = "24 COTTON LOCAL SIZE (BUILDUP TEES)";
 const COLOR_TABS = ["Populer", "Netral", "Merah", "Biru", "Hijau", "Lainnya"];
 const SWATCHES = [
   { name: "Putih",        hex: "#ffffff" },
@@ -104,10 +105,12 @@ export default function CustomTees() {
   const isWhite = color.hex.toLowerCase() === "#ffffff";
 
   const [activeTool, setActiveTool] = useState("Produk");
+  const [size, setSize] = useState("L"); // ukuran kaos terpilih
   // Desain objek per-tampilan: { [view]: [ {id, src, cx, cy, wPct, rot} ] }
   const [design, setDesign] = useState(emptyDesign);
   const [selectedId, setSelectedId] = useState(null);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [orderOpen, setOrderOpen] = useState(false); // form pesanan (Cek Harga)
 
   const canvasRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -477,7 +480,7 @@ export default function CustomTees() {
               deleteLayer={deleteLayer}
             />
           ) : activeTool === "Produk" ? (
-            <ProductPanel color={color} setColor={setColor} />
+            <ProductPanel color={color} setColor={setColor} size={size} setSize={setSize} />
           ) : (
             <ComingSoon tool={activeTool} onUpload={triggerUpload} setActiveTool={setActiveTool} />
           )}
@@ -749,6 +752,17 @@ export default function CustomTees() {
         onClose={() => setPreviewOpen(false)}
         design={design}
         color={color}
+        onCekHarga={() => { setPreviewOpen(false); setOrderOpen(true); }}
+      />
+
+      {/* Form pesanan Custom Tees (Cek Harga) — desain TIDAK dihapus setelah submit */}
+      <OrderFormModal
+        open={orderOpen}
+        onClose={() => setOrderOpen(false)}
+        design={design}
+        color={color}
+        size={size}
+        productName={PRODUCT_NAME}
       />
     </div>
   );
@@ -884,7 +898,7 @@ function PreviewFitTile({ view, color, layers }) {
 
 const PREVIEW_VIEWS = ["Depan", "Belakang", "Lengan Kiri", "Lengan Kanan"];
 
-function PreviewModal({ open, onClose, design, color }) {
+function PreviewModal({ open, onClose, design, color, onCekHarga }) {
   const bodyRef = useRef(null);
   const [side, setSide] = useState(0);
 
@@ -976,9 +990,19 @@ function PreviewModal({ open, onClose, design, color }) {
         </div>
 
         {/* Footer */}
-        <div className="flex shrink-0 justify-end border-t border-zinc-100 px-4 py-3 sm:px-5">
+        <div className="flex shrink-0 items-center justify-end gap-2 border-t border-zinc-100 px-4 py-3 sm:px-5">
+          {onCekHarga && (
+            <button
+              onClick={onCekHarga}
+              data-testid="cek-harga-button"
+              className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700"
+            >
+              Cek Harga
+            </button>
+          )}
           <button
             onClick={onClose}
+            data-testid="preview-tutup-button"
             className="rounded-lg bg-zinc-900 px-5 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
           >
             Tutup
@@ -990,9 +1014,236 @@ function PreviewModal({ open, onClose, design, color }) {
 }
 
 /* =========================================================================
+   MODAL: Form Pesanan Custom Tees (dibuka dari tombol "Cek Harga")
+   - Menyimpan desain lengkap sebagai order (referensi desain utuh).
+   - Desain TIDAK dihapus setelah submit / batal / error validasi.
+   ========================================================================= */
+function OrderFormModal({ open, onClose, design, color, size, productName }) {
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [done, setDone] = useState(false);
+  const [errors, setErrors] = useState({});
+
+  useEffect(() => {
+    if (!open) return;
+    const h = (e) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [open, onClose]);
+
+  if (!open) return null;
+
+  const totalObjek = PREVIEW_VIEWS.reduce((n, v) => n + ((design[v] || []).length), 0);
+  const emailValid = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+
+  const validate = () => {
+    const e = {};
+    if (!name.trim()) e.name = "Nama Customer wajib diisi.";
+    if (!phone.trim()) e.phone = "No. yang bisa dihubungi wajib diisi.";
+    if (email.trim() && !emailValid(email.trim())) e.email = "Format email tidak valid.";
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
+
+  const submit = async () => {
+    if (!validate()) return;
+    setSubmitting(true);
+    try {
+      // Kirim desain LENGKAP (semua sisi, layer, teks, clipart, gambar, warna, ukuran).
+      const payload = {
+        customer_name: name.trim(),
+        customer_phone: phone.trim(),
+        customer_email: email.trim(),
+        design: {
+          product: productName,
+          size,
+          color: { name: color?.name || "", hex: color?.hex || "#ffffff" },
+          views: design,
+        },
+      };
+      await api.post("/custom-tees-orders", payload);
+      setDone(true); // desain tetap utuh di parent — tidak direset
+    } catch (err) {
+      toast.error(formatApiError(err?.response?.data?.detail) || "Gagal mengirim pesanan.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleClose = () => {
+    // Reset field lokal & status sukses agar bersih saat dibuka lagi.
+    // Desain berada di parent dan TIDAK disentuh -> tidak hilang.
+    setName(""); setPhone(""); setEmail(""); setErrors({}); setDone(false);
+    onClose();
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-[210] flex items-center justify-center bg-black/60 p-2 sm:p-4"
+      data-testid="order-form-modal"
+      onClick={handleClose}
+    >
+      <div
+        className="flex w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+        style={{ maxHeight: "94vh" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-zinc-100 px-5 py-4">
+          <div>
+            <h2 className="text-lg font-bold text-zinc-900">Pesanan Custom Tees</h2>
+            <p className="text-[12px] text-zinc-500">Isi data kamu, CS kami akan menghubungi untuk info harga.</p>
+          </div>
+          <button
+            onClick={handleClose}
+            data-testid="order-form-close"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-zinc-300 text-zinc-500 hover:bg-zinc-100"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+          {done ? (
+            <div className="flex flex-col items-center py-8 text-center" data-testid="order-success">
+              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
+                <Check className="h-8 w-8 text-green-600" />
+              </div>
+              <p className="max-w-sm text-base font-semibold text-zinc-900">
+                Pesanan Diterima Sebentar Lagi CS akan Menghubungi Kembali
+              </p>
+              <p className="mt-2 text-[12px] text-zinc-500">Desain kamu tetap tersimpan dan bisa dilanjutkan kapan saja.</p>
+            </div>
+          ) : (
+            <>
+              {/* Ringkasan pesanan */}
+              <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3">
+                <h3 className="mb-2 text-[13px] font-bold text-zinc-900">Ringkasan Desain</h3>
+                <dl className="space-y-1 text-[13px]">
+                  <div className="flex justify-between gap-3">
+                    <dt className="text-zinc-500">Jenis Kaos</dt>
+                    <dd className="text-right font-semibold text-zinc-900" data-testid="summary-product">{productName}</dd>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <dt className="text-zinc-500">Ukuran Kaos</dt>
+                    <dd className="font-semibold text-zinc-900" data-testid="summary-size">{size}</dd>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <dt className="text-zinc-500">Warna Kaos</dt>
+                    <dd className="flex items-center gap-2 font-semibold text-zinc-900" data-testid="summary-color">
+                      <span className="h-4 w-4 rounded-full border border-zinc-300" style={{ backgroundColor: color?.hex }} />
+                      {color?.name}
+                    </dd>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <dt className="text-zinc-500">Total Objek Desain</dt>
+                    <dd className="font-semibold text-zinc-900">{totalObjek} objek</dd>
+                  </div>
+                </dl>
+
+                {/* Preview ringkas 4 sisi */}
+                <div className="mt-3 grid grid-cols-4 gap-1.5" data-testid="summary-preview">
+                  {PREVIEW_VIEWS.map((v) => (
+                    <div key={v} className="flex flex-col rounded-lg border border-zinc-200 bg-white p-1">
+                      <span className="mb-0.5 truncate text-center text-[8px] font-bold uppercase text-zinc-500">{v}</span>
+                      <div className="relative" style={{ height: 64 }}>
+                        <PreviewFitTile view={v} color={color} layers={design[v] || []} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Data customer */}
+              <div className="mt-4 space-y-3">
+                <div>
+                  <label className="mb-1 block text-[13px] font-semibold text-zinc-700">
+                    Nama Customer <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    data-testid="order-name"
+                    placeholder="Nama lengkap"
+                    className={`w-full rounded-lg border px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-900 ${errors.name ? "border-red-400" : "border-zinc-300"}`}
+                  />
+                  {errors.name && <p className="mt-1 text-[12px] text-red-500" data-testid="err-name">{errors.name}</p>}
+                </div>
+                <div>
+                  <label className="mb-1 block text-[13px] font-semibold text-zinc-700">
+                    No. yang bisa dihubungi <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    data-testid="order-phone"
+                    inputMode="tel"
+                    placeholder="Contoh: 0812xxxxxxx"
+                    className={`w-full rounded-lg border px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-900 ${errors.phone ? "border-red-400" : "border-zinc-300"}`}
+                  />
+                  {errors.phone && <p className="mt-1 text-[12px] text-red-500" data-testid="err-phone">{errors.phone}</p>}
+                </div>
+                <div>
+                  <label className="mb-1 block text-[13px] font-semibold text-zinc-700">
+                    Email aktif <span className="font-normal text-zinc-400">(Optional)</span>
+                  </label>
+                  <input
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    data-testid="order-email"
+                    inputMode="email"
+                    placeholder="nama@email.com"
+                    className={`w-full rounded-lg border px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-900 ${errors.email ? "border-red-400" : "border-zinc-300"}`}
+                  />
+                  {errors.email && <p className="mt-1 text-[12px] text-red-500" data-testid="err-email">{errors.email}</p>}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex shrink-0 items-center justify-end gap-2 border-t border-zinc-100 px-5 py-3">
+          {done ? (
+            <button
+              onClick={handleClose}
+              data-testid="order-success-close"
+              className="rounded-lg bg-zinc-900 px-5 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
+            >
+              Tutup
+            </button>
+          ) : (
+            <>
+              <button
+                onClick={handleClose}
+                className="rounded-lg border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-600 hover:bg-zinc-50"
+              >
+                Batal
+              </button>
+              <button
+                onClick={submit}
+                disabled={submitting}
+                data-testid="kirim-pesanan-button"
+                className="flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 disabled:opacity-60"
+              >
+                {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
+                Kirim Pesanan
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+/* =========================================================================
    PANEL: Produk (warna & ukuran)
    ========================================================================= */
-function ProductPanel({ color, setColor }) {
+function ProductPanel({ color, setColor, size, setSize }) {
   return (
     <>
       <div className="mb-3 flex items-center justify-between">
@@ -1005,7 +1256,7 @@ function ProductPanel({ color, setColor }) {
       <div className="flex items-center gap-3 rounded-xl border border-zinc-200 p-3">
         <TintedThumb src={MOCKUPS["Depan"]} mask={MOCKUP_MASKS["Depan"]} color={color.hex} alt="Kaos" size={48} inner={36} />
         <div className="leading-tight">
-          <div className="text-[13px] font-semibold">24 COTTON LOCAL SIZE (BUILDUP TEES)</div>
+          <div className="text-[13px] font-semibold">{PRODUCT_NAME}</div>
           <div className="text-[11px] text-zinc-500">Kaos 24s Dengan ukuran local</div>
         </div>
       </div>
@@ -1018,8 +1269,11 @@ function ProductPanel({ color, setColor }) {
         {SIZES.map((s) => (
           <button
             key={s}
+            onClick={() => setSize && setSize(s)}
+            data-testid={`size-${s.toLowerCase()}`}
+            aria-pressed={s === size}
             className={`h-9 rounded-lg border text-sm font-semibold transition ${
-              s === "L" ? "border-zinc-900 bg-zinc-900 text-white" : "border-zinc-200 text-zinc-700 hover:border-zinc-400"
+              s === size ? "border-zinc-900 bg-zinc-900 text-white" : "border-zinc-200 text-zinc-700 hover:border-zinc-400"
             }`}
           >
             {s}
