@@ -124,76 +124,106 @@ export default function CustomTees() {
     }));
   }, []);
 
-  /* ---------- pointer gestures (drag / resize / rotate) ---------- */
-  useEffect(() => {
-    const onMove = (e) => {
-      const g = gesture.current;
-      if (!g) return;
-      if (g.mode === "move") {
-        const dx = ((e.clientX - g.startX) / g.rectW) * 100;
-        const dy = ((e.clientY - g.startY) / g.rectH) * 100;
-        applyPatch(g.view, g.id, { cx: clamp(g.startCx + dx, 0, 100), cy: clamp(g.startCy + dy, 0, 100) });
-      } else if (g.mode === "resize") {
-        const dist = Math.hypot(e.clientX - g.centerX, e.clientY - g.centerY);
-        const scale = g.startDist > 0 ? dist / g.startDist : 1;
-        applyPatch(g.view, g.id, { wPct: clamp(g.startW * scale, 5, 130) });
-      } else if (g.mode === "rotate") {
-        const ang = (Math.atan2(e.clientY - g.centerY, e.clientX - g.centerX) * 180) / Math.PI;
-        applyPatch(g.view, g.id, { rot: Math.round(ang + 90) });
-      }
-    };
-    const onUp = () => { gesture.current = null; };
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
-    window.addEventListener("pointercancel", onUp);
-    return () => {
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
-      window.removeEventListener("pointercancel", onUp);
-    };
-  }, [applyPatch]);
-
+  /* ---------- pointer gestures (drag / resize / rotate) ----------
+     Deterministic lifecycle built on EXPLICIT pointer capture bound to the
+     stable canvas element (canvasRef). The canvas never unmounts or moves
+     during an interaction, so once we capture the pointer to it every
+     pointermove / pointerup / pointercancel for that exact pointer is
+     delivered to a single stable target — even while the dragged layer
+     re-renders, changes z-order, resizes, rotates, or slides out from under
+     the finger. `gesture.current` is the single source of truth and is keyed
+     by `pointerId`, which prevents stale/competing drag state and stops a
+     second (multi-touch) pointer from cancelling or hijacking an active drag.
+     After every interaction we return to a clean idle state WITHOUT touching
+     `selectedId`, so the object stays selected and immediately draggable
+     again — no deselect/reselect workaround is ever required. */
   const centerOf = (l, rect) => ({
     x: rect.left + (l.cx / 100) * rect.width,
     y: rect.top + (l.cy / 100) * rect.height,
   });
 
+  // Capture the pointer on the stable canvas element and record drag state.
+  const beginGesture = (e, base) => {
+    const canvas = canvasRef.current;
+    const rect = canvas?.getBoundingClientRect();
+    if (!canvas || !rect) return;
+    try { canvas.setPointerCapture(e.pointerId); } catch { /* capture unsupported/lost */ }
+    if (e.cancelable) e.preventDefault();
+    gesture.current = { ...base, pointerId: e.pointerId, rect };
+  };
+
   const startMove = (e, id) => {
     e.stopPropagation();
+    if (gesture.current) return; // a gesture is already in progress
     setSelectedId(id);
-    const rect = canvasRef.current?.getBoundingClientRect();
     const l = layers.find((x) => x.id === id);
-    if (!rect || !l) return;
-    gesture.current = {
+    if (!l) return;
+    beginGesture(e, {
       mode: "move", id, view,
       startX: e.clientX, startY: e.clientY,
-      startCx: l.cx, startCy: l.cy, rectW: rect.width, rectH: rect.height,
-    };
+      startCx: l.cx, startCy: l.cy,
+    });
   };
 
   const startResize = (e, id) => {
     e.stopPropagation();
+    if (gesture.current) return;
     setSelectedId(id);
     const rect = canvasRef.current?.getBoundingClientRect();
     const l = layers.find((x) => x.id === id);
     if (!rect || !l) return;
     const c = centerOf(l, rect);
-    gesture.current = {
+    beginGesture(e, {
       mode: "resize", id, view,
       centerX: c.x, centerY: c.y,
       startDist: Math.hypot(e.clientX - c.x, e.clientY - c.y),
       startW: l.wPct,
-    };
+    });
   };
 
   const startRotate = (e, id) => {
     e.stopPropagation();
+    if (gesture.current) return;
     setSelectedId(id);
     const rect = canvasRef.current?.getBoundingClientRect();
     const l = layers.find((x) => x.id === id);
     if (!rect || !l) return;
     const c = centerOf(l, rect);
-    gesture.current = { mode: "rotate", id, view, centerX: c.x, centerY: c.y };
+    beginGesture(e, { mode: "rotate", id, view, centerX: c.x, centerY: c.y });
+  };
+
+  // Move handler bound to the canvas; only the pointer that started the
+  // gesture is honoured (guards against multi-touch / stray pointers).
+  const onCanvasPointerMove = (e) => {
+    const g = gesture.current;
+    if (!g || e.pointerId !== g.pointerId) return;
+    if (g.mode === "move") {
+      const dx = ((e.clientX - g.startX) / g.rect.width) * 100;
+      const dy = ((e.clientY - g.startY) / g.rect.height) * 100;
+      applyPatch(g.view, g.id, { cx: clamp(g.startCx + dx, 0, 100), cy: clamp(g.startCy + dy, 0, 100) });
+    } else if (g.mode === "resize") {
+      const dist = Math.hypot(e.clientX - g.centerX, e.clientY - g.centerY);
+      const scale = g.startDist > 0 ? dist / g.startDist : 1;
+      applyPatch(g.view, g.id, { wPct: clamp(g.startW * scale, 5, 130) });
+    } else if (g.mode === "rotate") {
+      const ang = (Math.atan2(e.clientY - g.centerY, e.clientX - g.centerX) * 180) / Math.PI;
+      applyPatch(g.view, g.id, { rot: Math.round(ang + 90) });
+    }
+  };
+
+  // Finalise: release capture + clear temporary drag state. Selection is
+  // intentionally preserved so the object stays draggable immediately.
+  const endGesture = (e) => {
+    const g = gesture.current;
+    if (!g) return;
+    if (e && typeof e.pointerId === "number" && e.pointerId !== g.pointerId) return;
+    const canvas = canvasRef.current;
+    try {
+      if (canvas && canvas.hasPointerCapture && canvas.hasPointerCapture(g.pointerId)) {
+        canvas.releasePointerCapture(g.pointerId);
+      }
+    } catch { /* ignore */ }
+    gesture.current = null;
   };
 
   /* ---------- upload gambar ---------- */
@@ -468,7 +498,12 @@ export default function CustomTees() {
               ref={canvasRef}
               className="relative h-[62vh] w-auto"
               data-testid="tee-canvas"
+              style={{ touchAction: "none" }}
               onPointerDown={(e) => { if (e.target === e.currentTarget || e.target.tagName === "IMG") setSelectedId(null); }}
+              onPointerMove={onCanvasPointerMove}
+              onPointerUp={endGesture}
+              onPointerCancel={endGesture}
+              onLostPointerCapture={endGesture}
             >
               <img
                 src={MOCKUPS[view]}
