@@ -299,6 +299,38 @@ export function serializeMockup(m: any) {
   };
 }
 
+export function serializeCustomTeeOrder(o: any, withDesign = true) {
+  let design: any = null;
+  try { design = JSON.parse(o.design_json || 'null'); } catch { design = null; }
+  let sizeItems: any[] = [];
+  try {
+    const parsed = JSON.parse(o.size_items_json || '[]');
+    sizeItems = Array.isArray(parsed) ? parsed : [];
+  } catch { sizeItems = []; }
+  if (sizeItems.length === 0 && o.size) sizeItems = [{ size: o.size, qty: o.qty || 1 }];
+  return {
+    id: o.id,
+    order_code: o.order_code,
+    status: o.status,
+    customer_name: o.customer_name || '',
+    customer_phone: o.customer_phone || '',
+    customer_email: o.customer_email || '',
+    product_key: o.product_key,
+    product_title: o.product_title || '',
+    size: o.size || '',
+    size_items: sizeItems,
+    qty: o.qty || 1,
+    color_name: o.color_name || '',
+    color_hex: o.color_hex || '',
+    objects_count: o.objects_count || 0,
+    note: o.note || '',
+    submitted_at: toIso(o.submitted_at),
+    created_at: toIso(o.created_at),
+    updated_at: toIso(o.updated_at),
+    ...(withDesign ? { design } : {}),
+  };
+}
+
 export function serializeCustomProduct(p: any) {
   let sizes: string[] = [];
   let specs: string[] = [];
