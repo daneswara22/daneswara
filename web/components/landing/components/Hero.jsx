@@ -41,12 +41,20 @@ export const Hero = ({ onQuoteClick, onGalleryClick }) => {
           </p>
 
           <div className="mt-8 flex flex-col sm:flex-row gap-4">
-            <button
-              data-testid="hero-cta-quote"
-              onClick={onQuoteClick}
+            {/* "Rancang Sendiri" membuka desainer kaos publik (/custom) */}
+            <a
+              data-testid="hero-cta-design"
+              href="/custom"
               className="inline-flex items-center justify-center gap-2 bg-primary text-primary-foreground px-6 py-3.5 border-2 border-foreground shadow-stamp font-bold uppercase tracking-wider text-sm lift"
             >
               {t("cta_design")} <ArrowRight size={16} />
+            </a>
+            <button
+              data-testid="hero-cta-quote"
+              onClick={onQuoteClick}
+              className="inline-flex items-center justify-center gap-2 bg-background text-foreground px-6 py-3.5 border-2 border-foreground shadow-stamp font-bold uppercase tracking-wider text-sm lift"
+            >
+              {t("cta_quote")} <ArrowRight size={16} />
             </button>
             <button
               data-testid="hero-cta-gallery"

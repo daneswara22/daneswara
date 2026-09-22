@@ -51,6 +51,18 @@ export default function Order() {
           <h1 className="font-display mt-2 text-4xl sm:text-5xl uppercase tracking-wider leading-none">
             {isID ? "Konfirmasi Order" : "Confirm Your Order"}
           </h1>
+          <a
+            data-testid="order-custom-tees-cta"
+            href="/custom"
+            className="mt-5 inline-flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2.5 border-2 border-foreground shadow-stamp font-bold uppercase tracking-wider text-xs lift"
+          >
+            {isID ? "Desain kaos sendiri — Custom Kaos" : "Design your own tee — Custom Tees"}
+          </a>
+          <p className="mt-2 text-[11px] uppercase tracking-widest text-muted-foreground">
+            {isID
+              ? "Gratis dipakai, tanpa perlu akun. Lihat estimasi harga langsung."
+              : "Free to use, no account needed. See the price estimate instantly."}
+          </p>
         </div>
       </header>
 

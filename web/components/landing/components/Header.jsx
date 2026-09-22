@@ -14,6 +14,7 @@ export const Header = ({ onCtaClick }) => {
   }, []);
 
   const nav = [
+    { href: "/custom", label: t("nav_custom"), id: "nav-custom", external: true },
     { href: "#gallery", label: t("nav_gallery"), id: "nav-gallery" },
     { href: "#pricing", label: t("nav_pricing"), id: "nav-pricing" },
     { href: "#process", label: t("nav_process"), id: "nav-process" },
@@ -51,7 +52,9 @@ export const Header = ({ onCtaClick }) => {
               key={n.href}
               href={n.href}
               data-testid={n.id}
-              className="text-sm uppercase tracking-[0.18em] font-medium hover:text-primary transition-colors"
+              className={`text-sm uppercase tracking-[0.18em] font-medium transition-colors ${
+                n.external ? "text-primary font-bold hover:opacity-80" : "hover:text-primary"
+              }`}
             >
               {n.label}
             </a>

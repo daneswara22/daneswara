@@ -121,7 +121,7 @@ const CANVAS_VH = 62;
 const textFontVh = (wPct) => (wPct / 100) * CANVAS_VH;
 const isTextLayer = (l) => l && l.type === "text";
 
-export default function CustomTees() {
+export default function CustomTees({ publicMode = false }) {
   const navigate = useNavigate();
   const [view, setView] = useState("Depan");
   const [color, setColor] = useState(SWATCHES[0]); // Putih (default)
@@ -139,6 +139,8 @@ export default function CustomTees() {
   const [draftId, setDraftId] = useState(null);
   const [ordersOpen, setOrdersOpen] = useState(false);
   const [newOrderCount, setNewOrderCount] = useState(0);
+  /** Estimasi harga dari server (POST /api/public/custom-tees/quote). */
+  const [quote, setQuote] = useState(null);
 
   const canvasRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -381,11 +383,12 @@ export default function CustomTees() {
   }, [sizeQty, color, design]);
 
   const refreshOrderCount = useCallback(async () => {
+    if (publicMode) return;   // badge admin tidak ada di halaman publik
     try {
       const { data } = await api.get("/custom-tees/orders/count");
       setNewOrderCount(Number(data?.new || 0));
     } catch { /* badge bersifat opsional */ }
-  }, []);
+  }, [publicMode]);
 
   useEffect(() => { refreshOrderCount(); }, [refreshOrderCount]);
 
@@ -401,8 +404,21 @@ export default function CustomTees() {
     }
     setCheckingPrice(true);
     try {
-      const { data } = await api.post("/public/custom-tees/drafts", designPayload());
+      const payload = designPayload();
+      // Estimasi harga dihitung di server supaya angkanya tidak bisa diubah
+      // dari browser. Kalau gagal, alur pesanan tetap lanjut tanpa angka.
+      const quotePromise = api
+        .post("/public/custom-tees/quote", {
+          size: payload.size,
+          size_items: payload.size_items,
+          qty: payload.qty,
+          design: payload.design,
+        })
+        .then((r) => r.data)
+        .catch(() => null);
+      const { data } = await api.post("/public/custom-tees/drafts", payload);
       setDraftId(data?.id || null);
+      setQuote(await quotePromise);
       setPreviewOpen(false);
       setOrderFormOpen(true);
     } catch (e) {
@@ -449,8 +465,8 @@ export default function CustomTees() {
             Desainer kaos paling nyaman dibuka di layar tablet atau komputer. Silakan buka lewat perangkat yang lebih besar.
           </p>
         </div>
-        <button onClick={() => navigate("/app")} className="rounded-lg bg-zinc-900 px-5 py-2 text-sm font-semibold text-white">
-          Kembali ke Admin
+        <button onClick={() => navigate(publicMode ? "/" : "/app")} className="rounded-lg bg-zinc-900 px-5 py-2 text-sm font-semibold text-white">
+          {publicMode ? "Kembali ke Beranda" : "Kembali ke Admin"}
         </button>
       </div>
 
@@ -493,21 +509,31 @@ export default function CustomTees() {
 
         {/* Actions */}
         <div className="flex items-center gap-1">
-          <button
-            onClick={() => setOrdersOpen(true)}
-            data-testid="open-orders-button"
-            className="mr-1 flex items-center gap-1.5 rounded-full border border-zinc-300 px-3.5 py-1.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
-          >
-            <ClipboardList className="h-4 w-4" /> Pesanan
-            {newOrderCount > 0 && (
-              <span
-                data-testid="orders-badge"
-                className="ml-0.5 inline-flex min-w-[20px] items-center justify-center rounded-full bg-blue-600 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white"
-              >
-                {newOrderCount}
-              </span>
-            )}
-          </button>
+          {publicMode ? (
+            <a
+              href="/"
+              data-testid="designer-home-link"
+              className="mr-1 flex items-center gap-1.5 rounded-full border border-zinc-300 px-3.5 py-1.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
+            >
+              Beranda
+            </a>
+          ) : (
+            <button
+              onClick={() => setOrdersOpen(true)}
+              data-testid="open-orders-button"
+              className="mr-1 flex items-center gap-1.5 rounded-full border border-zinc-300 px-3.5 py-1.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
+            >
+              <ClipboardList className="h-4 w-4" /> Pesanan
+              {newOrderCount > 0 && (
+                <span
+                  data-testid="orders-badge"
+                  className="ml-0.5 inline-flex min-w-[20px] items-center justify-center rounded-full bg-blue-600 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white"
+                >
+                  {newOrderCount}
+                </span>
+              )}
+            </button>
+          )}
           <ToolbarIcon icon={Undo2} label="Undo" />
           <ToolbarIcon icon={Redo2} label="Redo" />
           <ToolbarIcon icon={Save} label="Simpan" />
@@ -845,7 +871,11 @@ export default function CustomTees() {
           >
             <RotateCcw className="h-4 w-4" /> Reset Desain
           </button>
-          <button className="flex items-center gap-2 rounded-lg bg-zinc-900 px-5 py-2 text-sm font-semibold text-white hover:bg-zinc-800">
+          <button
+            onClick={() => setPreviewOpen(true)}
+            data-testid="continue-button"
+            className="flex items-center gap-2 rounded-lg bg-zinc-900 px-5 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
+          >
             Lanjutkan <ArrowRight className="h-4 w-4" />
           </button>
         </div>
@@ -872,16 +902,18 @@ export default function CustomTees() {
         color={color}
         sizeItems={selectedSizeItems(sizeQty)}
         product={PRODUCT}
+        quote={quote}
         onSubmit={submitOrder}
       />
 
-      {/* Daftar pesanan Custom Tees (admin) */}
-      <OrdersModal
-        open={ordersOpen}
-        onClose={() => { setOrdersOpen(false); refreshOrderCount(); }}
-        onCountChange={refreshOrderCount}
-      />
-    </div>
+      {/* Daftar pesanan Custom Tees (admin) — tidak ada di halaman publik */}
+      {!publicMode && (
+        <OrdersModal
+          open={ordersOpen}
+          onClose={() => { setOrdersOpen(false); refreshOrderCount(); }}
+          onCountChange={refreshOrderCount}
+        />
+      )}    </div>
   );
 }
 
@@ -1163,7 +1195,7 @@ function PreviewModal({ open, onClose, design, color, sizeItems, onCheckPrice, c
    ORDER FLOW (tambahan): form data customer setelah "Cek Harga".
    Desain yang sedang dikerjakan TIDAK diubah/dihapus oleh modal ini.
    ========================================================================= */
-function OrderFormModal({ open, onClose, design, color, sizeItems, product, onSubmit }) {
+function OrderFormModal({ open, onClose, design, color, sizeItems, product, quote, onSubmit }) {
   const [form, setForm] = useState({ name: "", phone: "", email: "" });
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
@@ -1311,6 +1343,9 @@ function OrderFormModal({ open, onClose, design, color, sizeItems, product, onSu
                 </div>
               </div>
 
+              {/* Estimasi harga (dihitung di server) */}
+              <QuoteCard quote={quote} />
+
               {/* Data customer */}
               <div className="mt-6 grid gap-4 md:grid-cols-3">
                 <Field
@@ -1352,8 +1387,83 @@ function OrderFormModal({ open, onClose, design, color, sizeItems, product, onSu
   );
 }
 
-function SummaryRow({ label, value, testid }) {
+/* ---------- estimasi harga: rincian dari /api/public/custom-tees/quote ---------- */
+const rupiah = (n) => "Rp " + Number(n || 0).toLocaleString("id-ID");
+
+function QuoteCard({ quote }) {
+  if (!quote) return null;
   return (
+    <div
+      className="mt-6 overflow-hidden rounded-2xl border-2 border-zinc-900 bg-white"
+      data-testid="quote-card"
+    >
+      <div className="flex flex-wrap items-end justify-between gap-3 border-b border-zinc-200 bg-zinc-900 px-4 py-3 text-white">
+        <div>
+          <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-300">
+            Estimasi Harga
+          </div>
+          <div className="text-2xl font-extrabold leading-tight" data-testid="quote-total">
+            {rupiah(quote.total)}
+          </div>
+        </div>
+        <div className="text-right text-[12px] leading-tight text-zinc-300">
+          <div data-testid="quote-total-qty">{quote.total_qty} pcs</div>
+          <div data-testid="quote-per-pcs">{rupiah(quote.price_per_pcs)} / pcs</div>
+        </div>
+      </div>
+
+      <div className="divide-y divide-zinc-100 px-4 py-2 text-sm" data-testid="quote-lines">
+        {(quote.lines || []).map((l, i) => (
+          <div key={`${l.label}-${i}`} className="flex items-start justify-between gap-3 py-1.5">
+            <div className="min-w-0">
+              <div className="font-semibold text-zinc-800">{l.label}</div>
+              <div className="text-[11px] text-zinc-500">{l.detail}</div>
+            </div>
+            <div className="shrink-0 font-semibold text-zinc-900">{rupiah(l.amount)}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="space-y-1 border-t border-zinc-100 px-4 py-2.5 text-sm">
+        <div className="flex items-center justify-between text-zinc-600">
+          <span>Subtotal</span>
+          <span className="font-semibold text-zinc-900" data-testid="quote-subtotal">{rupiah(quote.subtotal)}</span>
+        </div>
+        {quote.discount_percent > 0 && (
+          <div className="flex items-center justify-between text-emerald-700">
+            <span>Diskon jumlah {quote.discount_percent}%</span>
+            <span className="font-semibold" data-testid="quote-discount">- {rupiah(quote.discount_amount)}</span>
+          </div>
+        )}
+        {quote.small_order_fee > 0 && (
+          <div className="flex items-center justify-between text-zinc-600">
+            <span>Biaya order kecil</span>
+            <span className="font-semibold text-zinc-900" data-testid="quote-small-fee">{rupiah(quote.small_order_fee)}</span>
+          </div>
+        )}
+        <div className="flex items-center justify-between border-t border-zinc-200 pt-1.5 text-base">
+          <span className="font-bold text-zinc-900">Total estimasi</span>
+          <span className="font-extrabold text-zinc-900">{rupiah(quote.total)}</span>
+        </div>
+      </div>
+
+      {quote.next_tier && (
+        <div
+          className="border-t border-zinc-100 bg-emerald-50 px-4 py-2 text-[12px] font-semibold text-emerald-800"
+          data-testid="quote-next-tier"
+        >
+          Tambah {quote.next_tier.add_qty} pcs lagi (total {quote.next_tier.min_qty} pcs) untuk dapat diskon {quote.next_tier.percent}%.
+        </div>
+      )}
+
+      <div className="border-t border-zinc-100 px-4 py-2 text-[11px] leading-relaxed text-zinc-500" data-testid="quote-note">
+        {quote.note}
+      </div>
+    </div>
+  );
+}
+
+function SummaryRow({ label, value, testid }) {  return (
     <div className="rounded-xl border border-zinc-200 p-3">
       <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">{label}</div>
       <div className="mt-0.5 text-sm font-semibold text-zinc-900" data-testid={testid}>{value || "—"}</div>
