@@ -1,6 +1,11 @@
 import { ArrowRight, Play } from "lucide-react";
 import { useLang } from "@/components/landing/i18n/LangContext";
 
+/**
+ * Hero halaman awal.
+ * Tata letak dua kolom: teks + CTA di kiri, ilustrasi editor kaos di kanan.
+ * Ilustrasi kanan bisa diklik dan membawa pengunjung ke desainer publik `/custom`.
+ */
 export const Hero = ({ onQuoteClick, onGalleryClick }) => {
   const { t } = useLang();
   const stats = {
@@ -13,73 +18,70 @@ export const Hero = ({ onQuoteClick, onGalleryClick }) => {
     <section
       id="top"
       data-testid="hero-section"
-      className="relative border-b-2 border-foreground"
+      className="relative overflow-hidden border-b border-foreground/15 bg-background"
     >
-      <div className="absolute inset-0 bg-noise opacity-60 pointer-events-none" />
-      <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-10 pt-12 pb-16 sm:pt-20 sm:pb-24 grid lg:grid-cols-12 gap-10 lg:gap-16 items-center">
-        <div className="lg:col-span-7">
-          <div className="inline-flex items-center gap-2 border-2 border-foreground px-3 py-1.5 bg-card text-[10px] sm:text-xs uppercase tracking-[0.25em] font-bold">
-            <span className="w-1.5 h-1.5 bg-primary inline-block" />
+      <div className="absolute inset-0 bg-noise opacity-25 pointer-events-none" />
+
+      <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-4 pb-16 pt-12 sm:px-6 sm:pb-20 sm:pt-16 lg:grid-cols-12 lg:gap-14 lg:px-10 lg:pb-24">
+        {/* ---------- Kiri: judul, deskripsi, CTA, angka ---------- */}
+        <div className="lg:col-span-6">
+          <div className="inline-flex items-center gap-2.5 rounded-full border border-foreground/25 bg-card px-4 py-2 text-[10px] font-bold uppercase tracking-[0.26em] sm:text-[11px]">
+            <span className="inline-block h-1.5 w-1.5 bg-foreground" />
             {t("hero_eyebrow")}
           </div>
 
           <h1
             data-testid="hero-title"
-            className="font-display mt-6 text-5xl sm:text-6xl lg:text-8xl leading-[0.98] tracking-tight"
+            className="font-display mt-7 text-[2.75rem] font-extrabold leading-[0.95] tracking-[-0.03em] text-foreground sm:text-6xl lg:text-7xl"
           >
             {t("hero_title_a")}{" "}
             <span className="relative inline-block">
-              <span className="relative z-10 text-primary">{t("hero_title_b")}</span>
-              <span className="absolute left-0 bottom-1 w-full h-3 bg-foreground/10 -z-0" />
-            </span>
-            <br />
+              <span className="relative z-10">{t("hero_title_b")}</span>
+              <span className="absolute bottom-1.5 left-0 -z-0 h-3 w-full bg-foreground/12 sm:h-4" />
+            </span>{" "}
             {t("hero_title_c")}
           </h1>
 
-          <p className="mt-6 max-w-xl text-base sm:text-lg leading-relaxed text-muted-foreground">
+          <p className="mt-6 max-w-md text-[15px] leading-relaxed text-muted-foreground sm:text-base">
             {t("hero_sub")}
           </p>
 
-          <div className="mt-8 flex flex-col sm:flex-row gap-4">
-            {/* "Rancang Sendiri" membuka desainer kaos publik (/custom) */}
+          <div className="mt-9 flex flex-wrap items-center gap-3 lg:flex-nowrap">
+            {/* CTA utama: membuka desainer kaos publik */}
             <a
               data-testid="hero-cta-design"
               href="/custom"
-              className="inline-flex items-center justify-center gap-2 bg-primary text-primary-foreground px-6 py-3.5 border-2 border-foreground shadow-stamp font-bold uppercase tracking-wider text-sm lift"
+              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full bg-foreground px-6 py-3.5 text-[11px] font-bold uppercase tracking-[0.12em] text-background transition hover:opacity-90"
             >
-              {t("cta_design")} <ArrowRight size={16} />
+              {t("cta_design")} <ArrowRight size={14} />
             </a>
             <button
               data-testid="hero-cta-quote"
               onClick={onQuoteClick}
-              className="inline-flex items-center justify-center gap-2 bg-background text-foreground px-6 py-3.5 border-2 border-foreground shadow-stamp font-bold uppercase tracking-wider text-sm lift"
+              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full border-2 border-foreground/85 bg-background px-5 py-3 text-[11px] font-bold uppercase tracking-[0.12em] text-foreground transition hover:bg-card"
             >
-              {t("cta_quote")} <ArrowRight size={16} />
+              {t("cta_quote")} <ArrowRight size={14} />
             </button>
             <button
               data-testid="hero-cta-gallery"
               onClick={onGalleryClick}
-              className="inline-flex items-center justify-center gap-2 bg-background text-foreground px-6 py-3.5 border-2 border-foreground shadow-stamp font-bold uppercase tracking-wider text-sm lift"
+              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full border-2 border-foreground/85 bg-background px-5 py-3 text-[11px] font-bold uppercase tracking-[0.12em] text-foreground transition hover:bg-card"
             >
-              <Play size={14} /> {t("cta_view")}
+              <Play size={12} /> {t("cta_view")}
             </button>
           </div>
 
-          <div className="mt-12 grid grid-cols-3 gap-4 sm:gap-8 max-w-lg">
+          <div className="mt-12 grid max-w-md grid-cols-3 gap-5 sm:gap-8">
             {[
-              { v: stats.shirts_printed?.toLocaleString?.() ?? "12,480", l: t("hero_stat_shirts") },
+              { v: stats.shirts_printed?.toLocaleString?.("en-US") ?? "12,480", l: t("hero_stat_shirts") },
               { v: `${stats.happy_clients}+`, l: t("hero_stat_clients") },
               { v: stats.years_in_print, l: t("hero_stat_years") },
             ].map((s, i) => (
-              <div
-                key={i}
-                data-testid={`hero-stat-${i}`}
-                className="border-l-2 border-foreground pl-3"
-              >
-                <div className="font-display text-3xl sm:text-4xl text-foreground leading-none">
+              <div key={i} data-testid={`hero-stat-${i}`}>
+                <div className="font-display text-3xl font-extrabold leading-none tracking-[-0.02em] text-foreground sm:text-[2.1rem]">
                   {s.v}
                 </div>
-                <div className="mt-2 text-[10px] sm:text-xs uppercase tracking-[0.2em] text-muted-foreground">
+                <div className="mt-2 text-[10px] uppercase leading-snug tracking-[0.18em] text-muted-foreground">
                   {s.l}
                 </div>
               </div>
@@ -87,33 +89,29 @@ export const Hero = ({ onQuoteClick, onGalleryClick }) => {
           </div>
         </div>
 
-        <div className="lg:col-span-5">
-          <div className="relative">
-            <div className="absolute -top-4 -left-4 w-full h-full bg-transparent border-2 border-foreground" />
-            <div
+        {/* ---------- Kanan: ilustrasi editor, klik -> /custom ---------- */}
+        <div className="lg:col-span-6">
+          <a
+            href="/custom"
+            data-testid="hero-designer-link"
+            aria-label={t("hero_designer_cta")}
+            className="group relative block focus:outline-none focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-4"
+          >
+            <img
               data-testid="hero-image"
-              className="relative w-full h-[420px] sm:h-[520px] grid place-items-center bg-card border-2 border-foreground p-10"
-            >
-              <img
-                src="/assets/daneswara-logo.webp"
-                alt="Daneswara Print logo"
-                className="max-w-[80%] max-h-[80%] object-contain"
-              />
-            </div>
-            <div className="absolute -bottom-6 -right-3 sm:-right-6 bg-card border-2 border-foreground shadow-stamp px-4 py-3 max-w-[220px]">
-              <div className="font-script text-2xl text-primary leading-none">since 2016</div>
-              <div className="text-[10px] tracking-wide mt-1 normal-case leading-snug">
-                We may not be the best, but we do our best on every project.
-              </div>
-            </div>
-            <div className="absolute -top-6 right-6 hidden sm:flex w-20 h-20 rounded-full border-2 border-foreground bg-background items-center justify-center font-display text-xs tracking-tight rotate-12">
-              <span className="text-center leading-tight">
-                Small
-                <br />
-                Batch
-              </span>
-            </div>
-          </div>
+              src="/assets/daneswara-custom-editor.webp"
+              alt={t("hero_designer_alt")}
+              width={1180}
+              height={1333}
+              loading="eager"
+              className="mx-auto w-full max-w-[560px] select-none transition-transform duration-300 ease-out group-hover:-translate-y-1.5 group-hover:scale-[1.015]"
+            />
+
+            {/* Penanda bahwa ilustrasi ini bisa diklik */}
+            <span className="pointer-events-none absolute inset-x-0 bottom-2 mx-auto flex w-fit items-center gap-2 rounded-full bg-foreground px-5 py-2.5 text-[11px] font-bold uppercase tracking-[0.14em] text-background opacity-0 shadow-lg transition-all duration-300 group-hover:opacity-100 group-focus-visible:opacity-100 sm:bottom-4">
+              {t("hero_designer_cta")} <ArrowRight size={14} />
+            </span>
+          </a>
         </div>
       </div>
     </section>
