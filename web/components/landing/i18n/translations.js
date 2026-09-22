@@ -17,6 +17,8 @@ export const translations = {
     hero_title_c: "on your sleeve.",
     hero_sub:
       "Hand-pulled screen prints and DTF drops, small-batch and built to last. From one-off birthday tees to full merch runs for the bands and brands we love.",
+    hero_designer_cta: "Open the designer",
+    hero_designer_alt: "Daneswara custom t-shirt designer: text, image, colour and layer tools",
     hero_stat_shirts: "Shirts printed",
     hero_stat_clients: "Happy clients",
     hero_stat_years: "Years in ink",
@@ -109,6 +111,8 @@ export const translations = {
     hero_title_c: "kamu di kaos.",
     hero_sub:
       "Sablon manual dan DTF, batch kecil dan tahan lama. Mulai dari kaos ulang tahun satuan sampai merch lengkap buat band dan brand favorit kami.",
+    hero_designer_cta: "Buka desainer kaos",
+    hero_designer_alt: "Desainer kaos custom Daneswara: tool teks, gambar, warna, dan layer",
     hero_stat_shirts: "Kaos dicetak",
     hero_stat_clients: "Klien puas",
     hero_stat_years: "Tahun pengalaman",
