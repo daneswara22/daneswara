@@ -1,5 +1,6 @@
 export const translations = {
   en: {
+    nav_custom: "Design Your Tee",
     nav_gallery: "Gallery",
     nav_pricing: "Pricing",
     nav_process: "How it works",
@@ -92,6 +93,7 @@ export const translations = {
     footer_rights: "All rights reserved.",
   },
   id: {
+    nav_custom: "Custom Kaos",
     nav_gallery: "Galeri",
     nav_pricing: "Harga",
     nav_process: "Cara kerja",

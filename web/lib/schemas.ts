@@ -189,6 +189,17 @@ export const customTeeDraftSchema = z.object({
   design: z.record(z.string(), z.array(z.any())).optional().default({}),
 });
 
+/** Estimasi harga: tidak menulis data, jadi cukup ukuran + jumlah objek per sisi. */
+export const customTeeQuoteSchema = z.object({
+  size: z.string().optional().default('L'),
+  size_items: z.array(z.object({
+    size: z.string().min(1),
+    qty: z.coerce.number().int().min(1).max(9999),
+  })).optional().default([]),
+  qty: z.coerce.number().int().min(1).max(99999).optional().default(1),
+  design: z.record(z.string(), z.array(z.any())).optional().default({}),
+});
+
 export const customTeeOrderSchema = z.object({
   ...customTeeBase,
   draft_id: z.string().nullable().optional(),
