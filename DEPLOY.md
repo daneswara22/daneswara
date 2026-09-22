@@ -54,6 +54,27 @@ Single-container Next.js 15 App with standalone output. Coolify deploys via **Do
 - Prisma is used with `db pull` only. **DO NOT** run `prisma migrate` against production - migrations can drop columns.
 - On first boot the app seeds Owner/settings if the `users` table is empty (idempotent).
 
+### Perubahan skema database
+Karena `prisma migrate` tidak dipakai di sini, tabel/kolom baru **tidak ikut terpasang otomatis saat deploy**. Kalau sebuah fitur baru sudah ter-merge tetapi tabelnya belum ada di produksi, gejalanya muncul sebagai error Prisma `P2021` di UI, misalnya "The table `custom_tee_orders` does not exist in the current database" saat menekan "Cek Harga".
+
+Alur yang dipakai:
+
+1. Cek selisih antara database dan `schema.prisma` (read-only, tidak mengubah apa pun):
+   ```bash
+   cd web
+   npx prisma migrate diff --from-url "$DATABASE_URL" \
+     --to-schema-datamodel prisma/schema.prisma --script
+   ```
+   Kalau hasilnya `-- This is an empty migration.` berarti skema sudah sinkron.
+2. Periksa hasilnya. Ambil **hanya** pernyataan aditif (`CREATE TABLE`, `CREATE INDEX`, `ADD COLUMN`). Jangan pernah menjalankan `DROP`/`ALTER ... DROP` dari hasil diff ke produksi.
+3. Simpan pernyataan itu sebagai berkas SQL di `web/prisma/sql/<tanggal>_<nama>.sql` supaya ada jejaknya, lalu terapkan:
+   ```bash
+   mysql -h <host> -P <port> -u <user> -p default < web/prisma/sql/<tanggal>_<nama>.sql
+   ```
+4. Ulangi langkah 1 untuk memastikan hasilnya sudah kosong, lalu cek `GET /api/health` -> `database: ok`.
+
+Riwayat SQL yang sudah diterapkan ada di `web/prisma/sql/`.
+
 ## Cloudflare R2
 - Bucket: `daneswaraobjectr2`
 - CDN domain: `https://cdn.daneswara.com`
