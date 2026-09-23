@@ -14,20 +14,23 @@ import {
   MAX_FONT_BYTES, ACCEPTED_FONT_EXTS, FONT_GUIDE,
   fontFormatByExt, extFromFilename, familyFromName,
 } from '@/lib/fonts';
+import { ensureFontSchema } from '@/lib/schemaGuard';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 export const GET = handle(async (req: NextRequest) => {
+  await ensureFontSchema();
   const user = await getCurrentUser(req);
   const rows = await prisma.custom_fonts.findMany({
     where: { tenant_id: user.tenant_id },
     orderBy: [{ sort_order: 'asc' }, { created_at: 'asc' }],
   });
-  return { items: rows.map(serializeFont), total: rows.length, guide: FONT_GUIDE };
+  return { items: rows.map((r) => serializeFont(r)), total: rows.length, guide: FONT_GUIDE };
 });
 
 export const POST = handle(async (req: NextRequest) => {
+  await ensureFontSchema();
   const user = await requireRoles(req, 'Owner', 'Manager');
 
   const form = await req.formData();

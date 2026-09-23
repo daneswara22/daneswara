@@ -11,6 +11,7 @@ import { handle, readBody } from '@/lib/handler';
 import { HttpError } from '@/lib/http';
 import { storage } from '@/lib/storage';
 import { serializeFont } from '@/lib/serializers';
+import { ensureFontSchema } from '@/lib/schemaGuard';
 
 const updateSchema = z.object({
   name: z.string().trim().min(2, 'Nama font minimal 2 karakter').max(80).optional(),
@@ -25,6 +26,7 @@ async function findFont(id: string, tenantId: string) {
 }
 
 export const PUT = handle(async (req: NextRequest, ctx: any) => {
+  await ensureFontSchema();
   const user = await requireRoles(req, 'Owner', 'Manager');
   const { id } = await ctx.params;
   await findFont(id, user.tenant_id);
@@ -44,6 +46,7 @@ export const PUT = handle(async (req: NextRequest, ctx: any) => {
 });
 
 export const DELETE = handle(async (req: NextRequest, ctx: any) => {
+  await ensureFontSchema();
   const user = await requireRoles(req, 'Owner', 'Manager');
   const { id } = await ctx.params;
   const existing = await findFont(id, user.tenant_id);

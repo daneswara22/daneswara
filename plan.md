@@ -241,3 +241,48 @@ Pada sub menu **Custom Tees**, admin bisa menambahkan font baru sendiri, dan
   kustom, tombol "Kelola Font" tidak ada di `/custom` publik.
 - `yarn test:core` 7/7 hijau, `npx eslint .` exit 0, `yarn build` sukses (4 route
   font terdaftar). Font uji dihapus lagi setelah pengujian.
+
+---
+
+## Sesi 2026-09-23 (perbaikan) — Error `custom_fonts does not exist`
+
+### Gejala yang dilaporkan pemilik
+Saat menekan "Tambahkan Font" di modal Kelola Font, muncul error merah:
+`Invalid prisma.custom_fonts.findFirst() invocation: The table custom_fonts
+does not exist in the current database.`
+
+### Akar masalah
+Bukan bug kode. Proyek ini tidak memakai `prisma migrate`, jadi tabel baru tidak
+ikut terpasang saat deploy (lihat DEPLOY.md "Perubahan skema database"). Kodenya
+sudah ter-merge lewat PR #38, tetapi berkas
+`web/prisma/sql/2026-09-23_custom_fonts.sql` belum pernah dijalankan ke database
+yang dipakai, sehingga tabelnya belum ada. Ini persis gejala `P2021` yang sudah
+didokumentasikan sebelumnya untuk `custom_tee_orders`.
+
+### Perbaikan — SELESAI
+Daripada hanya meminta pemilik menjalankan SQL manual, dibuat jaring pengaman
+**`web/lib/schemaGuard.ts`**:
+- `ensureFontSchema()` \u2014 memastikan tabel `custom_fonts` ada.
+- `ensureProductTypeSchema()` \u2014 memastikan kolom baru `custom_products` serta
+  tabel `custom_product_colors` dan `custom_product_sizes` ada (fitur PR #37
+  punya risiko yang sama).
+- Dipanggil di awal semua endpoint `/api/fonts*`, `/api/custom-products*`,
+  `/api/public/fonts*`, dan `/api/public/custom-products`.
+- Semua perintahnya **aditif dan idempotent**: hanya `CREATE TABLE IF NOT EXISTS`
+  dan `ADD COLUMN` yang dijaga `information_schema`. **Tidak ada DROP/TRUNCATE**,
+  jadi aman untuk database produksi yang sudah berisi data. Hasilnya di-cache per
+  proses sehingga biayanya hanya sekali di request pertama.
+
+### Verifikasi (tanpa agen penguji, sesuai permintaan)
+Situasi pemilik direproduksi langsung di sandbox: tabel `custom_fonts`,
+`custom_product_colors`, `custom_product_sizes` di-DROP dan kolom `price` serta
+`is_active` dihapus dari `custom_products`. Setelah restart:
+- `/api/public/fonts` dan `/api/public/custom-products` **tidak lagi error**,
+- tabel dan kolom terbentuk kembali otomatis (dicek lewat `SHOW TABLES` dan
+  `SHOW COLUMNS`),
+- warna & size chart ikut ter-seed ulang (8/6/5 warna, 8/6/5 ukuran),
+- unggah font WOFF2 berhasil dan berkasnya tersaji `200 font/woff2`.
+- `yarn test:core` 7/7 hijau, `npx tsc --noEmit` bersih untuk berkas yang diubah,
+  `npx eslint .` exit 0, `yarn build` sukses.
+
+DEPLOY.md diperbarui untuk mencatat adanya pengaman otomatis ini.

@@ -13,6 +13,7 @@ import { storage } from '@/lib/storage';
 import { serializeProductType } from '@/lib/serializers';
 import { slugifyProductKey } from '@/lib/productTypes';
 import { listProductTypes, ensureSeedProductTypes } from '@/lib/productTypeQueries';
+import { ensureProductTypeSchema } from '@/lib/schemaGuard';
 
 export const createSchema = z.object({
   title: z.string().trim().min(2, 'Nama produk minimal 2 karakter').max(200),
@@ -30,6 +31,7 @@ export const createSchema = z.object({
 });
 
 export const GET = handle(async (req: NextRequest) => {
+  await ensureProductTypeSchema();
   const user = await getCurrentUser(req);
   const url = new URL(req.url);
   await ensureSeedProductTypes(user.tenant_id);
@@ -43,6 +45,7 @@ export const GET = handle(async (req: NextRequest) => {
 });
 
 export const POST = handle(async (req: NextRequest) => {
+  await ensureProductTypeSchema();
   const user = await requireRoles(req, 'Owner', 'Manager');
   const data = createSchema.parse(await readBody(req));
 

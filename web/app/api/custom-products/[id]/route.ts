@@ -13,10 +13,12 @@ import { storage } from '@/lib/storage';
 import { serializeProductType } from '@/lib/serializers';
 import { getProductTypeById } from '@/lib/productTypeQueries';
 import { createSchema } from '../route';
+import { ensureProductTypeSchema } from '@/lib/schemaGuard';
 
 const updateSchema = createSchema.partial();
 
 export const GET = handle(async (req: NextRequest, ctx: any) => {
+  await ensureProductTypeSchema();
   const user = await getCurrentUser(req);
   const { id } = await ctx.params;
   const row = await getProductTypeById(id, user.tenant_id);
@@ -25,6 +27,7 @@ export const GET = handle(async (req: NextRequest, ctx: any) => {
 });
 
 export const PUT = handle(async (req: NextRequest, ctx: any) => {
+  await ensureProductTypeSchema();
   const user = await requireRoles(req, 'Owner', 'Manager');
   const { id } = await ctx.params;
   const existing = await getProductTypeById(id, user.tenant_id);
@@ -74,6 +77,7 @@ export const PUT = handle(async (req: NextRequest, ctx: any) => {
 });
 
 export const DELETE = handle(async (req: NextRequest, ctx: any) => {
+  await ensureProductTypeSchema();
   const user = await requireRoles(req, 'Owner', 'Manager');
   const { id } = await ctx.params;
   const existing = await getProductTypeById(id, user.tenant_id);

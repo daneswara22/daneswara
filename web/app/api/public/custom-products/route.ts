@@ -9,8 +9,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { handle } from '@/lib/handler';
 import { listProductTypes } from '@/lib/productTypeQueries';
+import { ensureProductTypeSchema } from '@/lib/schemaGuard';
 
 export const GET = handle(async (req: NextRequest) => {
+  await ensureProductTypeSchema();
   const url = new URL(req.url);
   const data = await listProductTypes({
     page: Number(url.searchParams.get('page') || 1),
