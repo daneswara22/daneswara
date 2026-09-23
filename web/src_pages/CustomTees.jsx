@@ -9,7 +9,7 @@
  * Skala warna dibuat eksplisit (light theme) supaya persis seperti rancangan,
  * tidak terpengaruh mode gelap admin.
  */
-import { useState, useRef, useEffect, useCallback, useLayoutEffect, useId } from "react";
+import { useState, useRef, useEffect, useCallback, useLayoutEffect, useId, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import api, { formatApiError } from "@/lib/api";
@@ -39,9 +39,14 @@ const MOCKUP_MASKS = {
   "Lengan Kanan": "/mockups/lengan-kanan-mask.webp",
 };
 
-const SIZES = ["S", "M", "L", "XL", "2XL", "3XL", "4XL", "5XL"];
-const COLOR_TABS = ["Populer", "Netral", "Merah", "Biru", "Hijau", "Lainnya"];
-const SWATCHES = [
+/* ---------- fallback ukuran & warna (dipakai kalau data produk belum ada) --- */
+const FALLBACK_SIZES = ["S", "M", "L", "XL", "2XL", "3XL", "4XL", "5XL"];
+const SIZE_ORDER = ["XS", "S", "M", "L", "XL", "2XL", "3XL", "4XL", "5XL", "6XL"];
+const sizeRank = (s) => {
+  const i = SIZE_ORDER.indexOf(String(s || "").toUpperCase());
+  return i === -1 ? 900 : i;
+};
+const FALLBACK_SWATCHES = [
   { name: "Putih",        hex: "#ffffff" },
   { name: "Hitam",        hex: "#111111" },
   { name: "Abu Muda",     hex: "#cbd0d6" },
@@ -74,19 +79,28 @@ const TOOLS = [
 
 const STEPS = ["Produk", "Desain", "Preview", "Pesanan"];
 
-/* ---------- produk aktif (tahap ini masih satu produk) ---------- */
-const PRODUCT = {
-  key: "premium-cotton-7200",
+/* ---------- produk bawaan (fallback kalau API jenis produk belum terbaca) --- */
+const FALLBACK_PRODUCT = {
+  product_key: "premium-cotton-7200",
   title: "24 COTTON LOCAL SIZE (BUILDUP TEES)",
   subtitle: "Kaos 24s Dengan ukuran local",
+  price: 0,
+  supplier: "",
+  size_region: "",
+  model: "",
+  material: "",
+  description: "",
+  colors: [],
+  size_chart: [],
 };
 const ORDER_STATUSES = ["Baru", "Diproses", "Selesai", "Dibatalkan"];
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 /* ---------- helper jumlah per ukuran (multi-size, satu desain) ---------- */
 function selectedSizeItems(sizeQty) {
-  return SIZES
-    .filter((s) => Object.prototype.hasOwnProperty.call(sizeQty || {}, s) && Number(sizeQty[s]) > 0)
+  return Object.keys(sizeQty || {})
+    .filter((s) => Number(sizeQty[s]) > 0)
+    .sort((a, b) => sizeRank(a) - sizeRank(b) || String(a).localeCompare(String(b)))
     .map((s) => ({ size: s, qty: Number(sizeQty[s]) }));
 }
 function totalPcs(sizeQty) {
@@ -124,8 +138,18 @@ const isTextLayer = (l) => l && l.type === "text";
 export default function CustomTees({ publicMode = false }) {
   const navigate = useNavigate();
   const [view, setView] = useState("Depan");
-  const [color, setColor] = useState(SWATCHES[0]); // Putih (default)
+  const [color, setColor] = useState(FALLBACK_SWATCHES[0]); // Putih (default)
   const isWhite = color.hex.toLowerCase() === "#ffffff";
+
+  /* ---------- jenis produk (dikelola admin di /app/mockup-kaos) ----------
+     Daftar produk aktif diambil dari GET /api/public/custom-products. Ukuran
+     dan warna pada panel Produk mengikuti produk yang sedang dipilih. */
+  const [products, setProducts] = useState([]);
+  const [productsLoading, setProductsLoading] = useState(true);
+  const [productId, setProductId] = useState(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
 
   const [activeTool, setActiveTool] = useState("Produk");
   const [sizeQty, setSizeQty] = useState({ L: 1 });
@@ -145,6 +169,68 @@ export default function CustomTees({ publicMode = false }) {
   const canvasRef = useRef(null);
   const fileInputRef = useRef(null);
   const gesture = useRef(null); // { mode, id, view, ... }
+
+  /* ---------- muat daftar jenis produk (publik, tanpa login) ---------- */
+  useEffect(() => {
+    let alive = true;
+    setProductsLoading(true);
+    api
+      .get("/public/custom-products?limit=50")
+      .then(({ data }) => {
+        if (!alive) return;
+        const list = Array.isArray(data?.items) ? data.items : [];
+        setProducts(list);
+        if (list.length === 0) return;
+        // hormati ?product=<product_key> (mis. dari tombol di Daftar Harga)
+        let wanted = null;
+        if (typeof window !== "undefined") {
+          const qs = new URLSearchParams(window.location.search).get("product");
+          if (qs) wanted = list.find((p) => p.product_key === qs) || null;
+        }
+        setProductId((wanted || list[0]).id);
+      })
+      .catch(() => { /* fallback ke produk bawaan */ })
+      .finally(() => { if (alive) setProductsLoading(false); });
+    return () => { alive = false; };
+  }, []);
+
+  const product = useMemo(
+    () => products.find((p) => p.id === productId) || (products.length ? products[0] : FALLBACK_PRODUCT),
+    [products, productId],
+  );
+
+  /** Ukuran yang tersedia = size chart produk (fallback ke daftar standar). */
+  const sizes = useMemo(() => {
+    const list = (product?.size_chart || []).map((s) => s.label);
+    return list.length ? list : FALLBACK_SIZES;
+  }, [product]);
+
+  /** Warna yang tersedia = varian warna produk (fallback ke palet bawaan). */
+  const swatches = useMemo(() => {
+    const list = (product?.colors || [])
+      .filter((c) => c.is_active !== false)
+      .map((c) => ({ name: c.name, hex: c.hex, thumb_url: c.thumb_url || "" }));
+    return list.length ? list : FALLBACK_SWATCHES;
+  }, [product]);
+
+  /* Saat produk berganti: warna & ukuran ikut menyesuaikan produk baru.
+     Jumlah per ukuran yang masih valid dipertahankan supaya tidak hilang. */
+  useEffect(() => {
+    if (!product) return;
+    setColor((prev) => {
+      const match = swatches.find((c) => c.hex.toLowerCase() === String(prev?.hex || "").toLowerCase());
+      return match || swatches[0];
+    });
+    setSizeQty((prev) => {
+      const kept = {};
+      for (const s of sizes) {
+        if (Number(prev?.[s]) > 0) kept[s] = Number(prev[s]);
+      }
+      if (Object.keys(kept).length) return kept;
+      const def = sizes.includes("L") ? "L" : sizes[0];
+      return def ? { [def]: 1 } : {};
+    });
+  }, [product?.id]);
 
   const layers = design[view] || [];
   const selectedLayer = layers.find((l) => l.id === selectedId) || null;
@@ -371,8 +457,8 @@ export default function CustomTees({ publicMode = false }) {
   const designPayload = useCallback(() => {
     const items = selectedSizeItems(sizeQty);
     return {
-      product_key: PRODUCT.key,
-      product_title: PRODUCT.title,
+      product_key: product?.product_key || FALLBACK_PRODUCT.product_key,
+      product_title: product?.title || FALLBACK_PRODUCT.title,
       size: items.map((it) => it.size).join(", "),
       size_items: items,
       qty: items.reduce((a, it) => a + it.qty, 0),
@@ -380,7 +466,7 @@ export default function CustomTees({ publicMode = false }) {
       color_hex: color.hex,
       design,
     };
-  }, [sizeQty, color, design]);
+  }, [sizeQty, color, design, product]);
 
   const refreshOrderCount = useCallback(async () => {
     if (publicMode) return;   // badge admin tidak ada di halaman publik
@@ -613,7 +699,21 @@ export default function CustomTees({ publicMode = false }) {
               deleteLayer={deleteLayer}
             />
           ) : activeTool === "Produk" ? (
-            <ProductPanel color={color} setColor={setColor} sizeQty={sizeQty} setSizeQty={setSizeQty} />
+            <ProductPanel
+              color={color}
+              setColor={setColor}
+              sizeQty={sizeQty}
+              setSizeQty={setSizeQty}
+              product={product}
+              products={products}
+              productsLoading={productsLoading}
+              sizes={sizes}
+              swatches={swatches}
+              onOpenPicker={() => setPickerOpen(true)}
+              onOpenSizeGuide={() => setSizeGuideOpen(true)}
+              detailOpen={detailOpen}
+              setDetailOpen={setDetailOpen}
+            />
           ) : (
             <ComingSoon tool={activeTool} onUpload={triggerUpload} setActiveTool={setActiveTool} />
           )}
@@ -901,9 +1001,26 @@ export default function CustomTees({ publicMode = false }) {
         design={design}
         color={color}
         sizeItems={selectedSizeItems(sizeQty)}
-        product={PRODUCT}
+        product={product}
         quote={quote}
         onSubmit={submitOrder}
+      />
+
+      {/* Pilih jenis produk (data dari halaman admin "Jenis Produk") */}
+      <ProductPickerModal
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        products={products}
+        loading={productsLoading}
+        activeId={product?.id}
+        onPick={(p) => { setProductId(p.id); setPickerOpen(false); toast.success(`Produk diganti ke ${p.title}`); }}
+      />
+
+      {/* Panduan ukuran (size chart produk terpilih) */}
+      <SizeGuideModal
+        open={sizeGuideOpen}
+        onClose={() => setSizeGuideOpen(false)}
+        product={product}
       />
 
       {/* Daftar pesanan Custom Tees (admin) — tidak ada di halaman publik */}
@@ -1747,10 +1864,17 @@ function fmtDateTime(iso) {
 /* =========================================================================
    PANEL: Produk (warna & ukuran)
    ========================================================================= */
-function ProductPanel({ color, setColor, sizeQty, setSizeQty }) {
+function ProductPanel({
+  color, setColor, sizeQty, setSizeQty,
+  product, products, productsLoading, sizes, swatches,
+  onOpenPicker, onOpenSizeGuide, detailOpen, setDetailOpen,
+}) {
   const isSizeSelected = (s) => Object.prototype.hasOwnProperty.call(sizeQty || {}, s);
   const selectedSizes = selectedSizeItems(sizeQty);
   const totalQty = totalPcs(sizeQty);
+  const activeColorThumb = (swatches || []).find(
+    (c) => c.hex.toLowerCase() === String(color?.hex || "").toLowerCase(),
+  )?.thumb_url;
 
   const toggleSize = (s) => {
     if (!setSizeQty) return;
@@ -1768,30 +1892,65 @@ function ProductPanel({ color, setColor, sizeQty, setSizeQty }) {
     setSizeQty((prev) => ({ ...prev, [s]: Number.isFinite(v) ? clamp(v, 0, 9999) : 0 }));
   };
 
+  const gridCols = sizes.length >= 4 ? "grid-cols-4" : `grid-cols-${Math.max(sizes.length, 1)}`;
+
   return (
     <>
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-base font-bold">Produk</h2>
-        <button className="flex items-center text-xs font-semibold text-zinc-500 hover:text-zinc-900">
-          Ganti Produk <ChevronRight className="h-3.5 w-3.5" />
+        <button
+          onClick={onOpenPicker}
+          data-testid="custom-change-product"
+          disabled={productsLoading}
+          className="flex items-center text-xs font-semibold text-zinc-500 transition hover:text-zinc-900 disabled:opacity-50"
+        >
+          {productsLoading ? "Memuat..." : "Ganti Produk"} <ChevronRight className="h-3.5 w-3.5" />
         </button>
       </div>
 
       <div className="flex items-center gap-3 rounded-xl border border-zinc-200 p-3">
-        <TintedThumb src={MOCKUPS["Depan"]} mask={MOCKUP_MASKS["Depan"]} color={color.hex} alt="Kaos" size={48} inner={36} />
-        <div className="leading-tight">
-          <div className="text-[13px] font-semibold">{PRODUCT.title}</div>
-          <div className="text-[11px] text-zinc-500">{PRODUCT.subtitle}</div>
+        {product?.thumbnail_url || activeColorThumb ? (
+          <img
+            src={activeColorThumb || product.thumbnail_url}
+            alt={product?.title || "Kaos"}
+            className="h-12 w-12 shrink-0 rounded-lg border border-zinc-200 object-contain"
+          />
+        ) : (
+          <TintedThumb src={MOCKUPS["Depan"]} mask={MOCKUP_MASKS["Depan"]} color={color.hex} alt="Kaos" size={48} inner={36} />
+        )}
+        <div className="min-w-0 leading-tight">
+          <div className="truncate text-[13px] font-semibold" data-testid="custom-product-title">
+            {product?.title || FALLBACK_PRODUCT.title}
+          </div>
+          <div className="truncate text-[11px] text-zinc-500">
+            {product?.subtitle || product?.material || FALLBACK_PRODUCT.subtitle}
+          </div>
+          {Number(product?.price) > 0 && (
+            <div className="mt-0.5 text-[11px] font-bold text-zinc-900" data-testid="custom-product-price">
+              Mulai Rp {Number(product.price).toLocaleString("id-ID")} / pcs
+            </div>
+          )}
         </div>
       </div>
+      {(products || []).length > 1 && (
+        <p className="mt-1.5 text-[11px] text-zinc-500">
+          Tersedia {products.length} jenis kaos — tekan &quot;Ganti Produk&quot; untuk melihat semuanya.
+        </p>
+      )}
 
       <div className="mt-5 flex items-center justify-between">
         <h3 className="text-sm font-bold">Ukuran</h3>
-        <button className="text-xs font-semibold text-zinc-500 underline-offset-2 hover:text-zinc-900 hover:underline">Panduan Ukuran</button>
+        <button
+          onClick={onOpenSizeGuide}
+          data-testid="custom-size-guide"
+          className="text-xs font-semibold text-zinc-500 underline-offset-2 hover:text-zinc-900 hover:underline"
+        >
+          Panduan Ukuran
+        </button>
       </div>
       {/* Ukuran bisa dipilih lebih dari satu (multi-size, satu desain) */}
-      <div className="mt-2 grid grid-cols-4 gap-2">
-        {SIZES.map((s) => {
+      <div className={`mt-2 grid gap-2 ${gridCols}`} data-testid="custom-size-options">
+        {sizes.map((s) => {
           const active = isSizeSelected(s);
           return (
             <button
@@ -1821,8 +1980,8 @@ function ProductPanel({ color, setColor, sizeQty, setSizeQty }) {
           Total {totalQty} pcs
         </span>
       </div>
-      <div className="mt-2 grid grid-cols-4 gap-2" data-testid="size-qty-grid">
-        {SIZES.map((s) => {
+      <div className={`mt-2 grid gap-2 ${gridCols}`} data-testid="size-qty-grid">
+        {sizes.map((s) => {
           const active = isSizeSelected(s);
           return (
             <div key={s} className="flex flex-col items-center gap-1">
@@ -1866,7 +2025,9 @@ function ProductPanel({ color, setColor, sizeQty, setSizeQty }) {
 
       <div className="mt-5 flex items-center justify-between">
         <h3 className="text-sm font-bold">Warna Kaos</h3>
-        <button className="text-xs font-semibold text-zinc-500 underline-offset-2 hover:text-zinc-900 hover:underline">Lihat Semua Warna</button>
+        <span className="text-xs font-semibold text-zinc-400" data-testid="custom-color-count">
+          {swatches.length} varian
+        </span>
       </div>
       <div className="mt-2 flex items-center gap-3 rounded-xl border border-zinc-200 p-2.5">
         <span
@@ -1880,21 +2041,10 @@ function ProductPanel({ color, setColor, sizeQty, setSizeQty }) {
         </div>
       </div>
 
-      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs">
-        {COLOR_TABS.map((c, i) => (
-          <button
-            key={c}
-            className={`pb-0.5 ${i === 0 ? "border-b-2 border-zinc-900 font-bold text-zinc-900" : "text-zinc-400 hover:text-zinc-700"}`}
-          >
-            {c}
-          </button>
-        ))}
-      </div>
-
-      <div className="mt-3 grid grid-cols-7 gap-2">
-        {SWATCHES.map((c) => {
-          const active = c.hex === color.hex;
-          const isLight = c.hex.toLowerCase() === "#ffffff";
+      <div className="mt-3 grid grid-cols-7 gap-2" data-testid="custom-swatches">
+        {swatches.map((c) => {
+          const active = c.hex.toLowerCase() === String(color?.hex || "").toLowerCase();
+          const light = c.hex.toLowerCase() === "#ffffff";
           return (
             <button
               key={c.hex}
@@ -1904,22 +2054,219 @@ function ProductPanel({ color, setColor, sizeQty, setSizeQty }) {
               data-testid={`swatch-${c.name.toLowerCase().replace(/\s+/g, "-")}`}
               className={`relative aspect-square rounded-full border transition ${
                 active ? "ring-2 ring-zinc-900 ring-offset-1" : "border-zinc-200 hover:scale-110"
-              } ${isLight ? "border-zinc-300" : ""}`}
+              } ${light ? "border-zinc-300" : ""}`}
               style={{ backgroundColor: c.hex }}
             >
               {active && (
-                <Check className="absolute inset-0 m-auto h-3.5 w-3.5" style={{ color: isLight ? "#111" : "#fff" }} />
+                <Check className="absolute inset-0 m-auto h-3.5 w-3.5" style={{ color: light ? "#111" : "#fff" }} />
               )}
             </button>
           );
         })}
       </div>
 
-      <button className="mt-5 flex items-center justify-between rounded-xl border border-zinc-200 px-3.5 py-3 text-sm font-semibold text-zinc-700 hover:bg-zinc-50">
+      {/* Detail produk (info dari halaman admin "Jenis Produk") */}
+      <button
+        onClick={() => setDetailOpen?.(!detailOpen)}
+        data-testid="custom-product-detail-toggle"
+        aria-expanded={!!detailOpen}
+        className="mt-5 flex w-full items-center justify-between rounded-xl border border-zinc-200 px-3.5 py-3 text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
+      >
         Detail Produk
-        <ChevronDown className="h-4 w-4 text-zinc-400" />
+        <ChevronDown className={`h-4 w-4 text-zinc-400 transition-transform ${detailOpen ? "rotate-180" : ""}`} />
       </button>
+      {detailOpen && (
+        <div className="mt-2 space-y-1.5 rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-[12px]" data-testid="custom-product-detail">
+          <DetailRow label="Suplier" value={product?.supplier} />
+          <DetailRow label="Size" value={product?.size_region} />
+          <DetailRow label="Model" value={product?.model} />
+          <DetailRow label="Bahan" value={product?.material} />
+          {product?.description && (
+            <p className="pt-1 leading-relaxed text-zinc-600">{product.description}</p>
+          )}
+        </div>
+      )}
     </>
+  );
+}
+
+function DetailRow({ label, value }) {
+  return (
+    <div className="flex justify-between gap-3 border-b border-zinc-200 pb-1 last:border-0">
+      <span className="font-semibold uppercase tracking-wide text-zinc-400">{label}</span>
+      <span className="text-right text-zinc-800">{value || "—"}</span>
+    </div>
+  );
+}
+
+/* =========================================================================
+   MODAL: pilih jenis produk ("Ganti Produk")
+   Datanya dari GET /api/public/custom-products (dikelola admin di
+   /app/mockup-kaos). Gambar & daftar warna ikut ditampilkan sebagai preview.
+   ========================================================================= */
+function ProductPickerModal({ open, onClose, products, loading, activeId, onPick }) {
+  const [q, setQ] = useState("");
+  useEffect(() => { if (open) setQ(""); }, [open]);
+  if (!open) return null;
+
+  const term = q.trim().toLowerCase();
+  const list = (products || []).filter((p) =>
+    term ? `${p.title} ${p.supplier} ${p.material}`.toLowerCase().includes(term) : true,
+  );
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-6">
+      <div className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-2xl bg-white text-zinc-900 shadow-2xl sm:rounded-2xl" data-testid="custom-product-picker">
+        <div className="flex items-center justify-between border-b border-zinc-200 px-5 py-4">
+          <div>
+            <h3 className="text-base font-bold">Pilih Jenis Kaos</h3>
+            <p className="text-xs text-zinc-500">Ukuran dan pilihan warna akan mengikuti produk yang dipilih.</p>
+          </div>
+          <button
+            onClick={onClose}
+            data-testid="custom-product-picker-close"
+            aria-label="Tutup"
+            className="rounded-lg p-2 text-zinc-500 hover:bg-zinc-100"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="border-b border-zinc-200 px-5 py-3">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Cari jenis kaos, suplier, atau bahan..."
+              data-testid="custom-product-picker-search"
+              className="h-10 w-full rounded-lg border border-zinc-200 bg-white pl-9 pr-3 text-sm outline-none focus:ring-2 focus:ring-zinc-900/10"
+            />
+          </div>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto p-5">
+          {loading ? (
+            <div className="flex items-center justify-center gap-2 py-16 text-sm text-zinc-500">
+              <Loader2 className="h-4 w-4 animate-spin" /> Memuat jenis kaos...
+            </div>
+          ) : list.length === 0 ? (
+            <p className="py-16 text-center text-sm text-zinc-500" data-testid="custom-product-picker-empty">
+              {term ? "Tidak ada jenis kaos yang cocok." : "Belum ada jenis kaos yang aktif."}
+            </p>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {list.map((p) => {
+                const active = p.id === activeId;
+                return (
+                  <button
+                    key={p.id}
+                    onClick={() => onPick(p)}
+                    data-testid={`custom-product-option-${p.product_key}`}
+                    className={`flex gap-3 rounded-xl border p-3 text-left transition ${
+                      active ? "border-zinc-900 ring-2 ring-zinc-900/10" : "border-zinc-200 hover:border-zinc-400"
+                    }`}
+                  >
+                    <div className="grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-lg border border-zinc-200 bg-zinc-50">
+                      {p.thumbnail_url ? (
+                        <img src={p.thumbnail_url} alt={p.title} loading="lazy" className="h-full w-full object-contain" />
+                      ) : (
+                        <Shirt className="h-7 w-7 text-zinc-300" />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="text-[13px] font-bold leading-snug">{p.title}</div>
+                        {active && <Check className="h-4 w-4 shrink-0 text-zinc-900" />}
+                      </div>
+                      {Number(p.price) > 0 && (
+                        <div className="mt-0.5 text-[13px] font-bold text-zinc-900">
+                          Rp {Number(p.price).toLocaleString("id-ID")}
+                        </div>
+                      )}
+                      <div className="mt-1 text-[11px] text-zinc-500">
+                        {(p.colors || []).length} warna · {(p.size_chart || []).length} ukuran
+                        {p.size_region ? ` · ${p.size_region}` : ""}
+                      </div>
+                      <div className="mt-1.5 flex flex-wrap gap-1">
+                        {(p.colors || []).slice(0, 8).map((c) => (
+                          <span
+                            key={c.id}
+                            title={c.name}
+                            className={`h-3.5 w-3.5 rounded-full ${c.hex.toLowerCase() === "#ffffff" ? "border border-zinc-300" : ""}`}
+                            style={{ backgroundColor: c.hex }}
+                          />
+                        ))}
+                        {(p.colors || []).length > 8 && (
+                          <span className="text-[10px] text-zinc-400">+{(p.colors || []).length - 8}</span>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================================
+   MODAL: panduan ukuran (size chart produk terpilih)
+   ========================================================================= */
+function SizeGuideModal({ open, onClose, product }) {
+  if (!open) return null;
+  const rows = product?.size_chart || [];
+  return (
+    <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-6">
+      <div className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl bg-white text-zinc-900 shadow-2xl sm:rounded-2xl" data-testid="custom-size-guide-modal">
+        <div className="flex items-center justify-between border-b border-zinc-200 px-5 py-4">
+          <div>
+            <h3 className="text-base font-bold">Panduan Ukuran</h3>
+            <p className="text-xs text-zinc-500">{product?.title}</p>
+          </div>
+          <button
+            onClick={onClose}
+            data-testid="custom-size-guide-close"
+            aria-label="Tutup"
+            className="rounded-lg p-2 text-zinc-500 hover:bg-zinc-100"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto p-5">
+          {rows.length === 0 ? (
+            <p className="py-10 text-center text-sm text-zinc-500" data-testid="custom-size-guide-empty">
+              Size chart untuk produk ini belum tersedia.
+            </p>
+          ) : (
+            <table className="w-full overflow-hidden rounded-xl border border-zinc-200 text-sm">
+              <thead className="bg-zinc-100 text-[11px] uppercase tracking-wide text-zinc-500">
+                <tr>
+                  <th className="px-3 py-2 text-left">Ukuran</th>
+                  <th className="px-3 py-2 text-right">Lebar Dada (cm)</th>
+                  <th className="px-3 py-2 text-right">Panjang (cm)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((s) => (
+                  <tr key={s.id} className="border-t border-zinc-200" data-testid={`custom-size-guide-row-${s.label}`}>
+                    <td className="px-3 py-2 font-bold">{s.label}</td>
+                    <td className="px-3 py-2 text-right">{s.chest_cm}</td>
+                    <td className="px-3 py-2 text-right">{s.length_cm}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          <p className="mt-3 text-[11px] leading-relaxed text-zinc-500">
+            Ukuran diambil dengan kaos dalam posisi rata. Toleransi 1–2 cm karena proses jahit manual.
+          </p>
+        </div>
+      </div>
+    </div>
   );
 }
 

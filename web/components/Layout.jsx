@@ -30,7 +30,7 @@ const NAV = [
   { to: "/app/laporan", label: "Laporan", icon: BarChart3, roles: ["Owner", "Manager"] },
   { to: "/app/ekspor", label: "Ekspor Data", icon: DownloadCloud, roles: ["Owner"] },
   { to: "/app/galeri-web", label: "Galeri Website", icon: Images, roles: ["Owner", "Manager"] },
-  { to: "/app/mockup-kaos", label: "Mockup Kaos", icon: Shirt, roles: ["Owner", "Manager"] },
+  { to: "/app/mockup-kaos", label: "Jenis Produk", icon: Shirt, roles: ["Owner", "Manager"] },
   { to: "/custom-tees", label: "Custom Tees", icon: Palette, roles: ["Owner", "Manager"], dev: true },
   { to: "/app/pengguna", label: "Pengguna", icon: UsersIcon, roles: ["Owner", "Manager"] },
   { to: "/app/pengaturan", label: "Pengaturan", icon: SettingsIcon, roles: ["Owner", "Manager", "Kasir"] },

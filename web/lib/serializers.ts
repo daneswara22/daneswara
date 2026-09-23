@@ -299,6 +299,62 @@ export function serializeMockup(m: any) {
   };
 }
 
+export function serializeProductColor(c: any) {
+  return {
+    id: c.id,
+    product_id: c.product_id,
+    name: c.name || '',
+    hex: (c.hex || '').toUpperCase(),
+    thumb_url: c.thumb_url || '',
+    sort_order: c.sort_order || 0,
+    is_active: c.is_active !== false,
+    created_at: toIso(c.created_at),
+    updated_at: toIso(c.updated_at),
+  };
+}
+
+export function serializeProductSize(s: any) {
+  return {
+    id: s.id,
+    product_id: s.product_id,
+    label: s.label || '',
+    chest_cm: Number(s.chest_cm || 0),
+    length_cm: Number(s.length_cm || 0),
+    sort_order: s.sort_order || 0,
+  };
+}
+
+/**
+ * Jenis produk lengkap (info + varian warna + size chart). Dipakai endpoint
+ * admin dan publik agar bentuk JSON-nya identik.
+ */
+export function serializeProductType(p: any) {
+  const colors = Array.isArray(p.colors) ? p.colors.map(serializeProductColor) : [];
+  const sizeChart = Array.isArray(p.size_chart) ? p.size_chart.map(serializeProductSize) : [];
+  return {
+    id: p.id,
+    product_key: p.product_key,
+    title: p.title || '',
+    subtitle: p.subtitle || '',
+    description: p.description || '',
+    price: Number(p.price || 0),
+    supplier: p.supplier || '',
+    size_region: p.size_region || '',
+    model: p.model || '',
+    material: p.material || '',
+    thumbnail_url: p.thumbnail_url || '',
+    size_guide_url: p.size_guide_url || '',
+    is_active: p.is_active !== false,
+    sort_order: p.sort_order || 0,
+    colors,
+    size_chart: sizeChart,
+    sizes: sizeChart.map((s: any) => s.label),
+    color_count: colors.length,
+    created_at: toIso(p.created_at),
+    updated_at: toIso(p.updated_at),
+  };
+}
+
 export function serializeCustomTeeOrder(o: any, withDesign = true) {
   let design: any = null;
   try { design = JSON.parse(o.design_json || 'null'); } catch { design = null; }
