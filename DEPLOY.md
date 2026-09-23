@@ -57,6 +57,8 @@ Single-container Next.js 15 App with standalone output. Coolify deploys via **Do
 ### Perubahan skema database
 Karena `prisma migrate` tidak dipakai di sini, tabel/kolom baru **tidak ikut terpasang otomatis saat deploy**. Kalau sebuah fitur baru sudah ter-merge tetapi tabelnya belum ada di produksi, gejalanya muncul sebagai error Prisma `P2021` di UI, misalnya "The table `custom_tee_orders` does not exist in the current database" saat menekan "Cek Harga".
 
+> **Pengaman otomatis (sejak 2026-09-23).** Untuk fitur **Jenis Produk** dan **Font kustom**, ada jaring pengaman di `web/lib/schemaGuard.ts`. Sebelum endpoint-nya menyentuh tabel, kode memastikan dulu tabel/kolom yang dibutuhkan ada, dan membuatnya kalau belum. Semua perintahnya **aditif dan idempotent** (hanya `CREATE TABLE IF NOT EXISTS` dan `ADD COLUMN` yang dijaga `information_schema`; tidak ada `DROP` apa pun), dijalankan sekali per proses. Jadi kedua fitur itu tidak akan pernah tampak rusak hanya karena migrasi terlewat. Untuk fitur lain, alur manual di bawah tetap berlaku. Berkas SQL di `web/prisma/sql/` tetap dipertahankan sebagai jejak riwayat dan boleh dipakai manual.
+
 Alur yang dipakai:
 
 1. Cek selisih antara database dan `schema.prisma` (read-only, tidak mengubah apa pun):

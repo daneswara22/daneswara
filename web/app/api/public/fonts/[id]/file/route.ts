@@ -12,8 +12,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { storage } from '@/lib/storage';
 import { fontFormatByExt } from '@/lib/fonts';
+import { ensureFontSchema } from '@/lib/schemaGuard';
 
 export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  await ensureFontSchema();
   const { id } = await ctx.params;
   const row = await prisma.custom_fonts.findUnique({ where: { id } });
   if (!row || !row.is_active) return new NextResponse('Not found', { status: 404 });

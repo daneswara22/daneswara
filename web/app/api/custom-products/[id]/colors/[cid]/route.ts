@@ -11,6 +11,7 @@ import { HttpError } from '@/lib/http';
 import { storage } from '@/lib/storage';
 import { serializeProductColor } from '@/lib/serializers';
 import { colorSchema } from '../route';
+import { ensureProductTypeSchema } from '@/lib/schemaGuard';
 
 const updateSchema = colorSchema.partial();
 
@@ -23,6 +24,7 @@ async function findColor(id: string, cid: string, tenantId: string) {
 }
 
 export const PUT = handle(async (req: NextRequest, ctx: any) => {
+  await ensureProductTypeSchema();
   const user = await requireRoles(req, 'Owner', 'Manager');
   const { id, cid } = await ctx.params;
   const existing = await findColor(id, cid, user.tenant_id);
@@ -70,6 +72,7 @@ export const PUT = handle(async (req: NextRequest, ctx: any) => {
 });
 
 export const DELETE = handle(async (req: NextRequest, ctx: any) => {
+  await ensureProductTypeSchema();
   const user = await requireRoles(req, 'Owner', 'Manager');
   const { id, cid } = await ctx.params;
   const existing = await findColor(id, cid, user.tenant_id);

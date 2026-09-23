@@ -12,6 +12,7 @@ import { HttpError, newId } from '@/lib/http';
 import { serializeProductSize } from '@/lib/serializers';
 import { getProductTypeById } from '@/lib/productTypeQueries';
 import { sizeRank } from '@/lib/productTypes';
+import { ensureProductTypeSchema } from '@/lib/schemaGuard';
 
 export const sizeSchema = z.object({
   label: z.string().trim().min(1, 'Nama ukuran wajib diisi').max(20),
@@ -21,6 +22,7 @@ export const sizeSchema = z.object({
 });
 
 export const GET = handle(async (req: NextRequest, ctx: any) => {
+  await ensureProductTypeSchema();
   const user = await getCurrentUser(req);
   const { id } = await ctx.params;
   const product = await getProductTypeById(id, user.tenant_id);
@@ -29,6 +31,7 @@ export const GET = handle(async (req: NextRequest, ctx: any) => {
 });
 
 export const POST = handle(async (req: NextRequest, ctx: any) => {
+  await ensureProductTypeSchema();
   const user = await requireRoles(req, 'Owner', 'Manager');
   const { id } = await ctx.params;
   const product = await getProductTypeById(id, user.tenant_id);

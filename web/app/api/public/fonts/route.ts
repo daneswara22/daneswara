@@ -8,8 +8,10 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { handle } from '@/lib/handler';
 import { serializeFont } from '@/lib/serializers';
+import { ensureFontSchema } from '@/lib/schemaGuard';
 
 export const GET = handle(async () => {
+  await ensureFontSchema();
   const rows = await prisma.custom_fonts.findMany({
     where: { is_active: true },
     orderBy: [{ sort_order: 'asc' }, { created_at: 'asc' }],
