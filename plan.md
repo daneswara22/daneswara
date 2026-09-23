@@ -137,3 +137,65 @@ Langkah:
 - Semua Route Handlers `/api/*` parity dengan FastAPI (shape + business rules).
 - Docker standalone build untuk Coolify berjalan stabil.
 - PR `feat/nextjs-fullstack` siap merge (tanpa `.env`/secrets).
+---
+
+## Sesi 2026-09-23 — Revamp `/app/mockup-kaos` menjadi "Jenis Produk"
+
+### Permintaan pemilik
+Halaman admin `/app/mockup-kaos` (dulu "Mockup Kaos") diganti fungsinya secara keseluruhan:
+1. Admin bisa **create / edit / delete jenis & info produk**. Info ini tampil di halaman
+   publik `/custom` (tombol "Ganti Produk") dan `/price-list`.
+2. **CRUD warna per produk** — setiap produk punya jumlah & daftar warna berbeda. Di daftar
+   harga, jumlah varian warna ditampilkan sebagai ikon kaos; ikon diklik menampilkan
+   thumbnail tampak depan (di-upload manual admin, PNG/JPG → WebP otomatis).
+3. **CRUD size chart per produk** dengan kolom Lebar Dada (cm) dan Panjang (cm).
+4. Optimisasi **lazy load pagination**.
+
+Field produk (disetujui pemilik): Nama produk, Harga kaos, Suplier, Size (Asia/Local vs
+Eropa/USA), Model, Bahan, Deskripsi, Foto/thumbnail, Aktif/non-aktif, Urutan.
+
+### Yang dikerjakan — SELESAI
+- **Skema DB**: `custom_products` ditambah kolom `subtitle`, `price`, `supplier`,
+  `size_region`, `model`, `material`, `thumbnail_url`, `is_active`, `sort_order`. Dua tabel
+  baru: `custom_product_colors` (nama, hex, `thumb_url`, urutan, aktif) dan
+  `custom_product_sizes` (label, `chest_cm`, `length_cm`, urutan), keduanya
+  `ON DELETE CASCADE` ke produk. Migrasi produksi aditif (hanya ADD/CREATE, aman diulang):
+  `web/prisma/sql/2026-09-23_custom_product_types.sql`.
+- **Seeding bawaan** (`lib/productTypeQueries.ts` → `ensureSeedProductTypes`): empat jenis
+  kaos (premium-cotton-7200, SIZE LOCAL, SIZE LUAR, Standar DNS) beserta warna & size chart.
+  Dikerjakan **per `product_key`** dan hanya mengisi kolom yang masih kosong, jadi tidak
+  menimpa data yang sudah diedit admin. Ikut dipanggil dari `scripts/seed-dummy-sandbox.ts`.
+- **API admin**: `GET/POST /api/custom-products`, `GET/PUT/DELETE /api/custom-products/:id`,
+  `GET/POST /api/custom-products/:id/colors` + `PUT/DELETE .../colors/:cid`,
+  `GET/POST /api/custom-products/:id/sizes` + `PUT/DELETE .../sizes/:sid`.
+  Semua tulis dibatasi role Owner/Manager, validasi Zod (hex `#RRGGBB`, angka cm, harga ≥ 0),
+  hex & label duplikat ditolak 400, berkas R2 lama dibersihkan saat diganti/dihapus.
+- **API publik**: `GET /api/public/custom-products?page&limit&q` — hanya produk aktif,
+  dipaginasi, plus `Cache-Control`.
+- **UI admin baru** `src_pages/ProductTypes.jsx`: kartu produk + kartu statistik, dialog form
+  produk (upload thumbnail → WebP), manajer warna (nama, color picker + input hex, upload foto
+  tampak depan, preview), manajer size chart (tabel + form), toggle aktif, hapus dengan
+  konfirmasi, pencarian debounce, filter "hanya aktif", dan **lazy load** lewat
+  IntersectionObserver + tombol "Muat Lebih Banyak".
+- **Konsumen publik**: `components/landing/pages/PriceList.jsx` tidak lagi hardcoded —
+  jenis kaos, spesifikasi, ikon varian warna (klik → preview thumbnail), dan tabel ukuran
+  semuanya dari DB, dengan lazy load. `src_pages/CustomTees.jsx` mendapat modal
+  "Ganti Produk" (+ pencarian), modal "Panduan Ukuran", panel "Detail Produk", serta ukuran
+  dan warna yang mengikuti produk terpilih; mendukung deep link `/custom?product=<key>`.
+- Label menu sidebar: "Mockup Kaos" → **"Jenis Produk"**.
+
+### Verifikasi
+- `web/scripts/test-product-types.ts` — 12 test hijau (seed idempotent, upload PNG→WebP,
+  CRUD produk/warna/size, tolak duplikat, pagination, produk non-aktif tidak bocor ke
+  endpoint publik, cascade delete).
+- `yarn test:core` 7/7 hijau. `npx eslint .` exit 0. `yarn build` sukses.
+- Testing agent iterasi 1: backend 33/33 + UI admin lulus. Iterasi 2: 13 user story halaman
+  publik `/price-list` & `/custom` lulus, lazy load terbukti (10 produk → 9 + 1).
+- Catatan: header `Cache-Control` endpoint publik sudah benar dari Next.js (terbukti via
+  `curl localhost:3000`) tetapi ditimpa ingress sandbox Emergent; di Coolify tidak terjadi.
+
+### Catatan untuk sesi berikutnya
+- Warna hasil seeding belum punya foto tampak depan — admin perlu mengunggahnya lewat
+  tombol "Warna" pada tiap produk supaya preview di daftar harga menampilkan gambar.
+- Tabel lama `custom_mockups` masih ada dan belum dihapus (endpoint `/api/mockups` juga
+  masih hidup) supaya tidak memutus data lama; bisa dipensiunkan di sesi terpisah.

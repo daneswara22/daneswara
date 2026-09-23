@@ -15,6 +15,7 @@ import { seedOwner } from '../lib/seed';
 import { hashPassword } from '../lib/auth';
 import { storage } from '../lib/storage';
 import { env } from '../lib/env';
+import { ensureSeedProductTypes } from '../lib/productTypeQueries';
 
 const nid = () => crypto.randomUUID();
 const now = new Date();
@@ -336,6 +337,15 @@ async function main() {
     console.log('activities: +6');
   }
 
+  // ---- Jenis Produk (custom tee): info + warna + size chart ----
+  {
+    const changed = await ensureSeedProductTypes(tid);
+    const p = await prisma.custom_products.count({ where: { tenant_id: tid } });
+    const c = await prisma.custom_product_colors.count({ where: { tenant_id: tid } });
+    const s = await prisma.custom_product_sizes.count({ where: { tenant_id: tid } });
+    console.log(`custom_products: ${p} (warna ${c}, size chart ${s})${changed ? '' : ' [sudah ada]'}`);
+  }
+
   const counts = {
     users: await prisma.users.count(), categories: await prisma.categories.count(),
     products: await prisma.products.count(), customers: await prisma.customers.count(),
@@ -343,6 +353,9 @@ async function main() {
     sales: await prisma.sales.count(), orders: await prisma.orders.count(),
     purchases: await prisma.purchases.count(), expenses: await prisma.expenses.count(),
     other_income: await prisma.other_income.count(), custom_tee_orders: await prisma.custom_tee_orders.count(),
+    custom_products: await prisma.custom_products.count(),
+    custom_product_colors: await prisma.custom_product_colors.count(),
+    custom_product_sizes: await prisma.custom_product_sizes.count(),
   };
   console.log('\nFinal counts:', counts);
   await prisma.$disconnect();

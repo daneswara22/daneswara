@@ -143,11 +143,65 @@ model custom_products {
   size_guide_url   String?  @db.Text
   sizes_json       String   @db.Text
   specs_json       String   @db.Text
+  // --- Info jenis produk (dikelola dari /app/jenis-produk) -------------------
+  subtitle         String?  @db.VarChar(200)
+  price            Int      @default(0)
+  supplier         String?  @db.VarChar(200)
+  size_region      String?  @db.VarChar(120)
+  model            String?  @db.VarChar(200)
+  material         String?  @db.VarChar(200)
+  thumbnail_url    String?  @db.Text
+  is_active        Boolean  @default(true)
+  sort_order       Int      @default(0)
   created_at       DateTime @db.DateTime(0)
   updated_at       DateTime @db.DateTime(0)
 
+  colors custom_product_colors[]
+  size_chart custom_product_sizes[]
+
   @@unique([tenant_id, product_key], map: "uq_custom_products_slot")
   @@index([tenant_id], map: "ix_custom_products_tenant_id")
+  @@index([sort_order], map: "ix_custom_products_sort_order")
+}
+
+/// Varian warna per jenis produk. `thumb_url` = mockup tampak depan untuk warna
+/// tersebut, di-upload manual oleh admin (PNG/JPG otomatis dikonversi ke WebP).
+model custom_product_colors {
+  id         String   @id @db.VarChar(36)
+  tenant_id  String   @db.VarChar(36)
+  product_id String   @db.VarChar(36)
+  name       String   @db.VarChar(60)
+  hex        String   @db.VarChar(9)
+  thumb_url  String?  @db.Text
+  sort_order Int      @default(0)
+  is_active  Boolean  @default(true)
+  created_at DateTime @db.DateTime(0)
+  updated_at DateTime @db.DateTime(0)
+
+  product custom_products @relation(fields: [product_id], references: [id], onDelete: Cascade)
+
+  @@unique([product_id, hex], map: "uq_custom_product_colors_slot")
+  @@index([tenant_id], map: "ix_custom_product_colors_tenant_id")
+  @@index([product_id], map: "ix_custom_product_colors_product_id")
+}
+
+/// Size chart per jenis produk: lebar dada & panjang dalam cm.
+model custom_product_sizes {
+  id         String   @id @db.VarChar(36)
+  tenant_id  String   @db.VarChar(36)
+  product_id String   @db.VarChar(36)
+  label      String   @db.VarChar(20)
+  chest_cm   Float    @default(0) @db.Float
+  length_cm  Float    @default(0) @db.Float
+  sort_order Int      @default(0)
+  created_at DateTime @db.DateTime(0)
+  updated_at DateTime @db.DateTime(0)
+
+  product custom_products @relation(fields: [product_id], references: [id], onDelete: Cascade)
+
+  @@unique([product_id, label], map: "uq_custom_product_sizes_slot")
+  @@index([tenant_id], map: "ix_custom_product_sizes_tenant_id")
+  @@index([product_id], map: "ix_custom_product_sizes_product_id")
 }
 
 model held_orders {
