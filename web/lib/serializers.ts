@@ -299,6 +299,29 @@ export function serializeMockup(m: any) {
   };
 }
 
+/**
+ * Font kustom. `file_href` selalu URL same-origin (bukan URL R2 mentah) supaya
+ * aturan @font-face di browser tidak terhalang CORS.
+ */
+export function serializeFont(f: any, opts: { publicOnly?: boolean } = {}) {
+  const base = {
+    id: f.id,
+    name: f.name || '',
+    family: f.family || '',
+    format: f.format || '',
+    file_href: `/api/public/fonts/${f.id}/file`,
+    file_size: Number(f.file_size || 0),
+    is_active: f.is_active !== false,
+    sort_order: f.sort_order || 0,
+  };
+  if (opts.publicOnly) return base;
+  return {
+    ...base,
+    created_at: toIso(f.created_at),
+    updated_at: toIso(f.updated_at),
+  };
+}
+
 export function serializeProductColor(c: any) {
   return {
     id: c.id,

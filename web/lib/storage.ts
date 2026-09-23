@@ -117,6 +117,36 @@ class StorageService {
     return { url, key, width, height, bytes: buf.length, backend: this.backend };
   }
 
+  /**
+   * Simpan berkas font apa adanya (tanpa konversi). Dipakai fitur "Kelola Font"
+   * pada desainer kaos. Berkasnya nanti disajikan same-origin lewat
+   * /api/public/fonts/:id/file supaya @font-face tidak terhalang CORS.
+   */
+  async uploadFont(raw: Buffer, ext: string, contentType: string) {
+    const key = this.buildKey('fonts', ext);
+    const url = await this.putObject(key, raw, contentType);
+    return { url, key, bytes: raw.length, backend: this.backend };
+  }
+
+  /** Ambil kembali isi berkas dari R2 (lewat URL publik) atau dari disk lokal. */
+  async fetchBytes(url: string): Promise<Buffer | null> {
+    const key = this.keyFromUrl(url);
+    if (key) {
+      const local = await this.readLocalFile(key);
+      if (local) return local;
+    }
+    if (/^https?:\/\//.test(url)) {
+      try {
+        const res = await fetch(url);
+        if (!res.ok) return null;
+        return Buffer.from(await res.arrayBuffer());
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }
+
   async uploadDataUri(uri: string, kind: string = 'misc'): Promise<string | null> {
     const raw = decodeDataUri(uri);
     if (!raw) return null;
