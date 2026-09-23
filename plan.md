@@ -199,3 +199,45 @@ Eropa/USA), Model, Bahan, Deskripsi, Foto/thumbnail, Aktif/non-aktif, Urutan.
   tombol "Warna" pada tiap produk supaya preview di daftar harga menampilkan gambar.
 - Tabel lama `custom_mockups` masih ada dan belum dihapus (endpoint `/api/mockups` juga
   masih hidup) supaya tidak memutus data lama; bisa dipensiunkan di sesi terpisah.
+
+---
+
+## Sesi 2026-09-23 (lanjutan) — Font kustom di desainer kaos
+
+### Permintaan pemilik
+Pada sub menu **Custom Tees**, admin bisa menambahkan font baru sendiri, dan
+**disertakan label format font yang ideal**.
+
+### Yang dikerjakan — SELESAI
+- **Tabel baru `custom_fonts`** (`name`, `family`, `file_url`, `format`,
+  `file_size`, `is_active`, `sort_order`). Migrasi produksi:
+  `web/prisma/sql/2026-09-23_custom_fonts.sql` (hanya `CREATE TABLE IF NOT EXISTS`,
+  tidak menyentuh tabel lain).
+- **`lib/fonts.ts`**: daftar format yang diterima beserta label kelayakannya —
+  **WOFF2 "Paling ideal"**, WOFF "Bagus", TTF/OTF "Berat (sebaiknya diubah ke
+  WOFF2)" — plus batas 3 MB dan tips lisensi/subset Latin.
+- **API**: `GET/POST /api/fonts` (unggah multipart), `PUT/DELETE /api/fonts/:id`
+  (ubah nama, aktif/non-aktif, hapus), `GET /api/public/fonts` (daftar font aktif
+  untuk pelanggan), dan `GET /api/public/fonts/:id/file` yang menyajikan berkas
+  font **same-origin**. Endpoint terakhir ini penting: berkas font yang dimuat
+  `@font-face` butuh header CORS, jadi kalau disajikan langsung dari URL R2/CDN
+  fontnya bisa gagal dimuat. Tulis dibatasi role Owner/Manager.
+- **`lib/storage.ts`**: `uploadFont()` menyimpan berkas apa adanya (tanpa
+  konversi sharp) dan `fetchBytes()` untuk membacanya kembali dari R2 atau disk.
+- **UI (`src_pages/CustomTees.jsx`)**: tombol **"Kelola Font"** di panel Teks
+  (hanya muncul untuk admin, tidak di halaman publik). Modalnya berisi kartu
+  panduan format dengan badge kelayakan, form unggah (nama + berkas), dan daftar
+  font dengan **pratinjau huruf langsung**, ukuran berkas, tombol
+  sembunyikan/aktifkan, dan hapus. Aturan `@font-face` disuntikkan otomatis ke
+  `<head>`, lalu font kustom ikut muncul di dropdown "Jenis Font" dengan
+  keterangan jumlah font yang tersedia.
+
+### Verifikasi
+- Rantai unggah diuji langsung: WOFF2 terunggah ke R2, disajikan kembali
+  **byte-identical** (`content-type: font/woff2`, ada `access-control-allow-origin`),
+  muncul di `/api/public/fonts`, dan berkas non-font (`.png`) ditolak dengan pesan
+  yang menyebut WOFF2 sebagai format paling ideal.
+- UI: dropdown berubah dari 8 jadi 9 font, teks di kanvas benar-benar memakai font
+  kustom, tombol "Kelola Font" tidak ada di `/custom` publik.
+- `yarn test:core` 7/7 hijau, `npx eslint .` exit 0, `yarn build` sukses (4 route
+  font terdaftar). Font uji dihapus lagi setelah pengujian.

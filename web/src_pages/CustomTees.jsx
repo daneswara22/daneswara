@@ -126,6 +126,16 @@ const FONTS = [
   { label: "Comic", value: '"Comic Sans MS", "Comic Neue", cursive' },
   { label: "Trebuchet", value: '"Trebuchet MS", Verdana, sans-serif' },
 ];
+/* Pemetaan ekstensi -> nilai format() pada aturan @font-face. */
+const FONT_CSS_FORMAT = { woff2: "woff2", woff: "woff", ttf: "truetype", otf: "opentype" };
+/* Panduan format font yang ditampilkan di panel "Kelola Font". */
+const FONT_FORMAT_LABELS = [
+  { ext: "WOFF2", badge: "Paling ideal", tone: "good", note: "Paling ringan & cepat dimuat" },
+  { ext: "WOFF", badge: "Bagus", tone: "ok", note: "Cadangan untuk browser lama" },
+  { ext: "TTF", badge: "Berat", tone: "warn", note: "Sebaiknya diubah ke WOFF2" },
+  { ext: "OTF", badge: "Berat", tone: "warn", note: "Sebaiknya diubah ke WOFF2" },
+];
+const FONT_MAX_BYTES = 3 * 1024 * 1024;
 const TEXT_COLORS = [
   "#111111", "#ffffff", "#c0392b", "#e67e22", "#f1c40f",
   "#27ae60", "#1f3fae", "#7d3cc9", "#2ea67a", "#f4b8cf",
@@ -165,6 +175,52 @@ export default function CustomTees({ publicMode = false }) {
   const [newOrderCount, setNewOrderCount] = useState(0);
   /** Estimasi harga dari server (POST /api/public/custom-tees/quote). */
   const [quote, setQuote] = useState(null);
+
+  /* ---------- font kustom (diunggah admin lewat panel Teks) ----------
+     Daftar font aktif diambil dari GET /api/public/fonts, lalu aturan
+     @font-face-nya disuntikkan ke <head> supaya langsung bisa dipakai. */
+  const [customFonts, setCustomFonts] = useState([]);
+  const [fontsLoading, setFontsLoading] = useState(true);
+  const [fontManagerOpen, setFontManagerOpen] = useState(false);
+
+  const loadFonts = useCallback(async () => {
+    try {
+      const { data } = await api.get("/public/fonts");
+      setCustomFonts(Array.isArray(data?.items) ? data.items : []);
+    } catch {
+      setCustomFonts([]);
+    } finally {
+      setFontsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { loadFonts(); }, [loadFonts]);
+
+  // Suntikkan @font-face untuk tiap font kustom (dihapus lagi saat unmount).
+  useEffect(() => {
+    if (typeof document === "undefined" || customFonts.length === 0) return;
+    const css = customFonts
+      .map((f) => {
+        const fmt = FONT_CSS_FORMAT[f.format] || "woff2";
+        return `@font-face{font-family:"${f.family}";src:url("${f.file_href}") format("${fmt}");font-display:swap;}`;
+      })
+      .join("\n");
+    const el = document.createElement("style");
+    el.setAttribute("data-dnsw-custom-fonts", "1");
+    el.textContent = css;
+    document.head.appendChild(el);
+    return () => { el.remove(); };
+  }, [customFonts]);
+
+  /** Font bawaan + font kustom admin, dipakai dropdown "Jenis Font". */
+  const fontOptions = useMemo(() => {
+    const extra = customFonts.map((f) => ({
+      label: `${f.name} (kustom)`,
+      value: `"${f.family}", sans-serif`,
+      custom: true,
+    }));
+    return [...FONTS, ...extra];
+  }, [customFonts]);
 
   const canvasRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -687,6 +743,11 @@ export default function CustomTees({ publicMode = false }) {
               resetRotation={resetRotation}
               centerSelected={centerSelected}
               deleteLayer={deleteLayer}
+              fontOptions={fontOptions}
+              fontsLoading={fontsLoading}
+              customFontCount={customFonts.length}
+              canManageFonts={!publicMode}
+              onManageFonts={() => setFontManagerOpen(true)}
             />
           ) : activeTool === "Clipart" ? (
             <ClipartPanel addClipart={addClipart} />
@@ -1022,6 +1083,15 @@ export default function CustomTees({ publicMode = false }) {
         onClose={() => setSizeGuideOpen(false)}
         product={product}
       />
+
+      {/* Kelola font kustom (admin saja) */}
+      {!publicMode && (
+        <FontManagerModal
+          open={fontManagerOpen}
+          onClose={() => setFontManagerOpen(false)}
+          onChanged={loadFonts}
+        />
+      )}
 
       {/* Daftar pesanan Custom Tees (admin) — tidak ada di halaman publik */}
       {!publicMode && (
@@ -2214,6 +2284,276 @@ function ProductPickerModal({ open, onClose, products, loading, activeId, onPick
 }
 
 /* =========================================================================
+   MODAL: kelola font kustom (admin)
+   Admin mengunggah berkas font sendiri, lalu font itu langsung tersedia di
+   dropdown "Jenis Font" untuk semua pelanggan di /custom.
+   ========================================================================= */
+function FontManagerModal({ open, onClose, onChanged }) {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [name, setName] = useState("");
+  const [file, setFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [busyId, setBusyId] = useState(null);
+  const inputRef = useRef(null);
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data } = await api.get("/fonts");
+      setItems(Array.isArray(data?.items) ? data.items : []);
+    } catch (e) {
+      toast.error(formatApiError(e.response?.data?.detail));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    setName("");
+    setFile(null);
+    refresh();
+  }, [open, refresh]);
+
+  if (!open) return null;
+
+  const pickFile = (e) => {
+    const f = e.target.files?.[0];
+    e.target.value = "";
+    if (!f) return;
+    const ext = (f.name.split(".").pop() || "").toLowerCase();
+    if (!["woff2", "woff", "ttf", "otf"].includes(ext)) {
+      return toast.error("Format font harus WOFF2, WOFF, TTF, atau OTF");
+    }
+    if (f.size > FONT_MAX_BYTES) {
+      return toast.error("Ukuran font maksimal 3 MB. Coba ubah ke WOFF2 supaya lebih ringan.");
+    }
+    setFile(f);
+    if (!name.trim()) setName(f.name.replace(/\.[a-zA-Z0-9]+$/, ""));
+  };
+
+  const upload = async () => {
+    if (!file) return toast.error("Pilih berkas font dulu");
+    if (name.trim().length < 2) return toast.error("Nama font minimal 2 karakter");
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("name", name.trim());
+      await api.post("/fonts", fd, { headers: { "Content-Type": "multipart/form-data" } });
+      toast.success(`Font "${name.trim()}" ditambahkan`);
+      setName("");
+      setFile(null);
+      await refresh();
+      onChanged?.();
+    } catch (e) {
+      toast.error(formatApiError(e.response?.data?.detail) || "Gagal mengunggah font");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const toggleActive = async (f) => {
+    setBusyId(f.id);
+    try {
+      await api.put(`/fonts/${f.id}`, { is_active: !f.is_active });
+      await refresh();
+      onChanged?.();
+    } catch (e) {
+      toast.error(formatApiError(e.response?.data?.detail));
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const remove = async (f) => {
+    setBusyId(f.id);
+    try {
+      await api.delete(`/fonts/${f.id}`);
+      toast.success(`Font "${f.name}" dihapus`);
+      await refresh();
+      onChanged?.();
+    } catch (e) {
+      toast.error(formatApiError(e.response?.data?.detail));
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const toneClass = (tone) =>
+    tone === "good"
+      ? "bg-emerald-100 text-emerald-700"
+      : tone === "ok"
+        ? "bg-blue-100 text-blue-700"
+        : "bg-amber-100 text-amber-700";
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-6">
+      <div className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl bg-white text-zinc-900 shadow-2xl sm:rounded-2xl" data-testid="font-manager-modal">
+        <div className="flex items-center justify-between border-b border-zinc-200 px-5 py-4">
+          <div>
+            <h3 className="text-base font-bold">Kelola Font</h3>
+            <p className="text-xs text-zinc-500">Font yang diunggah di sini langsung bisa dipakai pelanggan di desainer kaos.</p>
+          </div>
+          <button
+            onClick={onClose}
+            data-testid="font-manager-close"
+            aria-label="Tutup"
+            className="rounded-lg p-2 text-zinc-500 hover:bg-zinc-100"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto p-5">
+          {/* Panduan format ideal */}
+          <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3.5" data-testid="font-format-guide">
+            <div className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
+              Format Font yang Didukung
+            </div>
+            <div className="mt-2 grid gap-1.5 sm:grid-cols-2">
+              {FONT_FORMAT_LABELS.map((f) => (
+                <div key={f.ext} className="flex items-center gap-2" data-testid={`font-format-${f.ext}`}>
+                  <span className="w-14 font-mono text-[12px] font-bold">.{f.ext.toLowerCase()}</span>
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${toneClass(f.tone)}`}>
+                    {f.badge}
+                  </span>
+                  <span className="text-[11px] text-zinc-500">{f.note}</span>
+                </div>
+              ))}
+            </div>
+            <ul className="mt-3 space-y-1 border-t border-zinc-200 pt-2.5 text-[11px] leading-relaxed text-zinc-600">
+              <li>• Ukuran berkas maksimal <strong>3 MB</strong>.</li>
+              <li>• Satu berkas = satu ketebalan. Unggah terpisah untuk Regular dan Bold.</li>
+              <li>• Pakai font yang lisensinya mengizinkan penggunaan komersial.</li>
+              <li>• Cukup subset huruf Latin supaya berkasnya tetap ringan.</li>
+            </ul>
+          </div>
+
+          {/* Form unggah */}
+          <div className="mt-4 rounded-xl border border-zinc-200 p-3.5">
+            <div className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">Tambah Font Baru</div>
+            <div className="mt-2.5 grid gap-2.5 sm:grid-cols-[1fr_auto]">
+              <div>
+                <label className="mb-1 block text-[12px] font-semibold text-zinc-600">Nama Font</label>
+                <input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Bebas Neue"
+                  data-testid="font-name-input"
+                  className="h-10 w-full rounded-lg border border-zinc-300 px-3 text-sm outline-none focus:border-zinc-900"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-[12px] font-semibold text-zinc-600">Berkas Font</label>
+                <button
+                  onClick={() => inputRef.current?.click()}
+                  data-testid="font-pick-file"
+                  className="flex h-10 items-center gap-2 rounded-lg border border-zinc-300 px-3 text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
+                >
+                  <Upload className="h-4 w-4" /> Pilih Berkas
+                </button>
+                <input
+                  ref={inputRef}
+                  type="file"
+                  accept=".woff2,.woff,.ttf,.otf,font/woff2,font/woff,font/ttf,font/otf"
+                  className="hidden"
+                  data-testid="font-file-input"
+                  onChange={pickFile}
+                />
+              </div>
+            </div>
+            {file && (
+              <p className="mt-2 text-[11px] text-zinc-600" data-testid="font-selected-file">
+                Dipilih: <strong>{file.name}</strong> ({Math.max(1, Math.round(file.size / 1024))} KB)
+              </p>
+            )}
+            <button
+              onClick={upload}
+              disabled={uploading || !file}
+              data-testid="font-upload-submit"
+              className="mt-3 flex items-center gap-2 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800 disabled:opacity-50"
+            >
+              {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+              {uploading ? "Mengunggah..." : "Tambahkan Font"}
+            </button>
+          </div>
+
+          {/* Daftar font */}
+          <div className="mt-4">
+            <div className="mb-2 text-[11px] font-bold uppercase tracking-wide text-zinc-500">
+              Font Kustom ({items.length})
+            </div>
+            {loading ? (
+              <div className="flex items-center justify-center gap-2 py-10 text-sm text-zinc-500">
+                <Loader2 className="h-4 w-4 animate-spin" /> Memuat...
+              </div>
+            ) : items.length === 0 ? (
+              <p className="rounded-xl border border-dashed border-zinc-300 p-8 text-center text-sm text-zinc-500" data-testid="font-list-empty">
+                Belum ada font kustom. Font bawaan tetap bisa dipakai.
+              </p>
+            ) : (
+              <div className="space-y-2" data-testid="font-list">
+                {items.map((f) => (
+                  <div
+                    key={f.id}
+                    className="flex items-center gap-3 rounded-xl border border-zinc-200 p-3"
+                    data-testid={`font-row-${f.id}`}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="truncate text-sm font-semibold">{f.name}</span>
+                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${f.format === "woff2" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
+                          {String(f.format || "").toUpperCase()}
+                        </span>
+                        {!f.is_active && (
+                          <span className="rounded-full bg-zinc-200 px-2 py-0.5 text-[10px] font-bold text-zinc-600">
+                            Non-aktif
+                          </span>
+                        )}
+                      </div>
+                      <div
+                        className="truncate text-lg leading-snug text-zinc-800"
+                        style={{ fontFamily: `"${f.family}", sans-serif` }}
+                        data-testid={`font-preview-${f.id}`}
+                      >
+                        Contoh Teks Kaos 123
+                      </div>
+                      <div className="text-[11px] text-zinc-400">
+                        {Math.max(1, Math.round((f.file_size || 0) / 1024))} KB
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => toggleActive(f)}
+                      disabled={busyId === f.id}
+                      title={f.is_active ? "Sembunyikan dari pelanggan" : "Tampilkan ke pelanggan"}
+                      data-testid={`font-toggle-${f.id}`}
+                      className="rounded-lg border border-zinc-300 px-2.5 py-1.5 text-[11px] font-semibold text-zinc-600 hover:bg-zinc-50 disabled:opacity-50"
+                    >
+                      {f.is_active ? "Sembunyikan" : "Aktifkan"}
+                    </button>
+                    <button
+                      onClick={() => remove(f)}
+                      disabled={busyId === f.id}
+                      aria-label={`Hapus font ${f.name}`}
+                      data-testid={`font-delete-${f.id}`}
+                      className="rounded-lg p-2 text-red-600 hover:bg-red-50 disabled:opacity-50"
+                    >
+                      {busyId === f.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================================
    MODAL: panduan ukuran (size chart produk terpilih)
    ========================================================================= */
 function SizeGuideModal({ open, onClose, product }) {
@@ -2535,6 +2875,8 @@ function CurvedText({ testId, text, curve, color, font, bold, italic, wPct }) {
 function TextPanel({
   layers, view, selectedLayer, setSelectedId, addText, updateSelectedText,
   resizeSelected, rotateSelected, resetRotation, centerSelected, deleteLayer,
+  fontOptions = FONTS, fontsLoading = false, customFontCount = 0,
+  canManageFonts = false, onManageFonts,
 }) {
   const rot = selectedLayer ? (((selectedLayer.rot % 360) + 360) % 360) : 0;
   return (
@@ -2616,7 +2958,18 @@ function TextPanel({
           />
 
           {/* Font */}
-          <label className="mb-1 mt-3 block text-[12px] font-semibold text-zinc-600">Jenis Font</label>
+          <div className="mb-1 mt-3 flex items-center justify-between">
+            <label className="block text-[12px] font-semibold text-zinc-600">Jenis Font</label>
+            {canManageFonts && (
+              <button
+                onClick={onManageFonts}
+                data-testid="open-font-manager"
+                className="flex items-center gap-1 text-[11px] font-semibold text-zinc-500 hover:text-zinc-900"
+              >
+                <Plus className="h-3 w-3" /> Kelola Font
+              </button>
+            )}
+          </div>
           <select
             value={selectedLayer.font}
             onChange={(e) => updateSelectedText({ font: e.target.value })}
@@ -2624,10 +2977,17 @@ function TextPanel({
             className="w-full rounded-lg border border-zinc-300 px-2 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-900"
             style={{ fontFamily: selectedLayer.font }}
           >
-            {FONTS.map((f) => (
+            {fontOptions.map((f) => (
               <option key={f.label} value={f.value} style={{ fontFamily: f.value }}>{f.label}</option>
             ))}
           </select>
+          <p className="mt-1 text-[11px] text-zinc-400" data-testid="font-count-hint">
+            {fontsLoading
+              ? "Memuat font..."
+              : customFontCount > 0
+                ? `${fontOptions.length} font tersedia (${customFontCount} font kustom)`
+                : `${fontOptions.length} font bawaan`}
+          </p>
 
           {/* Gaya & perataan */}
           <div className="mt-3 flex items-center gap-2">
