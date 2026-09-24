@@ -1,6 +1,7 @@
 'use client';
 import { LangProvider } from '@/components/landing/i18n/LangContext';
 import { Toaster } from 'sonner';
+import ChatWidget from '@/components/ChatWidget';
 import '@/components/landing/landing.css';
 
 export default function LandingLayout({ children }: { children: React.ReactNode }) {
@@ -9,6 +10,8 @@ export default function LandingLayout({ children }: { children: React.ReactNode 
       <div className="dp-landing" data-testid="landing-shell">
         {children}
       </div>
+      {/* Bubble chat pelanggan: di luar .dp-landing supaya tidak kena reset CSS landing */}
+      <ChatWidget />
       <Toaster
         position="top-right"
         className="dp-toaster"

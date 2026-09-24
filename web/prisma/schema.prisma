@@ -443,3 +443,45 @@ model users {
 
   @@index([tenant_id], map: "ix_users_tenant_id")
 }
+
+/// Chatroom pelanggan <-> admin.
+/// Pelanggan tidak punya akun: identitasnya KODE TIKET (mis. `DNS-7KQ4M2`)
+/// sehingga percakapan bisa dilanjutkan dari perangkat lain.
+model chat_threads {
+  id                   String   @id @db.VarChar(36)
+  tenant_id            String   @db.VarChar(36)
+  ticket_code          String   @db.VarChar(20)
+  customer_name        String   @db.VarChar(80)
+  customer_contact     String   @db.VarChar(120)
+  status               String   @default("open") @db.VarChar(20)
+  last_message_at      DateTime @db.DateTime(0)
+  last_message_preview String   @default("") @db.VarChar(200)
+  last_sender          String   @default("customer") @db.VarChar(10)
+  unread_admin         Int      @default(0)
+  unread_customer      Int      @default(0)
+  created_at           DateTime @db.DateTime(0)
+  updated_at           DateTime @db.DateTime(0)
+
+  messages chat_messages[]
+
+  @@unique([tenant_id, ticket_code], map: "uq_chat_threads_ticket")
+  @@index([tenant_id], map: "ix_chat_threads_tenant_id")
+  @@index([last_message_at], map: "ix_chat_threads_last_message_at")
+  @@index([status], map: "ix_chat_threads_status")
+}
+
+model chat_messages {
+  id          String   @id @db.VarChar(36)
+  tenant_id   String   @db.VarChar(36)
+  thread_id   String   @db.VarChar(36)
+  sender      String   @db.VarChar(10)
+  sender_name String   @db.VarChar(80)
+  body        String   @db.Text
+  created_at  DateTime @db.DateTime(0)
+
+  thread chat_threads @relation(fields: [thread_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([tenant_id], map: "ix_chat_messages_tenant_id")
+  @@index([thread_id], map: "ix_chat_messages_thread_id")
+  @@index([created_at], map: "ix_chat_messages_created_at")
+}

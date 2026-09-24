@@ -346,6 +346,79 @@ async function main() {
     console.log(`custom_products: ${p} (warna ${c}, size chart ${s})${changed ? '' : ' [sudah ada]'}`);
   }
 
+  // ---- Chat pelanggan (dummy kecil: 2 percakapan) ----
+  {
+    const existing = await prisma.chat_threads.count({ where: { tenant_id: tid } });
+    if (existing === 0) {
+      const seedThreads = [
+        {
+          code: 'DNS-K7M3QP',
+          name: 'Gita Prameswari',
+          contact: '081234000111',
+          status: 'open',
+          unreadAdmin: 1,
+          msgs: [
+            ['customer', 'Halo, mau tanya kaos custom sablon DTF 20 pcs kena berapa ya?'],
+            ['admin', 'Halo Kak Gita, untuk 20 pcs DTF ukuran A4 harganya Rp95.000/pcs. Mau pakai bahan Cotton Combed 30s?'],
+            ['customer', 'Boleh, kalau bahannya combed 24s selisihnya berapa?'],
+          ],
+        },
+        {
+          code: 'DNS-R4X9TB',
+          name: 'Bayu Santosa',
+          contact: 'bayu.santosa@email.com',
+          status: 'closed',
+          unreadAdmin: 0,
+          msgs: [
+            ['customer', 'Stiker vinyl ukuran 10x10 cm 50 lembar bisa jadi hari ini?'],
+            ['admin', 'Bisa Kak, kalau file siap sebelum jam 2 siang sore ini selesai.'],
+            ['admin', 'Sudah kami kirim ya, terima kasih sudah order di Daneswara Print.'],
+          ],
+        },
+      ];
+
+      for (const t of seedThreads) {
+        const threadId = nid();
+        const base = Date.now() - 1000 * 60 * 60 * 6;
+        const last = new Date(base + t.msgs.length * 60000);
+        await prisma.chat_threads.create({
+          data: {
+            id: threadId,
+            tenant_id: tid,
+            ticket_code: t.code,
+            customer_name: t.name,
+            customer_contact: t.contact,
+            status: t.status,
+            last_message_at: last,
+            last_message_preview: t.msgs[t.msgs.length - 1][1].slice(0, 200),
+            last_sender: t.msgs[t.msgs.length - 1][0],
+            unread_admin: t.unreadAdmin,
+            unread_customer: 0,
+            created_at: new Date(base),
+            updated_at: last,
+          },
+        });
+        for (let i = 0; i < t.msgs.length; i++) {
+          const [sender, body] = t.msgs[i];
+          await prisma.chat_messages.create({
+            data: {
+              id: nid(),
+              tenant_id: tid,
+              thread_id: threadId,
+              sender,
+              sender_name: sender === 'admin' ? 'Admin Daneswara' : t.name,
+              body,
+              created_at: new Date(base + (i + 1) * 60000),
+            },
+          });
+        }
+      }
+      console.log('chat_threads: +2 (dengan 6 pesan)');
+    } else {
+      console.log(`chat_threads: ${existing} [sudah ada]`);
+    }
+  }
+
   const counts = {
     users: await prisma.users.count(), categories: await prisma.categories.count(),
     products: await prisma.products.count(), customers: await prisma.customers.count(),

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
@@ -13,7 +13,9 @@ import {
   LayoutDashboard, Package, Tags, Warehouse, BarChart3, Users as UsersIcon,
   Settings as SettingsIcon, ShoppingCart, Sun, Moon, LogOut, Menu, X, Store,
   UserCircle, Truck, ClipboardList, ShoppingBag, KeyRound, Wallet, DownloadCloud, HandCoins, ReceiptText, Images, Shirt, Palette,
+  MessagesSquare,
 } from "lucide-react";
+import { playChatBeep, notifyBrowser } from "@/lib/chatNotify";
 
 const NAV = [
   { to: "/app", label: "Dashboard", icon: LayoutDashboard, roles: ["Owner", "Manager", "Kasir", "Gudang"], end: true },
@@ -22,6 +24,7 @@ const NAV = [
   { to: "/app/inventory", label: "Inventory", icon: Warehouse, roles: ["Owner", "Manager", "Gudang"] },
   { to: "/app/pelanggan", label: "Pelanggan", icon: UserCircle, roles: ["Owner", "Manager", "Kasir"] },
   { to: "/app/pesanan", label: "Pesanan", icon: ShoppingBag, roles: ["Owner", "Manager", "Kasir"] },
+  { to: "/app/chat", label: "Chat Pelanggan", icon: MessagesSquare, roles: ["Owner", "Manager", "Kasir"] },
   { to: "/app/riwayat", label: "Riwayat Transaksi", icon: ReceiptText, roles: ["Owner", "Manager", "Kasir"] },
   { to: "/app/supplier", label: "Supplier", icon: Truck, roles: ["Owner", "Manager", "Gudang"] },
   { to: "/app/pembelian", label: "Pembelian", icon: ClipboardList, roles: ["Owner", "Manager", "Gudang"] },
@@ -46,6 +49,35 @@ export default function Layout() {
   const [pwLoading, setPwLoading] = useState(false);
   const items = NAV.filter((n) => n.roles.includes(user?.role));
   const [customTeeNew, setCustomTeeNew] = useState(0);
+  const [chatUnread, setChatUnread] = useState(0);
+  const lastChatUnread = useRef(0);
+  const chatFirstLoad = useRef(true);
+
+  // Badge chat pelanggan + bunyi/notifikasi saat ada pesan baru.
+  useEffect(() => {
+    if (!["Owner", "Manager", "Kasir"].includes(user?.role)) return;
+    let alive = true;
+    const load = async () => {
+      try {
+        const { data } = await api.get("/chat/unread");
+        if (!alive) return;
+        const total = Number(data?.unread_messages || 0);
+        setChatUnread(total);
+        if (!chatFirstLoad.current && total > lastChatUnread.current) {
+          playChatBeep();
+          notifyBrowser(
+            `Pesan baru dari ${data?.latest?.customer_name || "pelanggan"}`,
+            data?.latest?.preview || "Buka menu Chat Pelanggan untuk membalas",
+          );
+        }
+        lastChatUnread.current = total;
+        chatFirstLoad.current = false;
+      } catch { /* badge opsional */ }
+    };
+    load();
+    const id = window.setInterval(load, 15000);
+    return () => { alive = false; window.clearInterval(id); };
+  }, [user?.role]);
 
   // Badge pesanan Custom Tees baru (hanya untuk role yang punya menunya).
   useEffect(() => {
@@ -115,6 +147,14 @@ export default function Layout() {
             >
               <n.icon className="h-4.5 w-4.5" style={{ width: 18, height: 18 }} />
               <span className="flex-1">{n.label}</span>
+              {n.to === "/app/chat" && chatUnread > 0 && (
+                <span
+                  data-testid="nav-chat-badge"
+                  className="inline-flex min-w-[20px] items-center justify-center rounded-full bg-blue-600 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white"
+                >
+                  {chatUnread}
+                </span>
+              )}
               {n.to === "/custom-tees" && customTeeNew > 0 && (
                 <span
                   data-testid="nav-custom-tees-badge"
