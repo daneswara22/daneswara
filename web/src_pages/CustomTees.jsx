@@ -19,6 +19,7 @@ import {
   Minus, Plus, RotateCcw, RotateCw, ArrowRight, LifeBuoy, Trash2, X, Move,
   Bold, Italic, AlignLeft, AlignCenter, AlignRight, Search, Loader2,
   ArrowUp, ArrowDown, ChevronsUp, ChevronsDown, ClipboardList, Send, CheckCircle2,
+  Home, LayoutDashboard,
 } from "lucide-react";
 
 /* ---------- gambar mockup kaos (WebP ringan) per tampilan ---------- */
@@ -607,9 +608,24 @@ export default function CustomTees({ publicMode = false }) {
             Desainer kaos paling nyaman dibuka di layar tablet atau komputer. Silakan buka lewat perangkat yang lebih besar.
           </p>
         </div>
-        <button onClick={() => navigate(publicMode ? "/" : "/app")} className="rounded-lg bg-zinc-900 px-5 py-2 text-sm font-semibold text-white">
-          {publicMode ? "Kembali ke Beranda" : "Kembali ke Admin"}
-        </button>
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          <button
+            onClick={() => navigate(publicMode ? "/" : "/app")}
+            data-testid="designer-mobile-back-button"
+            className="rounded-lg bg-zinc-900 px-5 py-2 text-sm font-semibold text-white"
+          >
+            {publicMode ? "Kembali ke Beranda" : "Kembali ke Admin"}
+          </button>
+          {!publicMode && (
+            <a
+              href="/"
+              data-testid="designer-mobile-home-link"
+              className="rounded-lg border border-zinc-300 px-5 py-2 text-sm font-semibold text-zinc-700"
+            >
+              Kembali ke Beranda
+            </a>
+          )}
+        </div>
       </div>
 
       {/* Desktop designer */}
@@ -660,6 +676,24 @@ export default function CustomTees({ publicMode = false }) {
               Beranda
             </a>
           ) : (
+            <>
+              <a
+                href="/app"
+                data-testid="designer-dashboard-link"
+                className="mr-1 flex items-center gap-1.5 rounded-full border border-zinc-300 px-3.5 py-1.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
+              >
+                <LayoutDashboard className="h-4 w-4" /> Dashboard
+              </a>
+              <a
+                href="/"
+                data-testid="designer-home-link"
+                className="mr-1 flex items-center gap-1.5 rounded-full border border-zinc-300 px-3.5 py-1.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
+              >
+                <Home className="h-4 w-4" /> Beranda
+              </a>
+            </>
+          )}
+          {!publicMode && (
             <button
               onClick={() => setOrdersOpen(true)}
               data-testid="open-orders-button"
