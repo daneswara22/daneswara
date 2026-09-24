@@ -10,6 +10,7 @@
  * 25 detik saat tertutup (cuma untuk titik "ada balasan baru").
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import {
   MessageCircle, X, Send, Copy, Check, Loader2, Ticket, ArrowLeft, Smile, RefreshCw,
 } from 'lucide-react';
@@ -60,6 +61,13 @@ export default function ChatWidget() {
 
   const listRef = useRef(null);
   const seenCount = useRef(0);
+
+  // Di halaman desainer ada bilah aksi bawah ("Simpan Desain"), jadi tombol
+  // chat dinaikkan sedikit supaya tidak saling menutupi.
+  const pathname = usePathname() || '';
+  const onDesigner = pathname.startsWith('/custom');
+  const buttonPos = onDesigner ? 'bottom-[84px] right-5' : 'bottom-5 right-5';
+  const panelPos = onDesigner ? 'bottom-[152px] right-4' : 'bottom-24 right-4';
 
   // Ingat kode tiket di perangkat ini.
   useEffect(() => {
@@ -203,15 +211,21 @@ export default function ChatWidget() {
 
   return (
     <>
-      {/* Tombol bubble */}
+      {/* Tombol bubble "Customer Live Chat" (pojok kanan bawah, semua halaman publik) */}
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         data-testid="chat-widget-button"
-        aria-label="Chat dengan admin Daneswara"
-        className="fixed bottom-5 right-5 z-[60] flex h-14 w-14 items-center justify-center rounded-full bg-zinc-900 text-white shadow-[0_10px_30px_rgba(0,0,0,0.25)] transition hover:scale-105 hover:bg-zinc-800"
+        aria-label="Customer Live Chat Daneswara"
+        title="Customer Live Chat"
+        className={`fixed ${buttonPos} z-[60] flex h-14 items-center gap-2 rounded-full bg-green-500 px-4 text-white shadow-[0_10px_30px_rgba(34,197,94,0.45)] transition hover:scale-105 hover:bg-green-400`}
       >
         {open ? <X className="h-6 w-6" /> : <MessageCircle className="h-6 w-6" />}
+        {!open && (
+          <span className="hidden text-sm font-bold sm:inline" data-testid="chat-widget-label">
+            Customer Live Chat
+          </span>
+        )}
         {!open && unread > 0 && (
           <span
             data-testid="chat-widget-unread"
@@ -225,17 +239,17 @@ export default function ChatWidget() {
       {open && (
         <div
           data-testid="chat-widget-panel"
-          className="fixed bottom-24 right-4 z-[60] flex h-[540px] w-[min(94vw,380px)] flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white text-zinc-900 shadow-[0_24px_60px_rgba(0,0,0,0.25)]"
+          className={`fixed ${panelPos} z-[60] flex h-[min(540px,70vh)] w-[min(94vw,380px)] flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white text-zinc-900 shadow-[0_24px_60px_rgba(0,0,0,0.25)]`}
         >
           {/* Kepala panel */}
-          <div className="flex items-center gap-3 bg-zinc-900 px-4 py-3 text-white">
+          <div className="flex items-center gap-3 bg-green-500 px-4 py-3 text-white">
             {mode === 'resume' && (
               <button type="button" onClick={() => { setMode(code ? 'chat' : 'start'); setError(''); }} data-testid="chat-back-button" className="rounded-md p-1 hover:bg-white/10">
                 <ArrowLeft className="h-4 w-4" />
               </button>
             )}
             <div className="min-w-0 flex-1">
-              <div className="text-sm font-bold">Chat Daneswara</div>
+              <div className="text-sm font-bold">Customer Live Chat</div>
               <div className="truncate text-[11px] text-white/70">
                 {mode === 'chat' && thread
                   ? `Tiket ${thread.ticket_code} \u00b7 ${thread.status === 'closed' ? 'Ditutup admin' : 'Aktif'}`

@@ -15,8 +15,8 @@ import { toast } from "sonner";
 import api, { formatApiError } from "@/lib/api";
 import {
   Shirt, Upload, Type, Shapes, ImageIcon, LayoutTemplate, Layers,
-  Undo2, Redo2, Save, HelpCircle, ChevronRight, ChevronDown, Check,
-  Minus, Plus, RotateCcw, RotateCw, ArrowRight, LifeBuoy, Trash2, X, Move,
+  Undo2, Redo2, Save, ChevronRight, ChevronDown, Check,
+  Minus, Plus, RotateCcw, RotateCw, ArrowRight, Trash2, X, Move,
   Bold, Italic, AlignLeft, AlignCenter, AlignRight, Search, Loader2,
   ArrowUp, ArrowDown, ChevronsUp, ChevronsDown, ClipboardList, Send, CheckCircle2,
   Home, LayoutDashboard,
@@ -741,9 +741,6 @@ export default function CustomTees({ publicMode = false }) {
           <ToolbarIcon icon={Undo2} label="Undo" />
           <ToolbarIcon icon={Redo2} label="Redo" />
           <ToolbarIcon icon={Save} label="Simpan" />
-          <button className="ml-2 flex items-center gap-1.5 rounded-full border border-zinc-300 px-3.5 py-1.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50">
-            <HelpCircle className="h-4 w-4" /> Bantuan
-          </button>
         </div>
       </header>
 
@@ -768,12 +765,7 @@ export default function CustomTees({ publicMode = false }) {
               </button>
             );
           })}
-          <div className="mt-auto w-[80px] rounded-xl bg-rose-50 px-2 py-3 text-center">
-            <LifeBuoy className="mx-auto h-5 w-5 text-rose-500" />
-            <div className="mt-1 text-[10px] font-semibold text-rose-600">Butuh bantuan?</div>
-            <div className="text-[9px] leading-tight text-rose-400">Lihat panduan atau hubungi kami</div>
-            <div className="mt-1 text-[10px] font-bold text-rose-600">Pusat Bantuan</div>
-          </div>
+          {/* Bantuan pelanggan sekarang lewat tombol "Customer Live Chat" di pojok kanan bawah. */}
         </nav>
 
         {/* -------- Left panel (konten sesuai tool aktif) -------- */}
@@ -2070,6 +2062,28 @@ function ProductPanel({
         </p>
       )}
 
+      {/* Detail produk (info dari halaman admin "Jenis Produk") */}
+      <button
+        onClick={() => setDetailOpen?.(!detailOpen)}
+        data-testid="custom-product-detail-toggle"
+        aria-expanded={!!detailOpen}
+        className="mt-4 flex w-full items-center justify-between rounded-xl bg-blue-600 px-3.5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
+      >
+        Detail Produk
+        <ChevronDown className={`h-4 w-4 text-white/80 transition-transform ${detailOpen ? "rotate-180" : ""}`} />
+      </button>
+      {detailOpen && (
+        <div className="mt-2 space-y-1.5 rounded-xl border border-blue-200 bg-blue-50/60 p-3 text-[12px]" data-testid="custom-product-detail">
+          <DetailRow label="Suplier" value={product?.supplier} />
+          <DetailRow label="Size" value={product?.size_region} />
+          <DetailRow label="Model" value={product?.model} />
+          <DetailRow label="Bahan" value={product?.material} />
+          {product?.description && (
+            <p className="pt-1 leading-relaxed text-zinc-600">{product.description}</p>
+          )}
+        </div>
+      )}
+
       <div className="mt-5 flex items-center justify-between">
         <h3 className="text-sm font-bold">Ukuran</h3>
         <button
@@ -2196,28 +2210,6 @@ function ProductPanel({
           );
         })}
       </div>
-
-      {/* Detail produk (info dari halaman admin "Jenis Produk") */}
-      <button
-        onClick={() => setDetailOpen?.(!detailOpen)}
-        data-testid="custom-product-detail-toggle"
-        aria-expanded={!!detailOpen}
-        className="mt-5 flex w-full items-center justify-between rounded-xl border border-zinc-200 px-3.5 py-3 text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
-      >
-        Detail Produk
-        <ChevronDown className={`h-4 w-4 text-zinc-400 transition-transform ${detailOpen ? "rotate-180" : ""}`} />
-      </button>
-      {detailOpen && (
-        <div className="mt-2 space-y-1.5 rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-[12px]" data-testid="custom-product-detail">
-          <DetailRow label="Suplier" value={product?.supplier} />
-          <DetailRow label="Size" value={product?.size_region} />
-          <DetailRow label="Model" value={product?.model} />
-          <DetailRow label="Bahan" value={product?.material} />
-          {product?.description && (
-            <p className="pt-1 leading-relaxed text-zinc-600">{product.description}</p>
-          )}
-        </div>
-      )}
     </>
   );
 }
