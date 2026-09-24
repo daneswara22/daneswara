@@ -83,13 +83,7 @@ export const Header = ({ onCtaClick }) => {
             </button>
           </div>
 
-          <button
-            data-testid="header-cta-quote"
-            onClick={onCtaClick}
-            className="hidden sm:inline-flex items-center bg-primary text-primary-foreground px-4 py-2 border-2 border-foreground shadow-stamp font-bold uppercase tracking-wider text-xs lift"
-          >
-            {t("cta_quote")}
-          </button>
+          {/* Tombol "Minta Penawaran" dihapus; form penawaran tetap bisa diakses dari menu Kontak. */}
 
           <button
             data-testid="mobile-menu-toggle"
@@ -115,16 +109,6 @@ export const Header = ({ onCtaClick }) => {
                 {n.label}
               </a>
             ))}
-            <button
-              data-testid="header-cta-quote-mobile"
-              onClick={() => {
-                setOpen(false);
-                onCtaClick?.();
-              }}
-              className="mt-2 bg-primary text-primary-foreground px-4 py-2.5 border-2 border-foreground shadow-stamp font-bold uppercase tracking-wider text-xs"
-            >
-              {t("cta_quote")}
-            </button>
           </div>
         </div>
       )}
