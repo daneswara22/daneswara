@@ -137,6 +137,8 @@ const FONT_FORMAT_LABELS = [
   { ext: "OTF", badge: "Berat", tone: "warn", note: "Sebaiknya diubah ke WOFF2" },
 ];
 const FONT_MAX_BYTES = 3 * 1024 * 1024;
+/* Nilai sentinel untuk opsi terakhir dropdown font: membuka modal Kelola Font. */
+const FIND_MORE_FONTS = "__find_more_fonts__";
 const TEXT_COLORS = [
   "#111111", "#ffffff", "#c0392b", "#e67e22", "#f1c40f",
   "#27ae60", "#1f3fae", "#7d3cc9", "#2ea67a", "#f4b8cf",
@@ -3214,7 +3216,15 @@ function TextPanel({
           </div>
           <select
             value={selectedLayer.font}
-            onChange={(e) => updateSelectedText({ font: e.target.value })}
+            onChange={(e) => {
+              // Opsi terakhir bukan font, tapi pintasan ke modal "Kelola Font".
+              if (e.target.value === FIND_MORE_FONTS) {
+                e.target.value = selectedLayer.font; // kembalikan pilihan semula
+                onManageFonts?.();
+                return;
+              }
+              updateSelectedText({ font: e.target.value });
+            }}
             data-testid="text-font-select"
             className="w-full rounded-lg border border-zinc-300 px-2 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-900"
             style={{ fontFamily: selectedLayer.font }}
@@ -3222,6 +3232,11 @@ function TextPanel({
             {fontOptions.map((f) => (
               <option key={f.label} value={f.value} style={{ fontFamily: f.value }}>{f.label}</option>
             ))}
+            {canManageFonts && (
+              <option value={FIND_MORE_FONTS} data-testid="text-font-find-more">
+                + Cari Font Lain (Google Fonts)...
+              </option>
+            )}
           </select>
           <p className="mt-1 text-[11px] text-zinc-400" data-testid="font-count-hint">
             {fontsLoading
