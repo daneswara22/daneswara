@@ -34,7 +34,7 @@ const NAV = [
   { to: "/app/ekspor", label: "Ekspor Data", icon: DownloadCloud, roles: ["Owner"] },
   { to: "/app/galeri-web", label: "Galeri Website", icon: Images, roles: ["Owner", "Manager"] },
   { to: "/app/mockup-kaos", label: "Jenis Produk", icon: Shirt, roles: ["Owner", "Manager"] },
-  { to: "/custom-tees", label: "Custom Tees", icon: Palette, roles: ["Owner", "Manager"], dev: true },
+  { to: "/custom-tees", label: "Custom Tees", icon: Palette, roles: ["Owner", "Manager", "Kasir"], dev: true },
   { to: "/app/pengguna", label: "Pengguna", icon: UsersIcon, roles: ["Owner", "Manager"] },
   { to: "/app/pengaturan", label: "Pengaturan", icon: SettingsIcon, roles: ["Owner", "Manager", "Kasir"] },
 ];
@@ -81,7 +81,7 @@ export default function Layout() {
 
   // Badge pesanan Custom Tees baru (hanya untuk role yang punya menunya).
   useEffect(() => {
-    if (!["Owner", "Manager"].includes(user?.role)) return;
+    if (!["Owner", "Manager", "Kasir"].includes(user?.role)) return;
     let alive = true;
     const load = async () => {
       try {

@@ -149,7 +149,7 @@ const CANVAS_VH = 62;
 const textFontVh = (wPct) => (wPct / 100) * CANVAS_VH;
 const isTextLayer = (l) => l && l.type === "text";
 
-export default function CustomTees({ publicMode = false }) {
+export default function CustomTees({ publicMode = false, canManageFonts: canManageFontsProp }) {
   const navigate = useNavigate();
   const [view, setView] = useState("Depan");
   const [color, setColor] = useState(FALLBACK_SWATCHES[0]); // Putih (default)
@@ -800,7 +800,7 @@ export default function CustomTees({ publicMode = false }) {
               fontOptions={fontOptions}
               fontsLoading={fontsLoading}
               customFontCount={customFonts.length}
-              canManageFonts={!publicMode}
+              canManageFonts={canManageFontsProp ?? !publicMode}
               onManageFonts={() => setFontManagerOpen(true)}
             />
           ) : activeTool === "Clipart" ? (

@@ -55,13 +55,7 @@ export const Hero = ({ onQuoteClick, onGalleryClick }) => {
             >
               {t("cta_design")} <ArrowRight size={14} />
             </a>
-            <button
-              data-testid="hero-cta-quote"
-              onClick={onQuoteClick}
-              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full border-2 border-foreground/85 bg-background px-5 py-3 text-[11px] font-bold uppercase tracking-[0.12em] text-foreground transition hover:bg-card"
-            >
-              {t("cta_quote")} <ArrowRight size={14} />
-            </button>
+            {/* Tombol "Minta Penawaran" dihapus sesuai permintaan owner. */}
             <button
               data-testid="hero-cta-gallery"
               onClick={onGalleryClick}

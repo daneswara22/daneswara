@@ -9,7 +9,7 @@ import { CUSTOM_TEE_STATUSES } from '@/lib/customTeeOrders';
 export const dynamic = 'force-dynamic';
 
 async function find(req: NextRequest, ctx: any) {
-  const user = await requireRoles(req, 'Owner', 'Manager');
+  const user = await requireRoles(req, 'Owner', 'Manager', 'Kasir');
   const { coid } = await ctx.params;
   const row = await prisma.custom_tee_orders.findFirst({ where: { id: coid, tenant_id: user.tenant_id } });
   if (!row) throw new HttpError(404, 'Pesanan tidak ditemukan');
