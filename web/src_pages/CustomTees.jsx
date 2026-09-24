@@ -137,8 +137,9 @@ const FONT_FORMAT_LABELS = [
   { ext: "OTF", badge: "Berat", tone: "warn", note: "Sebaiknya diubah ke WOFF2" },
 ];
 const FONT_MAX_BYTES = 3 * 1024 * 1024;
-/* Nilai sentinel untuk opsi terakhir dropdown font: membuka modal Kelola Font. */
-const FIND_MORE_FONTS = "__find_more_fonts__";
+/* Ubah label font jadi slug untuk data-testid, mis. "Inter (Google)" -> "inter-google". */
+const slugifyFontLabel = (label) =>
+  String(label || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 const TEXT_COLORS = [
   "#111111", "#ffffff", "#c0392b", "#e67e22", "#f1c40f",
   "#27ae60", "#1f3fae", "#7d3cc9", "#2ea67a", "#f4b8cf",
@@ -3116,6 +3117,121 @@ function CurvedText({ testId, text, curve, color, font, bold, italic, wPct }) {
 /* =========================================================================
    PANEL: Teks (tambah tulisan + atur font, ukuran, warna, gaya)
    ========================================================================= */
+/**
+ * Pemilih font dengan pencarian — dipakai admin maupun pelanggan.
+ * Menggantikan <select> biasa supaya daftar font yang panjang tetap gampang dicari.
+ */
+function FontPicker({ value, options, onChange, canManageFonts = false, onManageFonts }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const boxRef = useRef(null);
+  const searchRef = useRef(null);
+
+  const current = useMemo(
+    () => options.find((f) => f.value === value) || { label: "Pilih font", value },
+    [options, value],
+  );
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return options;
+    return options.filter((f) => f.label.toLowerCase().includes(q));
+  }, [options, query]);
+
+  // Tutup saat klik di luar atau tekan Esc.
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e) => { if (boxRef.current && !boxRef.current.contains(e.target)) setOpen(false); };
+    const onKey = (e) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    const t = setTimeout(() => searchRef.current?.focus(), 30);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+      clearTimeout(t);
+    };
+  }, [open]);
+
+  const pick = (f) => { onChange(f.value); setOpen(false); setQuery(""); };
+
+  return (
+    <div className="relative" ref={boxRef}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        data-testid="text-font-select"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        className="flex w-full items-center justify-between gap-2 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-left text-sm text-zinc-900 outline-none transition hover:border-zinc-400 focus:border-zinc-900"
+      >
+        <span className="truncate" style={{ fontFamily: current.value }}>{current.label}</span>
+        <ChevronDown className={`h-4 w-4 shrink-0 text-zinc-400 transition ${open ? "rotate-180" : ""}`} />
+      </button>
+
+      {open && (
+        <div
+          data-testid="text-font-dropdown"
+          className="absolute left-0 right-0 z-30 mt-1 overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-xl"
+        >
+          <div className="relative border-b border-zinc-100 p-2">
+            <Search className="pointer-events-none absolute left-4 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400" />
+            <input
+              ref={searchRef}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && filtered.length > 0) { e.preventDefault(); pick(filtered[0]); } }}
+              placeholder="Cari font..."
+              data-testid="text-font-search"
+              className="h-9 w-full rounded-lg border border-zinc-200 bg-zinc-50 pl-8 pr-3 text-[13px] text-zinc-900 outline-none focus:border-zinc-900 focus:bg-white"
+            />
+          </div>
+
+          <div className="max-h-60 overflow-y-auto py-1" role="listbox">
+            {filtered.length === 0 ? (
+              <p className="px-3 py-6 text-center text-[12px] text-zinc-500" data-testid="text-font-empty">
+                Font "{query}" tidak ada di daftar.
+                {canManageFonts ? " Coba tambahkan dari Google Fonts di bawah." : " Coba kata kunci lain."}
+              </p>
+            ) : (
+              filtered.map((f) => {
+                const active = f.value === value;
+                return (
+                  <button
+                    key={f.label}
+                    type="button"
+                    role="option"
+                    aria-selected={active}
+                    onClick={() => pick(f)}
+                    data-testid={`text-font-option-${slugifyFontLabel(f.label)}`}
+                    className={`flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-[15px] transition ${
+                      active ? "bg-zinc-900 text-white" : "text-zinc-800 hover:bg-zinc-100"
+                    }`}
+                  >
+                    <span className="truncate" style={{ fontFamily: f.value }}>{f.label}</span>
+                    {active && <Check className="h-4 w-4 shrink-0" />}
+                  </button>
+                );
+              })
+            )}
+          </div>
+
+          {canManageFonts && (
+            <button
+              type="button"
+              onClick={() => { setOpen(false); setQuery(""); onManageFonts?.(); }}
+              data-testid="text-font-find-more"
+              className="flex w-full items-center gap-2 border-t border-zinc-100 bg-zinc-50 px-3 py-2.5 text-[12px] font-semibold text-zinc-700 hover:bg-zinc-100"
+            >
+              <Plus className="h-3.5 w-3.5" /> Cari Font Lain (Google Fonts)...
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function TextPanel({
   layers, view, selectedLayer, setSelectedId, addText, updateSelectedText,
   resizeSelected, rotateSelected, resetRotation, centerSelected, deleteLayer,
@@ -3214,30 +3330,13 @@ function TextPanel({
               </button>
             )}
           </div>
-          <select
+          <FontPicker
             value={selectedLayer.font}
-            onChange={(e) => {
-              // Opsi terakhir bukan font, tapi pintasan ke modal "Kelola Font".
-              if (e.target.value === FIND_MORE_FONTS) {
-                e.target.value = selectedLayer.font; // kembalikan pilihan semula
-                onManageFonts?.();
-                return;
-              }
-              updateSelectedText({ font: e.target.value });
-            }}
-            data-testid="text-font-select"
-            className="w-full rounded-lg border border-zinc-300 px-2 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-900"
-            style={{ fontFamily: selectedLayer.font }}
-          >
-            {fontOptions.map((f) => (
-              <option key={f.label} value={f.value} style={{ fontFamily: f.value }}>{f.label}</option>
-            ))}
-            {canManageFonts && (
-              <option value={FIND_MORE_FONTS} data-testid="text-font-find-more">
-                + Cari Font Lain (Google Fonts)...
-              </option>
-            )}
-          </select>
+            options={fontOptions}
+            onChange={(v) => updateSelectedText({ font: v })}
+            canManageFonts={canManageFonts}
+            onManageFonts={onManageFonts}
+          />
           <p className="mt-1 text-[11px] text-zinc-400" data-testid="font-count-hint">
             {fontsLoading
               ? "Memuat font..."
