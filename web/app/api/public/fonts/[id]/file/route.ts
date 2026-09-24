@@ -19,6 +19,8 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
   const { id } = await ctx.params;
   const row = await prisma.custom_fonts.findUnique({ where: { id } });
   if (!row || !row.is_active) return new NextResponse('Not found', { status: 404 });
+  // Font Google tidak punya berkas di storage — arahkan ke CSS resmi Google.
+  if (row.format === 'google') return NextResponse.redirect(row.file_url, 302);
 
   const bytes = await storage.fetchBytes(row.file_url);
   if (!bytes) return new NextResponse('Not found', { status: 404 });

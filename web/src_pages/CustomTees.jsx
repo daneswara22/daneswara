@@ -197,26 +197,51 @@ export default function CustomTees({ publicMode = false }) {
 
   useEffect(() => { loadFonts(); }, [loadFonts]);
 
-  // Suntikkan @font-face untuk tiap font kustom (dihapus lagi saat unmount).
+  // Suntikkan @font-face / <link> Google untuk tiap font kustom (dibersihkan saat unmount).
   useEffect(() => {
     if (typeof document === "undefined" || customFonts.length === 0) return;
-    const css = customFonts
-      .map((f) => {
-        const fmt = FONT_CSS_FORMAT[f.format] || "woff2";
-        return `@font-face{font-family:"${f.family}";src:url("${f.file_href}") format("${fmt}");font-display:swap;}`;
-      })
-      .join("\n");
-    const el = document.createElement("style");
-    el.setAttribute("data-dnsw-custom-fonts", "1");
-    el.textContent = css;
-    document.head.appendChild(el);
-    return () => { el.remove(); };
+    const nodes = [];
+
+    // 1) Font Google: cukup satu <link> ke CSS resmi Google (tanpa berkas lokal).
+    const googleUrls = Array.from(
+      new Set(
+        customFonts
+          .filter((f) => f.source === "google" && f.css_href)
+          .map((f) => f.css_href),
+      ),
+    );
+    googleUrls.forEach((href) => {
+      const link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.href = href;
+      link.setAttribute("data-dnsw-google-font", "1");
+      document.head.appendChild(link);
+      nodes.push(link);
+    });
+
+    // 2) Font unggahan: @font-face ke berkas same-origin.
+    const uploaded = customFonts.filter((f) => f.source !== "google" && f.file_href);
+    if (uploaded.length > 0) {
+      const css = uploaded
+        .map((f) => {
+          const fmt = FONT_CSS_FORMAT[f.format] || "woff2";
+          return `@font-face{font-family:"${f.family}";src:url("${f.file_href}") format("${fmt}");font-display:swap;}`;
+        })
+        .join("\n");
+      const el = document.createElement("style");
+      el.setAttribute("data-dnsw-custom-fonts", "1");
+      el.textContent = css;
+      document.head.appendChild(el);
+      nodes.push(el);
+    }
+
+    return () => { (nodes || []).forEach((n) => n.remove()); };
   }, [customFonts]);
 
   /** Font bawaan + font kustom admin, dipakai dropdown "Jenis Font". */
   const fontOptions = useMemo(() => {
     const extra = customFonts.map((f) => ({
-      label: `${f.name} (kustom)`,
+      label: `${f.name} (${f.source === "google" ? "Google" : "kustom"})`,
       value: `"${f.family}", sans-serif`,
       custom: true,
     }));
@@ -2331,6 +2356,15 @@ function FontManagerModal({ open, onClose, onChanged }) {
   const [busyId, setBusyId] = useState(null);
   const inputRef = useRef(null);
 
+  /* ---------- tab "Dari Google Fonts" (tanpa unduh berkas) ---------- */
+  const [tab, setTab] = useState("google");
+  const [catalog, setCatalog] = useState([]);
+  const [catalogLoading, setCatalogLoading] = useState(true);
+  const [previewCssUrl, setPreviewCssUrl] = useState("");
+  const [googleQuery, setGoogleQuery] = useState("");
+  const [googlePicked, setGooglePicked] = useState("");
+  const [addingGoogle, setAddingGoogle] = useState(false);
+
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
@@ -2343,12 +2377,74 @@ function FontManagerModal({ open, onClose, onChanged }) {
     }
   }, []);
 
+  const loadCatalog = useCallback(async () => {
+    setCatalogLoading(true);
+    try {
+      const { data } = await api.get("/fonts/google");
+      setCatalog(Array.isArray(data?.items) ? data.items : []);
+      setPreviewCssUrl(data?.preview_css_url || "");
+    } catch {
+      setCatalog([]);
+    } finally {
+      setCatalogLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (!open) return;
     setName("");
     setFile(null);
+    setGoogleQuery("");
+    setGooglePicked("");
+    setTab("google");
     refresh();
-  }, [open, refresh]);
+    loadCatalog();
+  }, [open, refresh, loadCatalog]);
+
+  // Muat CSS katalog Google supaya pratinjau di picker tampil dengan font asli.
+  useEffect(() => {
+    if (!open || !previewCssUrl || typeof document === "undefined") return;
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = previewCssUrl;
+    link.setAttribute("data-dnsw-google-preview", "1");
+    document.head.appendChild(link);
+    return () => { link.remove(); };
+  }, [open, previewCssUrl]);
+
+  const addedGoogleFamilies = useMemo(
+    () => new Set((items || []).filter((f) => f.source === "google").map((f) => f.family)),
+    [items],
+  );
+
+  const filteredCatalog = useMemo(() => {
+    const q = googleQuery.trim().toLowerCase();
+    if (!q) return catalog;
+    return (catalog || []).filter(
+      (f) =>
+        f.family.toLowerCase().includes(q) ||
+        String(f.category || "").toLowerCase().includes(q),
+    );
+  }, [catalog, googleQuery]);
+
+  const addGoogleFont = async (family) => {
+    const fam = String(family || "").trim();
+    if (fam.length < 2) return toast.error("Pilih atau ketik nama font Google dulu");
+    setAddingGoogle(true);
+    try {
+      const { data } = await api.post("/fonts/google", { family: fam });
+      toast.success(`Font Google "${data?.name || fam}" ditambahkan`);
+      setGooglePicked("");
+      setGoogleQuery("");
+      await refresh();
+      await loadCatalog();
+      onChanged?.();
+    } catch (e) {
+      toast.error(formatApiError(e.response?.data?.detail) || "Gagal menambahkan font Google");
+    } finally {
+      setAddingGoogle(false);
+    }
+  };
 
   if (!open) return null;
 
@@ -2428,7 +2524,7 @@ function FontManagerModal({ open, onClose, onChanged }) {
         <div className="flex items-center justify-between border-b border-zinc-200 px-5 py-4">
           <div>
             <h3 className="text-base font-bold">Kelola Font</h3>
-            <p className="text-xs text-zinc-500">Font yang diunggah di sini langsung bisa dipakai pelanggan di desainer kaos.</p>
+            <p className="text-xs text-zinc-500">Tambah font dari Google Fonts (tanpa unduh berkas) atau unggah berkas sendiri — langsung bisa dipakai pelanggan di desainer kaos.</p>
           </div>
           <button
             onClick={onClose}
@@ -2441,6 +2537,114 @@ function FontManagerModal({ open, onClose, onChanged }) {
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto p-5">
+          {/* Pilihan cara menambah font */}
+          <div className="flex gap-2 rounded-xl bg-zinc-100 p-1" data-testid="font-source-tabs">
+            <button
+              onClick={() => setTab("google")}
+              data-testid="font-tab-google"
+              className={`flex-1 rounded-lg px-3 py-2 text-[13px] font-semibold transition ${
+                tab === "google" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"
+              }`}
+            >
+              Dari Google Fonts
+            </button>
+            <button
+              onClick={() => setTab("upload")}
+              data-testid="font-tab-upload"
+              className={`flex-1 rounded-lg px-3 py-2 text-[13px] font-semibold transition ${
+                tab === "upload" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"
+              }`}
+            >
+              Unggah Berkas
+            </button>
+          </div>
+
+          {tab === "google" ? (
+            <div className="mt-4" data-testid="font-google-panel">
+              <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3.5">
+                <div className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
+                  Google Fonts — Tanpa Unduh Berkas
+                </div>
+                <ul className="mt-2 space-y-1 text-[11px] leading-relaxed text-zinc-600">
+                  <li>• Font dimuat langsung dari CDN Google, tidak ada berkas yang perlu diunduh atau diunggah.</li>
+                  <li>• Ketebalan Regular (400) dan Bold (700) diambil otomatis bila tersedia.</li>
+                  <li>• Gratis dipakai untuk keperluan komersial (lisensi OFL/Apache).</li>
+                </ul>
+              </div>
+
+              <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                <div className="relative flex-1">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                  <input
+                    value={googleQuery}
+                    onChange={(e) => { setGoogleQuery(e.target.value); setGooglePicked(e.target.value); }}
+                    placeholder="Cari atau ketik nama font Google, misal: Bebas Neue"
+                    data-testid="font-google-search"
+                    className="h-10 w-full rounded-lg border border-zinc-300 pl-9 pr-3 text-sm outline-none focus:border-zinc-900"
+                  />
+                </div>
+                <button
+                  onClick={() => addGoogleFont(googlePicked || googleQuery)}
+                  disabled={addingGoogle || (googlePicked || googleQuery).trim().length < 2}
+                  data-testid="font-google-add"
+                  className="flex h-10 items-center justify-center gap-2 rounded-lg bg-zinc-900 px-4 text-sm font-semibold text-white hover:bg-zinc-800 disabled:opacity-50"
+                >
+                  {addingGoogle ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                  {addingGoogle ? "Menambahkan..." : "Tambahkan"}
+                </button>
+              </div>
+
+              {catalogLoading ? (
+                <div className="flex items-center justify-center gap-2 py-10 text-sm text-zinc-500">
+                  <Loader2 className="h-4 w-4 animate-spin" /> Memuat katalog Google Fonts...
+                </div>
+              ) : filteredCatalog.length === 0 ? (
+                <p className="mt-3 rounded-xl border border-dashed border-zinc-300 p-6 text-center text-[13px] text-zinc-500" data-testid="font-google-empty">
+                  Tidak ada di daftar populer. Tekan <strong>Tambahkan</strong> untuk memakai nama yang kamu ketik —
+                  nama itu akan diperiksa dulu ke Google Fonts.
+                </p>
+              ) : (
+                <div className="mt-3 grid gap-2 sm:grid-cols-2" data-testid="font-google-catalog">
+                  {filteredCatalog.map((f) => {
+                    const added = f.added || addedGoogleFamilies.has(f.family);
+                    return (
+                      <button
+                        key={f.family}
+                        onClick={() => (added ? null : addGoogleFont(f.family))}
+                        disabled={added || addingGoogle}
+                        data-testid={`font-google-item-${f.family.replace(/\s+/g, "-").toLowerCase()}`}
+                        className={`rounded-xl border p-3 text-left transition ${
+                          added
+                            ? "border-emerald-200 bg-emerald-50"
+                            : "border-zinc-200 hover:border-zinc-900 hover:bg-zinc-50"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="truncate text-[12px] font-semibold text-zinc-700">{f.family}</span>
+                          {added ? (
+                            <span className="flex shrink-0 items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+                              <Check className="h-3 w-3" /> Terpasang
+                            </span>
+                          ) : (
+                            <span className="shrink-0 rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-bold text-zinc-500">
+                              {f.category}
+                            </span>
+                          )}
+                        </div>
+                        <div
+                          className="mt-1 truncate text-xl leading-snug text-zinc-900"
+                          style={{ fontFamily: `"${f.family}", sans-serif` }}
+                        >
+                          Kaos Custom 123
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          ) : (
+            <>
           {/* Panduan format ideal */}
           <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3.5" data-testid="font-format-guide">
             <div className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
@@ -2513,6 +2717,8 @@ function FontManagerModal({ open, onClose, onChanged }) {
               {uploading ? "Mengunggah..." : "Tambahkan Font"}
             </button>
           </div>
+            </>
+          )}
 
           {/* Daftar font */}
           <div className="mt-4">
@@ -2538,8 +2744,8 @@ function FontManagerModal({ open, onClose, onChanged }) {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <span className="truncate text-sm font-semibold">{f.name}</span>
-                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${f.format === "woff2" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
-                          {String(f.format || "").toUpperCase()}
+                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${f.source === "google" ? "bg-blue-100 text-blue-700" : f.format === "woff2" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
+                          {f.source === "google" ? "GOOGLE FONTS" : String(f.format || "").toUpperCase()}
                         </span>
                         {!f.is_active && (
                           <span className="rounded-full bg-zinc-200 px-2 py-0.5 text-[10px] font-bold text-zinc-600">
@@ -2555,7 +2761,9 @@ function FontManagerModal({ open, onClose, onChanged }) {
                         Contoh Teks Kaos 123
                       </div>
                       <div className="text-[11px] text-zinc-400">
-                        {Math.max(1, Math.round((f.file_size || 0) / 1024))} KB
+                        {f.source === "google"
+                          ? "Dimuat langsung dari CDN Google — tanpa berkas"
+                          : `${Math.max(1, Math.round((f.file_size || 0) / 1024))} KB`}
                       </div>
                     </div>
                     <button

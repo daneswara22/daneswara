@@ -304,12 +304,16 @@ export function serializeMockup(m: any) {
  * aturan @font-face di browser tidak terhalang CORS.
  */
 export function serializeFont(f: any, opts: { publicOnly?: boolean } = {}) {
+  const isGoogle = String(f.format || '') === 'google';
   const base = {
     id: f.id,
     name: f.name || '',
     family: f.family || '',
     format: f.format || '',
-    file_href: `/api/public/fonts/${f.id}/file`,
+    source: isGoogle ? 'google' : 'upload',
+    // font unggahan disajikan same-origin; font Google dimuat dari CDN Google
+    file_href: isGoogle ? null : `/api/public/fonts/${f.id}/file`,
+    css_href: isGoogle ? f.file_url || '' : null,
     file_size: Number(f.file_size || 0),
     is_active: f.is_active !== false,
     sort_order: f.sort_order || 0,
