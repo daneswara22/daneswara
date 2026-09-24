@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 
 /** Admin list of submitted Custom Tees orders (drafts hidden by default). */
 export const GET = handle(async (req: NextRequest) => {
-  const user = await requireRoles(req, 'Owner', 'Manager');
+  const user = await requireRoles(req, 'Owner', 'Manager', 'Kasir');
   const url = new URL(req.url);
   const status = (url.searchParams.get('status') || '').trim();
   const includeDrafts = url.searchParams.get('include_drafts') === '1';
