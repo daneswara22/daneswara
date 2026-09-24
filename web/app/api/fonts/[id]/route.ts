@@ -50,7 +50,10 @@ export const DELETE = handle(async (req: NextRequest, ctx: any) => {
   const user = await requireRoles(req, 'Owner', 'Manager');
   const { id } = await ctx.params;
   const existing = await findFont(id, user.tenant_id);
-  await storage.delete(existing.file_url).catch(() => {});
+  // font Google tidak punya berkas di storage, jadi tidak ada yang perlu dihapus
+  if (existing.format !== 'google') {
+    await storage.delete(existing.file_url).catch(() => {});
+  }
   await prisma.custom_fonts.delete({ where: { id } });
   await logActivity(user.tenant_id, user, 'Hapus Font', existing.name);
   return { ok: true, id };
