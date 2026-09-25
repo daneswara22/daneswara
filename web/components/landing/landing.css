@@ -93,6 +93,13 @@
   box-shadow: 0 14px 32px rgba(17,17,17,0.12);
 }
 
+/* Frame kotak (sudut siku) - dipakai kartu "Pilih Jenis Kaos" di Daftar Harga.
+   Tanpa ini, aturan di atas membulatkan border-2 jadi pil/rounded. */
+.dp-landing .dp-frame,
+.dp-landing button.dp-frame,
+.dp-landing a.dp-frame,
+.dp-landing span.dp-frame { border-radius: 0 !important; }
+
 /* Landing scrollbars keep the ink look */
 .dp-landing ::-webkit-scrollbar-thumb { background: #171717; border-radius: 9999px; }
 

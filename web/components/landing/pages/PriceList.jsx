@@ -19,6 +19,9 @@ import { SubPageBar } from "@/components/landing/components/SubPageBar";
 
 const PAGE_SIZE = 9;
 
+/* Logo bawaan kalau admin belum meng-upload logo di menu Pengaturan */
+const FALLBACK_LOGO = "/assets/daneswara-logo.webp";
+
 const PRINTS = [
   { id: "logo", label: "Logo", price: 10000, mockup: "/assets/mockups/logo-front.webp" },
   { id: "a5", label: "A5", price: 15000, mockup: "/assets/mockups/a5.webp" },
@@ -113,7 +116,18 @@ export default function PriceList() {
   const [error, setError] = useState("");
   const [selId, setSelId] = useState(null);
   const [activeColor, setActiveColor] = useState(null);
+  const [brandLogo, setBrandLogo] = useState(FALLBACK_LOGO);
   const sentinelRef = useRef(null);
+
+  /* Logo yang dipakai di tiap frame diambil dari menu admin (Pengaturan). */
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/public/brand")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (alive && d?.logo) setBrandLogo(d.logo); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
 
   const fetchPage = useCallback(async (targetPage, append) => {
     const res = await fetch(`/api/public/custom-products?page=${targetPage}&limit=${PAGE_SIZE}`);
@@ -190,7 +204,7 @@ export default function PriceList() {
           {loading ? (
             <div className="mt-6 grid sm:grid-cols-3 gap-4" data-testid="price-list-shirts-loading">
               {[0, 1, 2].map((i) => (
-                <div key={i} className="bg-card border-2 border-foreground shadow-stamp p-5 animate-pulse">
+                <div key={i} className="dp-frame bg-card border-2 border-foreground shadow-stamp p-5 animate-pulse">
                   <div className="h-5 w-2/3 bg-foreground/10" />
                   <div className="mt-3 h-7 w-1/2 bg-foreground/10" />
                   <div className="mt-3 h-4 w-1/3 bg-foreground/10" />
@@ -219,26 +233,45 @@ export default function PriceList() {
                       data-testid={`price-list-shirt-${s.product_key}`}
                       key={s.id}
                       onClick={() => pickShirt(s)}
-                      className={`text-left bg-card border-2 border-foreground p-5 lift ${active ? "shadow-stamp-red ring-2 ring-primary" : "shadow-stamp"}`}
+                      className={`dp-frame text-left bg-card border-2 border-foreground lift overflow-hidden ${active ? "shadow-stamp-red ring-2 ring-primary" : "shadow-stamp"}`}
                     >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="font-display text-lg uppercase tracking-wider">{s.title}</div>
-                        {active && <Check size={18} className="text-primary shrink-0" />}
-                      </div>
-                      <div className="font-display text-2xl text-primary mt-2 leading-none">{Rp(s.price)}</div>
-                      <div className="text-xs uppercase tracking-widest text-muted-foreground mt-1">{isID ? "harga kaos" : "shirt only"}</div>
-                      <div className="mt-3 flex items-center gap-2 text-[11px] uppercase tracking-widest text-muted-foreground">
-                        <Shirt size={13} />
-                        <span data-testid={`price-list-color-count-${s.product_key}`}>
-                          {(s.colors || []).length} {isID ? "pilihan warna" : "colors"}
+                      {/* Kepala frame: kotak logo toko + nama jenis kaos */}
+                      <div className="flex items-start gap-3 border-b-2 border-foreground px-4 py-3">
+                        <span
+                          className="dp-frame flex h-12 w-12 shrink-0 items-center justify-center border-2 border-foreground bg-[#F7F5F0] p-1.5"
+                          data-testid={`price-list-shirt-logo-${s.product_key}`}
+                        >
+                          <img
+                            src={brandLogo}
+                            alt=""
+                            loading="lazy"
+                            onError={(e) => { e.currentTarget.src = FALLBACK_LOGO; }}
+                            className="h-full w-full object-contain"
+                          />
                         </span>
-                        {(s.size_chart || []).length > 0 && (
-                          <>
-                            <span className="opacity-40">|</span>
-                            <Ruler size={13} />
-                            <span>{(s.size_chart || []).length} {isID ? "ukuran" : "sizes"}</span>
-                          </>
-                        )}
+                        <div className="min-w-0 flex-1 font-display text-base sm:text-lg uppercase tracking-wider leading-tight">
+                          {s.title}
+                        </div>
+                        {active && <Check size={18} className="text-primary shrink-0 mt-1" />}
+                      </div>
+
+                      {/* Isi frame: harga + spesifikasi ringkas */}
+                      <div className="px-4 py-4">
+                        <div className="font-display text-2xl text-primary leading-none">{Rp(s.price)}</div>
+                        <div className="text-xs uppercase tracking-widest text-muted-foreground mt-1">{isID ? "harga kaos" : "shirt only"}</div>
+                        <div className="mt-3 flex items-center gap-2 text-[11px] uppercase tracking-widest text-muted-foreground">
+                          <Shirt size={13} />
+                          <span data-testid={`price-list-color-count-${s.product_key}`}>
+                            {(s.colors || []).length} {isID ? "pilihan warna" : "colors"}
+                          </span>
+                          {(s.size_chart || []).length > 0 && (
+                            <>
+                              <span className="opacity-40">|</span>
+                              <Ruler size={13} />
+                              <span>{(s.size_chart || []).length} {isID ? "ukuran" : "sizes"}</span>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </button>
                   );
