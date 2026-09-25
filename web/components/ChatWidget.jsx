@@ -65,11 +65,12 @@ export default function ChatWidget() {
   // Di halaman desainer, pojok kanan bawah dipakai panel "Detail Produk" dan
   // bilah aksi bawah. Jadi di sana tombol chat dipindah ke pojok KIRI bawah
   // (area kosong di bawah rail alat) dan dibuat bulat ikon saja supaya tidak
-  // menutupi informasi apa pun. Di halaman publik lain tetap kanan bawah.
+  // menutupi informasi apa pun. Di HP bilah alat bawah lebih tinggi, jadi
+  // tombolnya dinaikkan lagi. Di halaman publik lain tetap kanan bawah.
   const pathname = usePathname() || '';
   const onDesigner = pathname.startsWith('/custom');
-  const buttonPos = onDesigner ? 'bottom-[84px] left-4' : 'bottom-5 right-5';
-  const panelPos = onDesigner ? 'bottom-[152px] left-4' : 'bottom-24 right-4';
+  const buttonPos = onDesigner ? 'bottom-[136px] left-3 md:bottom-[84px] md:left-4' : 'bottom-5 right-5';
+  const panelPos = onDesigner ? 'bottom-[196px] left-3 md:bottom-[152px] md:left-4' : 'bottom-24 right-4';
   const buttonShape = onDesigner ? 'h-12 w-12 justify-center' : 'h-14 px-4';
 
   // Ingat kode tiket di perangkat ini.
