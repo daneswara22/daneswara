@@ -18,6 +18,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import api, { formatApiError, uploadImage } from "@/lib/api";
+import { extractPaletteFromFile } from "@/lib/palette";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -36,7 +37,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import {
   Plus, Pencil, Trash2, Shirt, Search, UploadCloud, Loader2, RefreshCw,
-  Palette, Ruler, ImageOff, Check, X, PackageSearch, Eye, EyeOff,
+  Palette, Ruler, ImageOff, Check, X, PackageSearch, Eye, EyeOff, Layers,
 } from "lucide-react";
 
 const PAGE_SIZE = 9;
@@ -730,10 +731,18 @@ function ColorManager({ product, onClose, onChanged }) {
   const [busyId, setBusyId] = useState(null);
   const [preview, setPreview] = useState(null);
 
+  // Unggah 1 gambar berisi banyak warna -> dipecah jadi beberapa varian.
+  const [paletteBusy, setPaletteBusy] = useState(false);
+  const [paletteSrc, setPaletteSrc] = useState("");
+  const [paletteItems, setPaletteItems] = useState([]);
+  const [bulkSaving, setBulkSaving] = useState(false);
+
   useEffect(() => {
     setForm(EMPTY_COLOR);
     setEditId(null);
     setPreview(null);
+    setPaletteSrc("");
+    setPaletteItems([]);
   }, [product?.id]);
 
   const refresh = async () => {
@@ -778,8 +787,69 @@ function ColorManager({ product, onClose, onChanged }) {
     }
   };
 
-  const remove = async (c) => {
-    setBusyId(c.id);
+  /* ---- Unggah 1 gambar palet -> pecah jadi banyak warna ---- */
+  const handlePaletteFile = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) return toast.error("File harus berupa gambar");
+    if (file.size > 15 * 1024 * 1024) return toast.error("Ukuran maksimal 15MB");
+    setPaletteBusy(true);
+    try {
+      const { preview: src, colors: found } = await extractPaletteFromFile(file);
+      if (!found.length) {
+        toast.error("Tidak ada warna yang terdeteksi pada gambar itu");
+        return;
+      }
+      const existing = new Set((product.colors || []).map((c) => String(c.hex).toUpperCase()));
+      setPaletteSrc(src);
+      setPaletteItems(found.map((c, i) => ({
+        key: `${c.hex}-${i}`,
+        hex: c.hex,
+        name: c.name,
+        include: !existing.has(c.hex),
+        duplicate: existing.has(c.hex),
+      })));
+      toast.success(`${found.length} warna terdeteksi — periksa lalu simpan`);
+    } catch (err) {
+      toast.error(err?.message || "Gagal membaca warna dari gambar");
+    } finally {
+      setPaletteBusy(false);
+    }
+  };
+
+  const patchPaletteItem = (key, patch) =>
+    setPaletteItems((list) => list.map((it) => (it.key === key ? { ...it, ...patch } : it)));
+
+  const clearPalette = () => { setPaletteSrc(""); setPaletteItems([]); };
+
+  const savePalette = async () => {
+    const picked = paletteItems.filter((it) => it.include);
+    if (!picked.length) return toast.error("Pilih minimal satu warna");
+    const bad = picked.find((it) => !it.name.trim());
+    if (bad) return toast.error("Semua warna terpilih harus punya nama");
+    setBulkSaving(true);
+    let ok = 0;
+    const failed = [];
+    for (const it of picked) {
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        await api.post(`/custom-products/${product.id}/colors`, {
+          name: it.name.trim(), hex: it.hex, thumb_url: "",
+        });
+        ok += 1;
+      } catch (err) {
+        failed.push(`${it.name} (${formatApiError(err.response?.data?.detail) || "gagal"})`);
+      }
+    }
+    setBulkSaving(false);
+    if (ok) toast.success(`${ok} warna ditambahkan`);
+    if (failed.length) toast.error(`Gagal: ${failed.slice(0, 3).join(", ")}${failed.length > 3 ? " ..." : ""}`);
+    if (ok) clearPalette();
+    await refresh();
+  };
+
+  const remove = async (c) => {    setBusyId(c.id);
     try {
       await api.delete(`/custom-products/${product.id}/colors/${c.id}`);
       toast.success(`Warna "${c.name}" dihapus`);
@@ -898,6 +968,106 @@ function ColorManager({ product, onClose, onChanged }) {
             )}
           </div>
         </div>
+
+        {/* Unggah 1 gambar berisi banyak warna -> dipecah otomatis per warna */}
+        <div className="rounded-xl border border-border bg-muted/30 p-4" data-testid="palette-bulk-section">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Tambah Banyak Warna Dari 1 Gambar
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Unggah satu gambar lembar warna (misal deretan bulatan warna dari suplier). Warnanya
+                dipecah otomatis jadi satu varian per warna — nama bisa diubah sebelum disimpan.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                data-testid="palette-bulk-upload"
+                type="button"
+                variant="outline"
+                disabled={paletteBusy || bulkSaving}
+                onClick={() => document.getElementById("pt-palette-input")?.click()}
+              >
+                {paletteBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Layers className="mr-2 h-4 w-4" />}
+                {paletteBusy ? "Memproses..." : "Unggah Gambar Palet"}
+              </Button>
+              {paletteItems.length > 0 && (
+                <Button data-testid="palette-bulk-clear" type="button" variant="ghost" onClick={clearPalette} disabled={bulkSaving}>
+                  Batal
+                </Button>
+              )}
+              <input
+                id="pt-palette-input"
+                type="file"
+                accept="image/*"
+                className="hidden"
+                data-testid="palette-bulk-file"
+                onChange={handlePaletteFile}
+              />
+            </div>
+          </div>
+
+          {paletteItems.length > 0 && (
+            <div className="mt-4">
+              {paletteSrc && (
+                <img
+                  src={paletteSrc}
+                  alt="Gambar palet"
+                  data-testid="palette-bulk-preview"
+                  className="mb-3 max-h-32 w-full rounded-lg border border-border bg-card object-contain"
+                />
+              )}
+              <div className="mb-2 text-xs font-semibold text-muted-foreground" data-testid="palette-bulk-count">
+                {paletteItems.filter((it) => it.include).length} dari {paletteItems.length} warna dipilih
+              </div>
+              <div className="grid max-h-64 gap-2 overflow-y-auto sm:grid-cols-2" data-testid="palette-bulk-list">
+                {paletteItems.map((it) => (
+                  <div
+                    key={it.key}
+                    data-testid={`palette-item-${it.hex.replace("#", "")}`}
+                    className={`flex items-center gap-2 rounded-lg border p-2 ${it.include ? "border-primary/40 bg-card" : "border-border bg-muted/40 opacity-60"}`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={it.include}
+                      onChange={(e) => patchPaletteItem(it.key, { include: e.target.checked })}
+                      data-testid={`palette-item-toggle-${it.hex.replace("#", "")}`}
+                      aria-label={`Pakai warna ${it.name}`}
+                      className="h-4 w-4 shrink-0 cursor-pointer"
+                    />
+                    <span
+                      className={`h-8 w-8 shrink-0 rounded-md ${isLight(it.hex) ? "border border-zinc-300" : ""}`}
+                      style={{ backgroundColor: it.hex }}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <Input
+                        value={it.name}
+                        onChange={(e) => patchPaletteItem(it.key, { name: e.target.value })}
+                        data-testid={`palette-item-name-${it.hex.replace("#", "")}`}
+                        className="h-8 text-sm"
+                        placeholder="Nama warna"
+                      />
+                      <div className="mt-0.5 font-mono text-[11px] text-muted-foreground">
+                        {it.hex}{it.duplicate ? " · sudah ada" : ""}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <Button
+                data-testid="palette-bulk-save"
+                className="mt-3"
+                onClick={savePalette}
+                disabled={bulkSaving || paletteItems.every((it) => !it.include)}
+              >
+                {bulkSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
+                Simpan {paletteItems.filter((it) => it.include).length} Warna
+              </Button>
+            </div>
+          )}
+        </div>
+
 
         {/* Daftar warna */}
         <div className="mt-2">
