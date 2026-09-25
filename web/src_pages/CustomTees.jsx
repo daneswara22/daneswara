@@ -18,7 +18,7 @@ import {
   Minus, Plus, RotateCcw, RotateCw, ArrowRight, Trash2, X, Move,
   Bold, Italic, AlignLeft, AlignCenter, AlignRight, Search, Loader2,
   ArrowUp, ArrowDown, ChevronsUp, ChevronsDown, ClipboardList, Send, CheckCircle2,
-  Home, LayoutDashboard,
+  Home, LayoutDashboard, MessageCircle,
 } from "lucide-react";
 
 /* ---------- gambar mockup kaos (WebP ringan) per tampilan ---------- */
@@ -280,6 +280,68 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
   const fileInputRef = useRef(null);
   const gesture = useRef(null); // { mode, id, view, ... }
 
+  /* ---------- Undo / Redo ----------
+     Riwayat sederhana: tumpukan snapshot object `design`. Setiap perubahan
+     tercatat lewat satu useEffect, kecuali (a) perubahan yang berasal dari
+     Undo/Redo itu sendiri dan (b) selama gerakan geser/putar/ubah-ukuran —
+     satu gerakan hanya dicatat sekali di akhir, supaya satu klik Undo
+     membatalkan seluruh gerakan, bukan per piksel. */
+  const HISTORY_MAX = 60;
+  const history = useRef({ past: [], future: [], skip: false, paused: false, base: null });
+  const prevDesign = useRef(design);
+  const [histTick, setHistTick] = useState(0);
+  const bumpHistory = () => setHistTick((v) => v + 1);
+
+  useEffect(() => {
+    const h = history.current;
+    if (prevDesign.current === design) return;
+    if (h.skip) { h.skip = false; prevDesign.current = design; bumpHistory(); return; }
+    if (h.paused) { prevDesign.current = design; return; } // dicatat saat gerakan selesai
+    h.past.push(prevDesign.current);
+    if (h.past.length > HISTORY_MAX) h.past.shift();
+    h.future = [];
+    prevDesign.current = design;
+    bumpHistory();
+  }, [design]);
+
+  const undo = useCallback(() => {
+    const h = history.current;
+    if (!h.past.length) return;
+    const target = h.past.pop();
+    h.future.push(prevDesign.current);
+    h.skip = true;
+    setSelectedId(null);
+    setDesign(target);
+  }, []);
+
+  const redo = useCallback(() => {
+    const h = history.current;
+    if (!h.future.length) return;
+    const target = h.future.pop();
+    h.past.push(prevDesign.current);
+    h.skip = true;
+    setSelectedId(null);
+    setDesign(target);
+  }, []);
+
+  const canUndo = history.current.past.length > 0;
+  const canRedo = history.current.future.length > 0;
+  void histTick; // memicu render ulang tombol saat riwayat berubah
+
+  // Pintasan papan tuts: Ctrl/Cmd+Z = Undo, Ctrl/Cmd+Shift+Z atau Ctrl+Y = Redo
+  useEffect(() => {
+    const onKey = (e) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      const k = (e.key || "").toLowerCase();
+      const editing = /^(input|textarea|select)$/i.test(e.target?.tagName || "") || e.target?.isContentEditable;
+      if (editing) return;
+      if (k === "z" && !e.shiftKey) { e.preventDefault(); undo(); }
+      else if ((k === "z" && e.shiftKey) || k === "y") { e.preventDefault(); redo(); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [undo, redo]);
+
   /* ---------- muat daftar jenis produk (publik, tanpa login) ---------- */
   useEffect(() => {
     let alive = true;
@@ -378,6 +440,9 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
     if (!canvas || !rect) return;
     try { canvas.setPointerCapture(e.pointerId); } catch { /* capture unsupported/lost */ }
     if (e.cancelable) e.preventDefault();
+    // satu gerakan = satu langkah Undo
+    history.current.paused = true;
+    history.current.base = prevDesign.current;
     gesture.current = { ...base, pointerId: e.pointerId, rect };
   };
 
@@ -453,6 +518,18 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
       }
     } catch { /* ignore */ }
     gesture.current = null;
+    // tutup langkah Undo untuk gerakan ini
+    const h = history.current;
+    if (h.paused) {
+      h.paused = false;
+      if (h.base && h.base !== prevDesign.current) {
+        h.past.push(h.base);
+        if (h.past.length > HISTORY_MAX) h.past.shift();
+        h.future = [];
+        bumpHistory();
+      }
+      h.base = null;
+    }
   };
 
   /* ---------- upload gambar ---------- */
@@ -807,9 +884,9 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
             </button>
           )}
           <div className="hidden items-center gap-1 md:flex">
-            <ToolbarIcon icon={Undo2} label="Undo" />
-            <ToolbarIcon icon={Redo2} label="Redo" />
-            <ToolbarIcon icon={Save} label="Simpan" />
+            <ToolbarIcon icon={Undo2} label="Undo" onClick={undo} disabled={!canUndo} />
+            <ToolbarIcon icon={Redo2} label="Redo" onClick={redo} disabled={!canRedo} />
+            <ToolbarIcon icon={Save} label="Simpan" onClick={() => setPreviewOpen(true)} />
           </div>
         </div>
       </header>
@@ -1121,6 +1198,27 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
             className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-300 text-zinc-600 hover:bg-zinc-50 disabled:opacity-40 md:h-8 md:w-8"
           >
             <Plus className="h-4 w-4" />
+          </button>
+          {/* HP: Undo / Redo (di layar lebar sudah ada di kepala halaman) */}
+          <button
+            onClick={undo}
+            disabled={!canUndo}
+            data-testid="mobile-undo-button"
+            aria-label="Undo"
+            title="Undo"
+            className="ml-1 flex h-9 w-9 items-center justify-center rounded-full border border-zinc-300 text-zinc-600 disabled:opacity-40 md:hidden"
+          >
+            <Undo2 className="h-4 w-4" />
+          </button>
+          <button
+            onClick={redo}
+            disabled={!canRedo}
+            data-testid="mobile-redo-button"
+            aria-label="Redo"
+            title="Redo"
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-300 text-zinc-600 disabled:opacity-40 md:hidden"
+          >
+            <Redo2 className="h-4 w-4" />
           </button>
         </div>
 
@@ -1557,14 +1655,52 @@ function PreviewModal({ open, onClose, design, color, sizeItems, onCheckPrice, c
    ORDER FLOW (tambahan): form data customer setelah "Cek Harga".
    Desain yang sedang dikerjakan TIDAK diubah/dihapus oleh modal ini.
    ========================================================================= */
+/* ---------- Pesan langsung lewat WhatsApp ----------
+   Nomor studio bisa diatur lewat NEXT_PUBLIC_WA_NUMBER saat build; kalau tidak
+   diisi, memakai nomor resmi yang sama dengan halaman landing. */
+const STUDIO_WA = (process.env.NEXT_PUBLIC_WA_NUMBER || "6285888102930").replace(/[^0-9]/g, "");
+
+function buildWaText({ order, form, product, color, sizeItems, design, quote }) {
+  const items = sizeItems || [];
+  const totalQty = items.reduce((a, it) => a + it.qty, 0);
+  const objek = PREVIEW_VIEWS
+    .map((v) => `${v}: ${(design?.[v] || []).length}`)
+    .join(" | ");
+  const lines = [
+    "*PESANAN CUSTOM TEES - Daneswara Print*",
+    order?.order_code ? `Kode Pesanan: ${order.order_code}` : null,
+    "",
+    `Nama: ${form?.name || "-"}`,
+    `No. HP: ${form?.phone || "-"}`,
+    form?.email ? `Email: ${form.email}` : null,
+    "",
+    `Jenis Kaos: ${product?.title || "-"}`,
+    `Warna: ${color?.name || "-"} (${color?.hex || "-"})`,
+    `Ukuran: ${items.length ? items.map((it) => `${it.size} x ${it.qty}`).join(", ") : "-"}`,
+    `Total: ${totalQty} pcs`,
+    `Objek Desain: ${objek}`,
+    quote ? `Estimasi Harga: ${rupiah(quote.total)} (${rupiah(quote.price_per_pcs)} / pcs)` : null,
+    "",
+    "Mohon dibantu proses pesanan saya. Terima kasih.",
+  ].filter((l) => l !== null);
+  return lines.join("\n");
+}
+
+function waUrl(text) {
+  return `https://wa.me/${STUDIO_WA}?text=${encodeURIComponent(text)}`;
+}
+
 function OrderFormModal({ open, onClose, design, color, sizeItems, product, quote, onSubmit }) {
   const [form, setForm] = useState({ name: "", phone: "", email: "" });
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(null);
+  const [waSubmitting, setWaSubmitting] = useState(false);
+  // disimpan supaya tombol WhatsApp di layar sukses tetap punya isi pesannya
+  const [sentForm, setSentForm] = useState(null);
 
   useEffect(() => {
-    if (open) { setErrors({}); setDone(null); }
+    if (open) { setErrors({}); setDone(null); setSentForm(null); }
   }, [open]);
 
   if (!open) return null;
@@ -1589,6 +1725,7 @@ function OrderFormModal({ open, onClose, design, color, sizeItems, product, quot
         phone: form.phone.trim(),
         email: form.email.trim(),
       });
+      setSentForm({ ...form });
       setDone(data || {});
       setForm({ name: "", phone: "", email: "" });
     } catch (e) {
@@ -1597,6 +1734,36 @@ function OrderFormModal({ open, onClose, design, color, sizeItems, product, quot
       setSubmitting(false);
     }
   };
+
+  /* Pesan lewat WhatsApp: pesanan tetap dicatat di sistem dulu (jadi desain
+     tersimpan dan admin tetap menerimanya), baru chat dibuka. Kalau popup
+     diblokir peramban, tombol hijau di layar sukses tetap bisa dipakai. */
+  const sendViaWhatsApp = async () => {
+    if (!validate()) return;
+    setWaSubmitting(true);
+    const snapshot = { ...form };
+    try {
+      const data = await onSubmit({
+        name: form.name.trim(),
+        phone: form.phone.trim(),
+        email: form.email.trim(),
+      });
+      setSentForm(snapshot);
+      setDone(data || {});
+      setForm({ name: "", phone: "", email: "" });
+      const text = buildWaText({ order: data, form: snapshot, product, color, sizeItems, design, quote });
+      const win = window.open(waUrl(text), "_blank", "noopener,noreferrer");
+      if (!win) toast.info("Tekan tombol WhatsApp di bawah untuk melanjutkan chat");
+    } catch (e) {
+      toast.error(formatApiError(e.response?.data?.detail));
+    } finally {
+      setWaSubmitting(false);
+    }
+  };
+
+  const waHref = waUrl(buildWaText({
+    order: done, form: sentForm || form, product, color, sizeItems, design, quote,
+  }));
 
   return (
     <div
@@ -1634,13 +1801,24 @@ function OrderFormModal({ open, onClose, design, color, sizeItems, product, quot
                 Nomor pesanan kamu: <span className="font-semibold text-zinc-800" data-testid="order-success-code">{done.order_code}</span>
               </p>
             )}
-            <button
-              onClick={onClose}
-              data-testid="order-success-close"
-              className="mt-2 rounded-lg bg-zinc-900 px-5 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
-            >
-              Tutup
-            </button>
+            <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
+              <a
+                href={waHref}
+                target="_blank"
+                rel="noreferrer"
+                data-testid="order-success-whatsapp"
+                className="flex items-center gap-2 rounded-lg bg-green-500 px-5 py-2 text-sm font-semibold text-white hover:bg-green-400"
+              >
+                <MessageCircle className="h-4 w-4" /> Chat WhatsApp Sekarang
+              </a>
+              <button
+                onClick={onClose}
+                data-testid="order-success-close"
+                className="rounded-lg border border-zinc-300 px-5 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
+              >
+                Tutup
+              </button>
+            </div>
           </div>
         ) : (
           <>
@@ -1725,7 +1903,7 @@ function OrderFormModal({ open, onClose, design, color, sizeItems, product, quot
               </div>
             </div>
 
-            <div className="flex shrink-0 items-center justify-end gap-2 border-t border-zinc-100 px-5 py-3">
+            <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-zinc-100 px-5 py-3">
               <button
                 onClick={onClose}
                 className="rounded-lg border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
@@ -1733,8 +1911,18 @@ function OrderFormModal({ open, onClose, design, color, sizeItems, product, quot
                 Batal
               </button>
               <button
+                onClick={sendViaWhatsApp}
+                disabled={submitting || waSubmitting}
+                data-testid="order-whatsapp-button"
+                title="Pesanan dicatat dulu, lalu chat WhatsApp terbuka"
+                className="flex items-center gap-2 rounded-lg bg-green-500 px-5 py-2 text-sm font-semibold text-white transition hover:bg-green-400 disabled:opacity-60"
+              >
+                {waSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageCircle className="h-4 w-4" />}
+                Pesan via WhatsApp
+              </button>
+              <button
                 onClick={send}
-                disabled={submitting}
+                disabled={submitting || waSubmitting}
                 data-testid="submit-order-button"
                 className="flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
               >
@@ -3899,9 +4087,15 @@ function ComingSoon({ tool, onUpload, setActiveTool }) {
 }
 
 /* small toolbar icon with tiny label under it */
-function ToolbarIcon({ icon: Icon, label }) {
+function ToolbarIcon({ icon: Icon, label, onClick, disabled }) {
   return (
-    <button className="flex w-12 flex-col items-center gap-0.5 rounded-lg py-1 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900">
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      title={label}
+      data-testid={`toolbar-${label.toLowerCase()}`}
+      className="flex w-12 flex-col items-center gap-0.5 rounded-lg py-1 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+    >
       <Icon className="h-4.5 w-4.5" style={{ width: 18, height: 18 }} />
       <span className="text-[10px] leading-none">{label}</span>
     </button>
