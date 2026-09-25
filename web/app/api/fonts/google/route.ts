@@ -16,8 +16,8 @@ import { HttpError, newId } from '@/lib/http';
 import { serializeFont } from '@/lib/serializers';
 import { ensureFontSchema } from '@/lib/schemaGuard';
 import {
-  GOOGLE_FONT_CATALOG, GOOGLE_FONT_CATEGORIES, GOOGLE_FONT_GUIDE,
-  GOOGLE_FONT_FORMAT, googleCssUrl, normalizeGoogleFamily, verifyGoogleFamily,
+  GOOGLE_FONT_GUIDE, GOOGLE_FONT_FORMAT, googleCssUrl, normalizeGoogleFamily,
+  verifyGoogleFamily, fetchGoogleFamilies, searchGoogleFamilies,
 } from '@/lib/googleFonts';
 
 export const dynamic = 'force-dynamic';
@@ -27,25 +27,50 @@ const createSchema = z.object({
   name: z.string().trim().max(80).optional(),
 });
 
-/** Katalog untuk picker admin (dipakai juga untuk pratinjau). */
+/**
+ * Katalog untuk picker admin — seluruh Google Fonts, dengan pencarian &
+ * penyaringan kategori di server lalu dipotong per halaman. Yang dikirim ke
+ * browser hanya satu halaman, jadi daftar ±1.900 font tetap ringan dibuka.
+ *
+ *   GET /api/fonts/google?q=bebas&category=Display&page=1&limit=24
+ */
 export const GET = handle(async (req: NextRequest) => {
   await ensureFontSchema();
   const user = await getCurrentUser(req);
+  const url = new URL(req.url);
+  const q = url.searchParams.get('q') || '';
+  const category = url.searchParams.get('category') || '';
+  const page = Math.max(1, Number(url.searchParams.get('page')) || 1);
+  const limit = Math.min(60, Math.max(1, Number(url.searchParams.get('limit')) || 24));
+
   const rows = await prisma.custom_fonts.findMany({
     where: { tenant_id: user.tenant_id, format: GOOGLE_FONT_FORMAT },
     select: { family: true },
   });
   const taken = new Set(rows.map((r) => r.family));
+
+  const { items: all, source } = await fetchGoogleFamilies();
+  const found = searchGoogleFamilies(all, { q, category });
+  const slice = found.slice((page - 1) * limit, page * limit);
+
   return {
-    items: GOOGLE_FONT_CATALOG.map((f) => ({
-      ...f,
+    items: slice.map((f) => ({
+      family: f.family,
+      category: f.category,
       added: taken.has(f.family),
       css_url: googleCssUrl([f.family]),
     })),
-    categories: GOOGLE_FONT_CATEGORIES,
-    preview_css_url: googleCssUrl(GOOGLE_FONT_CATALOG.map((f) => f.family)),
+    // kategori diambil dari katalog nyata, bukan daftar tetap
+    categories: Array.from(new Set(all.map((f) => f.category))).sort(),
+    // hanya font di halaman ini yang dimuat untuk pratinjau
+    preview_css_url: slice.length ? googleCssUrl(slice.map((f) => f.family)) : '',
     guide: GOOGLE_FONT_GUIDE,
-    total: GOOGLE_FONT_CATALOG.length,
+    page,
+    limit,
+    total: found.length,
+    catalog_total: all.length,
+    has_more: page * limit < found.length,
+    source,
   };
 });
 

@@ -2675,10 +2675,19 @@ function FontManagerModal({ open, onClose, onChanged }) {
   const [tab, setTab] = useState("google");
   const [catalog, setCatalog] = useState([]);
   const [catalogLoading, setCatalogLoading] = useState(true);
-  const [previewCssUrl, setPreviewCssUrl] = useState("");
+  const [loadingMoreGoogle, setLoadingMoreGoogle] = useState(false);
+  const [cssUrls, setCssUrls] = useState([]);   // CSS pratinjau per halaman
   const [googleQuery, setGoogleQuery] = useState("");
+  const [googleCat, setGoogleCat] = useState("");
+  const [googleCats, setGoogleCats] = useState([]);
+  const [googlePage, setGooglePage] = useState(1);
+  const [googleTotal, setGoogleTotal] = useState(0);
+  const [googleCatalogTotal, setGoogleCatalogTotal] = useState(0);
+  const [googleHasMore, setGoogleHasMore] = useState(false);
+  const [googleSource, setGoogleSource] = useState("google");
   const [googlePicked, setGooglePicked] = useState("");
   const [addingGoogle, setAddingGoogle] = useState(false);
+  const GOOGLE_PAGE = 24;
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -2692,16 +2701,29 @@ function FontManagerModal({ open, onClose, onChanged }) {
     }
   }, []);
 
-  const loadCatalog = useCallback(async () => {
-    setCatalogLoading(true);
+  /* Katalog Google diambil per halaman dari server (pencarian & kategori juga
+     dikerjakan di server), jadi daftar ±1.900 font tetap ringan dibuka. */
+  const loadCatalog = useCallback(async (page = 1, append = false, q = "", category = "") => {
+    if (append) setLoadingMoreGoogle(true); else setCatalogLoading(true);
     try {
-      const { data } = await api.get("/fonts/google");
-      setCatalog(Array.isArray(data?.items) ? data.items : []);
-      setPreviewCssUrl(data?.preview_css_url || "");
+      const { data } = await api.get("/fonts/google", {
+        params: { q, category, page, limit: GOOGLE_PAGE },
+      });
+      const list = Array.isArray(data?.items) ? data.items : [];
+      setCatalog((prev) => (append ? [...prev, ...list] : list));
+      setCssUrls((prev) => (append
+        ? (data?.preview_css_url ? [...prev, data.preview_css_url] : prev)
+        : (data?.preview_css_url ? [data.preview_css_url] : [])));
+      setGooglePage(data?.page || page);
+      setGoogleTotal(data?.total || 0);
+      setGoogleHasMore(!!data?.has_more);
+      if (Array.isArray(data?.categories)) setGoogleCats(data.categories);
+      if (data?.catalog_total) setGoogleCatalogTotal(data.catalog_total);
+      if (data?.source) setGoogleSource(data.source);
     } catch {
-      setCatalog([]);
+      if (!append) { setCatalog([]); setGoogleTotal(0); setGoogleHasMore(false); }
     } finally {
-      setCatalogLoading(false);
+      if (append) setLoadingMoreGoogle(false); else setCatalogLoading(false);
     }
   }, []);
 
@@ -2711,36 +2733,37 @@ function FontManagerModal({ open, onClose, onChanged }) {
     setFile(null);
     setGoogleQuery("");
     setGooglePicked("");
+    setGoogleCat("");
     setTab("google");
     refresh();
-    loadCatalog();
-  }, [open, refresh, loadCatalog]);
+  }, [open, refresh]);
+
+  /* Pencarian seperti situs Google Fonts: mengetik langsung menyaring seluruh
+     katalog, dengan jeda 350ms supaya tidak menembak server tiap ketukan. */
+  useEffect(() => {
+    if (!open) return;
+    const t = setTimeout(() => { loadCatalog(1, false, googleQuery.trim(), googleCat); }, 350);
+    return () => clearTimeout(t);
+  }, [open, googleQuery, googleCat, loadCatalog]);
 
   // Muat CSS katalog Google supaya pratinjau di picker tampil dengan font asli.
   useEffect(() => {
-    if (!open || !previewCssUrl || typeof document === "undefined") return;
-    const link = document.createElement("link");
-    link.rel = "stylesheet";
-    link.href = previewCssUrl;
-    link.setAttribute("data-dnsw-google-preview", "1");
-    document.head.appendChild(link);
-    return () => { link.remove(); };
-  }, [open, previewCssUrl]);
+    if (!open || !cssUrls.length || typeof document === "undefined") return;
+    const links = cssUrls.map((href) => {
+      const link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.href = href;
+      link.setAttribute("data-dnsw-google-preview", "1");
+      document.head.appendChild(link);
+      return link;
+    });
+    return () => { links.forEach((l) => l.remove()); };
+  }, [open, cssUrls]);
 
   const addedGoogleFamilies = useMemo(
     () => new Set((items || []).filter((f) => f.source === "google").map((f) => f.family)),
     [items],
   );
-
-  const filteredCatalog = useMemo(() => {
-    const q = googleQuery.trim().toLowerCase();
-    if (!q) return catalog;
-    return (catalog || []).filter(
-      (f) =>
-        f.family.toLowerCase().includes(q) ||
-        String(f.category || "").toLowerCase().includes(q),
-    );
-  }, [catalog, googleQuery]);
 
   const addGoogleFont = async (family) => {
     const fam = String(family || "").trim();
@@ -2750,9 +2773,8 @@ function FontManagerModal({ open, onClose, onChanged }) {
       const { data } = await api.post("/fonts/google", { family: fam });
       toast.success(`Font Google "${data?.name || fam}" ditambahkan`);
       setGooglePicked("");
-      setGoogleQuery("");
       await refresh();
-      await loadCatalog();
+      await loadCatalog(1, false, googleQuery.trim(), googleCat);
       onChanged?.();
     } catch (e) {
       toast.error(formatApiError(e.response?.data?.detail) || "Gagal menambahkan font Google");
@@ -2881,10 +2903,17 @@ function FontManagerModal({ open, onClose, onChanged }) {
                   Google Fonts — Tanpa Unduh Berkas
                 </div>
                 <ul className="mt-2 space-y-1 text-[11px] leading-relaxed text-zinc-600">
+                  <li>• Seluruh katalog Google Fonts{googleCatalogTotal ? ` (${googleCatalogTotal.toLocaleString("id-ID")} font)` : ""} bisa dicari di sini.</li>
                   <li>• Font dimuat langsung dari CDN Google, tidak ada berkas yang perlu diunduh atau diunggah.</li>
                   <li>• Ketebalan Regular (400) dan Bold (700) diambil otomatis bila tersedia.</li>
                   <li>• Gratis dipakai untuk keperluan komersial (lisensi OFL/Apache).</li>
                 </ul>
+                {googleSource === "fallback" && (
+                  <p className="mt-2 rounded-lg bg-amber-50 p-2 text-[11px] text-amber-700" data-testid="font-google-offline">
+                    Katalog lengkap Google sedang tidak bisa dihubungi, sementara ini hanya menampilkan pilihan populer.
+                    Kamu tetap bisa mengetik nama font apa pun lalu tekan Tambahkan.
+                  </p>
+                )}
               </div>
 
               <div className="mt-3 flex flex-col gap-2 sm:flex-row">
@@ -2893,10 +2922,20 @@ function FontManagerModal({ open, onClose, onChanged }) {
                   <input
                     value={googleQuery}
                     onChange={(e) => { setGoogleQuery(e.target.value); setGooglePicked(e.target.value); }}
-                    placeholder="Cari atau ketik nama font Google, misal: Bebas Neue"
+                    placeholder="Cari font Google, misal: Bebas Neue"
                     data-testid="font-google-search"
-                    className="h-10 w-full rounded-lg border border-zinc-300 pl-9 pr-3 text-sm outline-none focus:border-zinc-900"
+                    className="h-10 w-full rounded-lg border border-zinc-300 pl-9 pr-9 text-sm outline-none focus:border-zinc-900"
                   />
+                  {googleQuery && (
+                    <button
+                      onClick={() => { setGoogleQuery(""); setGooglePicked(""); }}
+                      aria-label="Hapus pencarian"
+                      data-testid="font-google-search-clear"
+                      className="absolute right-2 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  )}
                 </div>
                 <button
                   onClick={() => addGoogleFont(googlePicked || googleQuery)}
@@ -2909,18 +2948,45 @@ function FontManagerModal({ open, onClose, onChanged }) {
                 </button>
               </div>
 
+              {/* Saringan kategori seperti di situs Google Fonts */}
+              <div className="mt-2.5 flex flex-wrap gap-1.5" data-testid="font-google-categories">
+                {[{ key: "", label: "Semua" }, ...googleCats.map((c) => ({ key: c, label: c }))].map((c) => (
+                  <button
+                    key={c.key || "all"}
+                    onClick={() => setGoogleCat(c.key)}
+                    data-testid={`font-google-cat-${(c.key || "all").replace(/\s+/g, "-").toLowerCase()}`}
+                    className={`rounded-full border px-3 py-1 text-[11px] font-semibold transition ${
+                      googleCat === c.key
+                        ? "border-zinc-900 bg-zinc-900 text-white"
+                        : "border-zinc-300 text-zinc-600 hover:border-zinc-900"
+                    }`}
+                  >
+                    {c.label}
+                  </button>
+                ))}
+              </div>
+
+              {!catalogLoading && (
+                <div className="mt-2 text-[11px] text-zinc-500" data-testid="font-google-count">
+                  {googleTotal
+                    ? `${googleTotal.toLocaleString("id-ID")} font ditemukan — menampilkan ${catalog.length}`
+                    : "Tidak ada font yang cocok"}
+                </div>
+              )}
+
               {catalogLoading ? (
                 <div className="flex items-center justify-center gap-2 py-10 text-sm text-zinc-500">
                   <Loader2 className="h-4 w-4 animate-spin" /> Memuat katalog Google Fonts...
                 </div>
-              ) : filteredCatalog.length === 0 ? (
+              ) : catalog.length === 0 ? (
                 <p className="mt-3 rounded-xl border border-dashed border-zinc-300 p-6 text-center text-[13px] text-zinc-500" data-testid="font-google-empty">
-                  Tidak ada di daftar populer. Tekan <strong>Tambahkan</strong> untuk memakai nama yang kamu ketik —
+                  Tidak ada font yang cocok. Tekan <strong>Tambahkan</strong> untuk memakai nama yang kamu ketik —
                   nama itu akan diperiksa dulu ke Google Fonts.
                 </p>
               ) : (
+                <>
                 <div className="mt-3 grid gap-2 sm:grid-cols-2" data-testid="font-google-catalog">
-                  {filteredCatalog.map((f) => {
+                  {catalog.map((f) => {
                     const added = f.added || addedGoogleFamilies.has(f.family);
                     return (
                       <button
@@ -2956,6 +3022,18 @@ function FontManagerModal({ open, onClose, onChanged }) {
                     );
                   })}
                 </div>
+                {googleHasMore && (
+                  <button
+                    onClick={() => loadCatalog(googlePage + 1, true, googleQuery.trim(), googleCat)}
+                    disabled={loadingMoreGoogle}
+                    data-testid="font-google-load-more"
+                    className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-zinc-300 py-2.5 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 disabled:opacity-60"
+                  >
+                    {loadingMoreGoogle && <Loader2 className="h-4 w-4 animate-spin" />}
+                    {loadingMoreGoogle ? "Memuat..." : `Muat ${Math.min(GOOGLE_PAGE, googleTotal - catalog.length)} font lagi`}
+                  </button>
+                )}
+                </>
               )}
             </div>
           ) : (
