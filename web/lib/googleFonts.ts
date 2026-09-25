@@ -80,6 +80,94 @@ export const GOOGLE_FONT_CATEGORIES = Array.from(
   new Set(GOOGLE_FONT_CATALOG.map((f) => f.category)),
 );
 
+/* ---------------------------------------------------------------------------
+ * Katalog LENGKAP Google Fonts (±1.900 family) tanpa API key.
+ *
+ * Google menyajikan metadata katalognya di /metadata/fonts sebagai JSON
+ * (diawali penjaga ")]}'" yang harus dibuang). Isinya nama family, kategori,
+ * dan peringkat popularitas — persis yang dipakai situs fonts.google.com untuk
+ * urutan "Popular". Hasilnya di-cache di memori 24 jam supaya tidak menembak
+ * Google tiap kali admin mengetik. Kalau jaringan gagal, otomatis jatuh ke
+ * katalog pilihan di atas sehingga menu Kelola Font tetap bisa dipakai.
+ * ------------------------------------------------------------------------- */
+export const GOOGLE_METADATA_URL = 'https://fonts.google.com/metadata/fonts';
+
+const BROWSER_UA =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36';
+
+/** Kategori Google (Inggris) -> label Indonesia untuk tampilan admin. */
+const CATEGORY_LABELS: Record<string, string> = {
+  'Sans Serif': 'Sans Serif',
+  Serif: 'Serif',
+  Display: 'Display',
+  Handwriting: 'Tulisan Tangan',
+  Monospace: 'Monospace',
+};
+export const localizeCategory = (c: string) => CATEGORY_LABELS[c] || c || 'Lainnya';
+
+export type GoogleFamily = { family: string; category: string; popularity: number };
+
+const CATALOG_TTL_MS = 24 * 60 * 60 * 1000;
+let catalogCache: { at: number; items: GoogleFamily[] } | null = null;
+
+const fallbackFamilies = (): GoogleFamily[] =>
+  GOOGLE_FONT_CATALOG.map((f, i) => ({ ...f, popularity: i + 1 }));
+
+export async function fetchGoogleFamilies(): Promise<{ items: GoogleFamily[]; source: 'google' | 'fallback' }> {
+  if (catalogCache && Date.now() - catalogCache.at < CATALOG_TTL_MS) {
+    return { items: catalogCache.items, source: 'google' };
+  }
+  try {
+    const res = await fetch(GOOGLE_METADATA_URL, {
+      headers: { 'User-Agent': BROWSER_UA },
+      cache: 'no-store',
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    let text = await res.text();
+    if (text.startsWith(")]}'")) text = text.slice(text.indexOf('\n') + 1);
+    const list = JSON.parse(text)?.familyMetadataList;
+    if (!Array.isArray(list) || !list.length) throw new Error('metadata kosong');
+    const items: GoogleFamily[] = list
+      .map((f: any) => ({
+        family: String(f?.family || '').trim(),
+        category: localizeCategory(String(f?.category || '')),
+        popularity: Number(f?.popularity) || 99999,
+      }))
+      .filter((f: GoogleFamily) => f.family.length >= 2)
+      .sort((a: GoogleFamily, b: GoogleFamily) => a.popularity - b.popularity);
+    catalogCache = { at: Date.now(), items };
+    return { items, source: 'google' };
+  } catch {
+    return { items: fallbackFamilies(), source: 'fallback' };
+  }
+}
+
+/**
+ * Pencarian ala situs Google Fonts: tidak peduli huruf besar/kecil maupun
+ * spasi ("bebasneue" tetap menemukan "Bebas Neue"), dan yang namanya diawali
+ * kata pencarian ditampilkan lebih dulu, sisanya menurut popularitas.
+ */
+export function searchGoogleFamilies(
+  all: GoogleFamily[],
+  { q = '', category = '' }: { q?: string; category?: string },
+): GoogleFamily[] {
+  let list = all;
+  if (category) list = list.filter((f) => f.category === category);
+  const needle = q.trim().toLowerCase();
+  if (!needle) return list;
+  const squished = needle.replace(/\s+/g, '');
+  const scored = list
+    .map((f) => {
+      const low = f.family.toLowerCase();
+      const flat = low.replace(/\s+/g, '');
+      if (!flat.includes(squished)) return null;
+      return { f, rank: low.startsWith(needle) ? 0 : flat.startsWith(squished) ? 1 : 2 };
+    })
+    .filter(Boolean) as { f: GoogleFamily; rank: number }[];
+  scored.sort((a, b) => a.rank - b.rank || a.f.popularity - b.f.popularity);
+  return scored.map((s) => s.f);
+}
+
 /** Rapikan input admin: "  bebas   neue " -> "Bebas Neue". */
 export function normalizeGoogleFamily(raw: string): string {
   return String(raw || '')
