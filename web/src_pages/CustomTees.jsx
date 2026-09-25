@@ -10,7 +10,6 @@
  * tidak terpengaruh mode gelap admin.
  */
 import { useState, useRef, useEffect, useCallback, useLayoutEffect, useId, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import api, { formatApiError } from "@/lib/api";
 import {
@@ -150,7 +149,6 @@ const textFontVh = (wPct) => (wPct / 100) * CANVAS_VH;
 const isTextLayer = (l) => l && l.type === "text";
 
 export default function CustomTees({ publicMode = false, canManageFonts: canManageFontsProp }) {
-  const navigate = useNavigate();
   const [view, setView] = useState("Depan");
   const [color, setColor] = useState(FALLBACK_SWATCHES[0]); // Putih (default)
   const isWhite = color.hex.toLowerCase() === "#ffffff";
@@ -165,6 +163,8 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
   const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
 
   const [activeTool, setActiveTool] = useState("Produk");
+  // HP: panel alat tampil sebagai lembar geser bawah. null = tertutup.
+  const [mobileSheet, setMobileSheet] = useState(null);
   const [sizeQty, setSizeQty] = useState({ L: 1 });
   // Desain objek per-tampilan: { [view]: [ {id, src, cx, cy, wPct, rot} ] }
   const [design, setDesign] = useState(emptyDesign);
@@ -251,6 +251,32 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
   }, [customFonts]);
 
   const canvasRef = useRef(null);
+
+  /* Kanvas tetap setinggi 62vh di semua layar supaya skala teks (yang memakai
+     satuan vh) dan hasil preview identik. Di layar sempit (HP) lebar alaminya
+     tidak cukup, jadi kanvas hanya DIPERKECIL secara visual dengan CSS
+     transform. Semua perhitungan geser/putar/ubah-ukuran memakai persentase
+     dari getBoundingClientRect, jadi tetap akurat meski diperkecil. */
+  const canvasWrapRef = useRef(null);
+  const [canvasScale, setCanvasScale] = useState(1);
+  const fitCanvas = useCallback(() => {
+    const el = canvasRef.current;
+    const wrap = canvasWrapRef.current;
+    if (!el || !wrap) return;
+    const natural = el.offsetWidth;   // lebar layout, tidak terpengaruh transform
+    const avail = wrap.clientWidth;
+    if (!natural || !avail) return;
+    setCanvasScale(natural > avail ? avail / natural : 1);
+  }, []);
+  useLayoutEffect(() => {
+    fitCanvas();
+    window.addEventListener("resize", fitCanvas);
+    window.addEventListener("orientationchange", fitCanvas);
+    return () => {
+      window.removeEventListener("resize", fitCanvas);
+      window.removeEventListener("orientationchange", fitCanvas);
+    };
+  }, [fitCanvas]);
   const fileInputRef = useRef(null);
   const gesture = useRef(null); // { mode, id, view, ... }
 
@@ -612,9 +638,71 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
     return data;
   }, [designPayload, draftId, design, refreshOrderCount]);
 
+  /* Panel alat dipakai dua kali: di panel kiri (layar lebar) dan di lembar
+     geser bawah (HP). Dibuat satu variabel supaya isinya tidak dobel. */
+  const toolPanel = activeTool === "Gambar Saya" ? (
+    <ImagePanel
+      layers={layers.filter((l) => !isTextLayer(l))}
+      view={view}
+      selectedLayer={selectedLayer}
+      setSelectedId={setSelectedId}
+      triggerUpload={triggerUpload}
+      handleFiles={handleFiles}
+      resizeSelected={resizeSelected}
+      rotateSelected={rotateSelected}
+      resetRotation={resetRotation}
+      centerSelected={centerSelected}
+      deleteLayer={deleteLayer}
+    />
+  ) : activeTool === "Teks" ? (
+    <TextPanel
+      layers={layers.filter(isTextLayer)}
+      view={view}
+      selectedLayer={isTextLayer(selectedLayer) ? selectedLayer : null}
+      setSelectedId={setSelectedId}
+      addText={addText}
+      updateSelectedText={updateSelectedText}
+      resizeSelected={resizeSelected}
+      rotateSelected={rotateSelected}
+      resetRotation={resetRotation}
+      centerSelected={centerSelected}
+      deleteLayer={deleteLayer}
+      fontOptions={fontOptions}
+      fontsLoading={fontsLoading}
+      customFontCount={customFonts.length}
+      canManageFonts={canManageFontsProp ?? !publicMode}
+      onManageFonts={() => setFontManagerOpen(true)}
+    />
+  ) : activeTool === "Clipart" ? (
+    <ClipartPanel addClipart={addClipart} />
+  ) : activeTool === "Layer" ? (
+    <LayerPanel
+      layers={layers}
+      selectedId={selectedId}
+      setSelectedId={setSelectedId}
+      moveLayer={moveLayer}
+      deleteLayer={deleteLayer}
+    />
+  ) : activeTool === "Produk" ? (
+    <ProductPanel
+      color={color}
+      setColor={setColor}
+      sizeQty={sizeQty}
+      setSizeQty={setSizeQty}
+      product={product}
+      products={products}
+      productsLoading={productsLoading}
+      sizes={sizes}
+      swatches={swatches}
+      onOpenPicker={() => setPickerOpen(true)}
+      onOpenSizeGuide={() => setSizeGuideOpen(true)}
+    />
+  ) : (
+    <ComingSoon tool={activeTool} onUpload={triggerUpload} setActiveTool={setActiveTool} />
+  );
+
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-zinc-100 text-zinc-900">
-      {/* input file tersembunyi untuk upload */}
+    <div className="flex h-screen w-full overflow-hidden bg-zinc-100 text-zinc-900">      {/* input file tersembunyi untuk upload */}
       <input
         ref={fileInputRef}
         type="file"
@@ -624,54 +712,27 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
         data-testid="custom-file-input"
       />
 
-      {/* Mobile fallback: desainer butuh layar lebih besar */}
-      <div className="flex flex-1 flex-col items-center justify-center gap-5 p-8 text-center md:hidden">
-        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-neutral-900 p-3">
-          <img src="/logo.png" alt="Daneswara" className="h-full w-full object-contain" />
-        </div>
-        <div>
-          <h1 className="text-lg font-bold">Custom Tees</h1>
-          <p className="mt-1 text-sm text-zinc-500">
-            Desainer kaos paling nyaman dibuka di layar tablet atau komputer. Silakan buka lewat perangkat yang lebih besar.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center justify-center gap-2">
-          <button
-            onClick={() => navigate(publicMode ? "/" : "/app")}
-            data-testid="designer-mobile-back-button"
-            className="rounded-lg bg-zinc-900 px-5 py-2 text-sm font-semibold text-white"
-          >
-            {publicMode ? "Kembali ke Beranda" : "Kembali ke Admin"}
-          </button>
-          {!publicMode && (
-            <a
-              href="/"
-              data-testid="designer-mobile-home-link"
-              className="rounded-lg border border-zinc-300 px-5 py-2 text-sm font-semibold text-zinc-700"
-            >
-              Kembali ke Beranda
-            </a>
-          )}
-        </div>
-      </div>
-
-      {/* Desktop designer */}
-      <div className="hidden h-full w-full flex-col md:flex">
+      {/* Desainer: satu tata letak untuk semua ukuran layar.
+          Di HP, panel alat pindah ke bilah bawah + lembar geser (sheet),
+          pemilih tampilan jadi chip di atas kanvas, dan tombol aksi dibuat
+          padat. Ukuran kanvas tetap 62vh di semua layar supaya skala teks
+          dan hasil preview tidak berubah. */}
+      <div className="flex h-full w-full flex-col">
       {/* ============================ TOP BAR ============================ */}
-      <header className="flex h-16 shrink-0 items-center justify-between border-b border-zinc-200 bg-white px-4">
+      <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-zinc-200 bg-white px-3 md:h-16 md:px-4">
         {/* Brand */}
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-neutral-900 p-1.5">
+        <div className="flex min-w-0 items-center gap-2 md:gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-neutral-900 p-1.5 md:h-10 md:w-10">
             <img src="/logo.png" alt="Daneswara" className="h-full w-full object-contain" />
           </div>
-          <div className="leading-tight">
-            <div className="text-[15px] font-bold tracking-tight">Custom Tees</div>
-            <div className="text-[11px] text-zinc-500">Desain Sesukamu, Pakai Gayamu</div>
+          <div className="min-w-0 leading-tight">
+            <div className="truncate text-sm font-bold tracking-tight md:text-[15px]">Custom Tees</div>
+            <div className="hidden text-[11px] text-zinc-500 sm:block">Desain Sesukamu, Pakai Gayamu</div>
           </div>
         </div>
 
         {/* Stepper */}
-        <div className="hidden items-center gap-2 md:flex">
+        <div className="hidden items-center gap-2 lg:flex">
           {STEPS.map((s, i) => {
             const active = i === 0;
             return (
@@ -693,30 +754,36 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
         </div>
 
         {/* Actions */}
-        <div className="flex items-center gap-1">
+        <div className="flex shrink-0 items-center gap-1">
           {publicMode ? (
             <a
               href="/"
               data-testid="designer-home-link"
-              className="mr-1 flex items-center gap-1.5 rounded-full border border-zinc-300 px-3.5 py-1.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
+              title="Beranda"
+              className="flex items-center gap-1.5 rounded-full border border-zinc-300 px-2.5 py-1.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 md:mr-1 md:px-3.5"
             >
-              Beranda
+              <Home className="h-4 w-4 sm:hidden" />
+              <span className="hidden sm:inline">Beranda</span>
             </a>
           ) : (
             <>
               <a
                 href="/app"
                 data-testid="designer-dashboard-link"
-                className="mr-1 flex items-center gap-1.5 rounded-full border border-zinc-300 px-3.5 py-1.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
+                title="Dashboard"
+                className="flex items-center gap-1.5 rounded-full border border-zinc-300 px-2.5 py-1.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 md:mr-1 md:px-3.5"
               >
-                <LayoutDashboard className="h-4 w-4" /> Dashboard
+                <LayoutDashboard className="h-4 w-4" />
+                <span className="hidden sm:inline">Dashboard</span>
               </a>
               <a
                 href="/"
                 data-testid="designer-home-link"
-                className="mr-1 flex items-center gap-1.5 rounded-full border border-zinc-300 px-3.5 py-1.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
+                title="Beranda"
+                className="flex items-center gap-1.5 rounded-full border border-zinc-300 px-2.5 py-1.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 md:mr-1 md:px-3.5"
               >
-                <Home className="h-4 w-4" /> Beranda
+                <Home className="h-4 w-4" />
+                <span className="hidden sm:inline">Beranda</span>
               </a>
             </>
           )}
@@ -724,9 +791,11 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
             <button
               onClick={() => setOrdersOpen(true)}
               data-testid="open-orders-button"
-              className="mr-1 flex items-center gap-1.5 rounded-full border border-zinc-300 px-3.5 py-1.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
+              title="Pesanan"
+              className="flex items-center gap-1.5 rounded-full border border-zinc-300 px-2.5 py-1.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 md:mr-1 md:px-3.5"
             >
-              <ClipboardList className="h-4 w-4" /> Pesanan
+              <ClipboardList className="h-4 w-4" />
+              <span className="hidden sm:inline">Pesanan</span>
               {newOrderCount > 0 && (
                 <span
                   data-testid="orders-badge"
@@ -737,9 +806,11 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
               )}
             </button>
           )}
-          <ToolbarIcon icon={Undo2} label="Undo" />
-          <ToolbarIcon icon={Redo2} label="Redo" />
-          <ToolbarIcon icon={Save} label="Simpan" />
+          <div className="hidden items-center gap-1 md:flex">
+            <ToolbarIcon icon={Undo2} label="Undo" />
+            <ToolbarIcon icon={Redo2} label="Redo" />
+            <ToolbarIcon icon={Save} label="Simpan" />
+          </div>
         </div>
       </header>
 
@@ -769,71 +840,40 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
 
         {/* -------- Left panel (konten sesuai tool aktif) -------- */}
         <aside className="hidden w-[300px] shrink-0 flex-col overflow-y-auto border-r border-zinc-200 bg-white p-4 lg:flex">
-          {activeTool === "Gambar Saya" ? (
-            <ImagePanel
-              layers={layers.filter((l) => !isTextLayer(l))}
-              view={view}
-              selectedLayer={selectedLayer}
-              setSelectedId={setSelectedId}
-              triggerUpload={triggerUpload}
-              handleFiles={handleFiles}
-              resizeSelected={resizeSelected}
-              rotateSelected={rotateSelected}
-              resetRotation={resetRotation}
-              centerSelected={centerSelected}
-              deleteLayer={deleteLayer}
-            />
-          ) : activeTool === "Teks" ? (
-            <TextPanel
-              layers={layers.filter(isTextLayer)}
-              view={view}
-              selectedLayer={isTextLayer(selectedLayer) ? selectedLayer : null}
-              setSelectedId={setSelectedId}
-              addText={addText}
-              updateSelectedText={updateSelectedText}
-              resizeSelected={resizeSelected}
-              rotateSelected={rotateSelected}
-              resetRotation={resetRotation}
-              centerSelected={centerSelected}
-              deleteLayer={deleteLayer}
-              fontOptions={fontOptions}
-              fontsLoading={fontsLoading}
-              customFontCount={customFonts.length}
-              canManageFonts={canManageFontsProp ?? !publicMode}
-              onManageFonts={() => setFontManagerOpen(true)}
-            />
-          ) : activeTool === "Clipart" ? (
-            <ClipartPanel addClipart={addClipart} />
-          ) : activeTool === "Layer" ? (
-            <LayerPanel
-              layers={layers}
-              selectedId={selectedId}
-              setSelectedId={setSelectedId}
-              moveLayer={moveLayer}
-              deleteLayer={deleteLayer}
-            />
-          ) : activeTool === "Produk" ? (
-            <ProductPanel
-              color={color}
-              setColor={setColor}
-              sizeQty={sizeQty}
-              setSizeQty={setSizeQty}
-              product={product}
-              products={products}
-              productsLoading={productsLoading}
-              sizes={sizes}
-              swatches={swatches}
-              onOpenPicker={() => setPickerOpen(true)}
-              onOpenSizeGuide={() => setSizeGuideOpen(true)}
-            />
-          ) : (
-            <ComingSoon tool={activeTool} onUpload={triggerUpload} setActiveTool={setActiveTool} />
-          )}
+          {toolPanel}
         </aside>
 
         {/* -------- Canvas -------- */}
-        <main className="relative flex min-w-0 flex-1 flex-col items-center justify-center bg-zinc-100">
-          <div className="flex w-full max-w-[560px] flex-col items-center px-6">
+        <main className="relative flex min-w-0 flex-1 flex-col items-center overflow-y-auto overflow-x-hidden bg-zinc-100 md:justify-center">
+          {/* HP: pemilih tampilan kaos (Depan / Belakang / Lengan) */}
+          <div
+            className="sticky top-0 z-10 flex w-full shrink-0 gap-2 overflow-x-auto border-b border-zinc-200 bg-white/95 px-3 py-2 backdrop-blur md:hidden"
+            data-testid="mobile-view-switcher"
+          >
+            {VIEWS.map((v) => {
+              const count = (design[v] || []).length;
+              const active = view === v;
+              return (
+                <button
+                  key={v}
+                  onClick={() => { setView(v); setSelectedId(null); }}
+                  data-testid={`mobile-view-${v.toLowerCase().replace(/\s+/g, "-")}`}
+                  className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                    active ? "border-zinc-900 bg-zinc-900 text-white" : "border-zinc-300 bg-white text-zinc-600"
+                  }`}
+                >
+                  {v}
+                  {count > 0 && (
+                    <span className={`rounded-full px-1.5 text-[10px] font-bold ${active ? "bg-white text-zinc-900" : "bg-zinc-900 text-white"}`}>
+                      {count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="flex w-full max-w-[560px] flex-col items-center px-3 py-4 md:px-6 md:py-0">
             {/* Label tampilan aktif */}
             <div
               className="mb-3 inline-flex items-center gap-2 rounded-full bg-zinc-900 px-4 py-1.5 text-sm font-bold uppercase tracking-wide text-white shadow-sm"
@@ -842,6 +882,14 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
               <Shirt className="h-4 w-4" />
               {view}
             </div>
+            {/* Pembungkus penyesuai lebar: di HP kanvas diperkecil, bukan dipotong */}
+            <div
+              ref={canvasWrapRef}
+              className="flex w-full justify-center"
+              data-testid="tee-canvas-fit"
+              style={canvasScale < 1 ? { height: `calc(62vh * ${canvasScale})` } : undefined}
+            >
+            <div style={canvasScale < 1 ? { transform: `scale(${canvasScale})`, transformOrigin: "top center" } : undefined} className="shrink-0">
             <div
               ref={canvasRef}
               className="relative h-[62vh] w-auto"
@@ -856,7 +904,8 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
               <img
                 src={MOCKUPS[view]}
                 alt={`Kaos tampak ${view}`}
-                className="pointer-events-none h-full w-auto max-w-full object-contain drop-shadow-sm"
+                onLoad={fitCanvas}
+                className="pointer-events-none h-full w-auto object-contain drop-shadow-sm"
                 data-testid="tee-mockup-image"
                 draggable={false}
               />
@@ -991,7 +1040,9 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
                 );
               })}
             </div>
-            <div className="mt-6 w-full max-w-[430px] border-t border-dashed border-zinc-300 pt-2 text-center text-[11px] font-semibold tracking-[0.2em] text-zinc-400">
+            </div>
+            </div>
+            <div className="mt-4 w-full max-w-[430px] border-t border-dashed border-zinc-300 pt-2 text-center text-[11px] font-semibold tracking-[0.2em] text-zinc-400 md:mt-6">
               AREA CETAK AMAN
             </div>
           </div>
@@ -1043,76 +1094,130 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
           </div>
 
           {/* Detail Produk - selalu terbuka, di bawah Status Desain (Lengan Kanan) */}
-          <div data-testid="custom-product-detail-panel">
-            <div className="mb-2 rounded-xl bg-blue-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm">
-              Detail Produk
-            </div>
-            <div
-              className="space-y-1.5 rounded-xl border border-blue-200 bg-blue-50/60 p-3 text-[12px]"
-              data-testid="custom-product-detail"
-            >
-              <DetailRow label="Suplier" value={product?.supplier} />
-              <DetailRow label="Size" value={product?.size_region} />
-              <DetailRow label="Model" value={product?.model} />
-              <DetailRow label="Bahan" value={product?.material} />
-              {product?.description && (
-                <p className="pt-1 leading-relaxed text-zinc-600">{product.description}</p>
-              )}
-            </div>
-          </div>
+          <ProductDetailCard product={product} />
         </aside>
       </div>
 
       {/* ============================ BOTTOM BAR ============================ */}
-      <footer className="flex h-16 shrink-0 items-center justify-between border-t border-zinc-200 bg-white px-4">
-        <div className="flex items-center gap-3">
+      <footer className="flex shrink-0 items-center justify-between gap-2 border-t border-zinc-200 bg-white px-3 py-2 md:h-16 md:px-4 md:py-0">
+        <div className="flex shrink-0 items-center gap-2 md:gap-3">
           <button
             onClick={() => resizeSelected(-5)}
             disabled={!selectedLayer}
             data-testid="size-minus-button"
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-300 text-zinc-600 hover:bg-zinc-50 disabled:opacity-40"
+            aria-label="Perkecil objek"
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-300 text-zinc-600 hover:bg-zinc-50 disabled:opacity-40 md:h-8 md:w-8"
           >
             <Minus className="h-4 w-4" />
           </button>
-          <span className="w-16 text-center text-sm font-semibold">
+          <span className="w-10 text-center text-sm font-semibold md:w-16">
             {selectedLayer ? `${Math.round(selectedLayer.wPct)}%` : "—"}
           </span>
           <button
             onClick={() => resizeSelected(5)}
             disabled={!selectedLayer}
             data-testid="size-plus-button"
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-300 text-zinc-600 hover:bg-zinc-50 disabled:opacity-40"
+            aria-label="Perbesar objek"
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-300 text-zinc-600 hover:bg-zinc-50 disabled:opacity-40 md:h-8 md:w-8"
           >
             <Plus className="h-4 w-4" />
           </button>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 items-center gap-1.5 md:gap-2">
           <button
             onClick={() => setPreviewOpen(true)}
             data-testid="save-design-button"
-            className="flex items-center gap-2 rounded-lg border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
+            title="Simpan Desain"
+            className="flex items-center gap-2 rounded-lg border border-zinc-300 px-2.5 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 md:px-4"
           >
-            <Save className="h-4 w-4" /> Simpan Desain
+            <Save className="h-4 w-4" />
+            <span className="hidden md:inline">Simpan Desain</span>
           </button>
           <button
             onClick={resetView}
             data-testid="reset-design-button"
-            className="flex items-center gap-2 rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-50"
+            title="Reset Desain"
+            className="flex items-center gap-2 rounded-lg border border-zinc-300 px-2.5 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-50 md:px-4"
           >
-            <RotateCcw className="h-4 w-4" /> Reset Desain
+            <RotateCcw className="h-4 w-4" />
+            <span className="hidden md:inline">Reset Desain</span>
           </button>
           <button
             onClick={() => setPreviewOpen(true)}
             data-testid="continue-button"
-            className="flex items-center gap-2 rounded-lg bg-zinc-900 px-5 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
+            className="flex shrink-0 items-center gap-1.5 rounded-lg bg-zinc-900 px-3.5 py-2 text-sm font-semibold text-white hover:bg-zinc-800 md:gap-2 md:px-5"
           >
             Lanjutkan <ArrowRight className="h-4 w-4" />
           </button>
         </div>
       </footer>
+
+      {/* ---------- HP: bilah alat bawah (pengganti tool rail) ---------- */}
+      <nav
+        className="relative z-[75] flex h-14 shrink-0 items-stretch gap-1 overflow-x-auto border-t border-zinc-200 bg-white px-2 py-1.5 md:hidden"
+        data-testid="mobile-tool-bar"
+      >
+        {TOOLS.map((t) => {
+          const active = mobileSheet === t.label;
+          return (
+            <button
+              key={t.label}
+              onClick={() => { setActiveTool(t.label); setMobileSheet((cur) => (cur === t.label ? null : t.label)); }}
+              data-testid={`mobile-tool-${t.label.toLowerCase().replace(/\s+/g, "-")}`}
+              className={`flex min-w-[68px] flex-1 flex-col items-center justify-center gap-0.5 rounded-lg px-1 py-1 transition ${
+                active ? "bg-zinc-900 text-white" : "text-zinc-600"
+              }`}
+            >
+              <t.icon className="h-5 w-5" />
+              <span className="whitespace-nowrap text-[10px] font-semibold leading-none">{t.label}</span>
+            </button>
+          );
+        })}
+      </nav>
+
+      {/* ---------- HP: lembar geser berisi panel alat ----------
+          Lembar & latar gelap berhenti di atas bilah alat (bottom-14) supaya
+          pengguna tetap bisa berpindah alat tanpa menutup lembarnya dulu. */}
+      {mobileSheet && (
+        <div className="md:hidden">
+          <button
+            type="button"
+            aria-label="Tutup panel"
+            onClick={() => setMobileSheet(null)}
+            data-testid="mobile-sheet-backdrop"
+            className="fixed inset-x-0 bottom-14 top-0 z-[65] bg-black/40"
+          />
+          <div
+            className="fixed inset-x-0 bottom-14 z-[70] flex max-h-[68vh] flex-col rounded-t-2xl border-t border-zinc-200 bg-white shadow-[0_-12px_40px_rgba(0,0,0,0.2)]"
+            data-testid="mobile-tool-sheet"
+          >
+            <div className="flex items-center justify-between border-b border-zinc-200 px-4 py-3">
+              <div className="flex items-center gap-2">
+                <span className="h-1 w-8 rounded-full bg-zinc-300" aria-hidden="true" />
+                <span className="text-sm font-bold" data-testid="mobile-sheet-title">{mobileSheet}</span>
+              </div>
+              <button
+                onClick={() => setMobileSheet(null)}
+                data-testid="mobile-sheet-close"
+                aria-label="Tutup panel"
+                className="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-300 text-zinc-600"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto p-4">
+              {toolPanel}
+              {activeTool === "Produk" && (
+                <div className="mt-5">
+                  <ProductDetailCard product={product} />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
       </div>
-      {/* /Desktop designer */}
 
       {/* Preview gabungan semua sisi */}
       <PreviewModal
@@ -2218,8 +2323,31 @@ function ProductPanel({
   );
 }
 
-function DetailRow({ label, value }) {
+/* Kartu "Detail Produk" (selalu terbuka). Dipakai di kolom kanan pada layar
+   lebar dan di dalam lembar geser "Produk" pada HP. */
+function ProductDetailCard({ product }) {
   return (
+    <div data-testid="custom-product-detail-panel">
+      <div className="mb-2 rounded-xl bg-blue-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm">
+        Detail Produk
+      </div>
+      <div
+        className="space-y-1.5 rounded-xl border border-blue-200 bg-blue-50/60 p-3 text-[12px]"
+        data-testid="custom-product-detail"
+      >
+        <DetailRow label="Suplier" value={product?.supplier} />
+        <DetailRow label="Size" value={product?.size_region} />
+        <DetailRow label="Model" value={product?.model} />
+        <DetailRow label="Bahan" value={product?.material} />
+        {product?.description && (
+          <p className="pt-1 leading-relaxed text-zinc-600">{product.description}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function DetailRow({ label, value }) {  return (
     <div className="flex justify-between gap-3 border-b border-zinc-200 pb-1 last:border-0">
       <span className="font-semibold uppercase tracking-wide text-zinc-400">{label}</span>
       <span className="text-right text-zinc-800">{value || "—"}</span>
