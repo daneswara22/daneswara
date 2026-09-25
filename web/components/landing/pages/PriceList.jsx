@@ -19,7 +19,8 @@ import { SubPageBar } from "@/components/landing/components/SubPageBar";
 
 const PAGE_SIZE = 9;
 
-/* Logo bawaan kalau admin belum meng-upload logo di menu Pengaturan */
+/* Cadangan kalau jenis kaos belum punya gambar DAN admin belum meng-upload
+   logo di menu Pengaturan */
 const FALLBACK_LOGO = "/assets/daneswara-logo.webp";
 
 const PRINTS = [
@@ -119,7 +120,8 @@ export default function PriceList() {
   const [brandLogo, setBrandLogo] = useState(FALLBACK_LOGO);
   const sentinelRef = useRef(null);
 
-  /* Logo yang dipakai di tiap frame diambil dari menu admin (Pengaturan). */
+  /* Logo toko (menu admin - Pengaturan) hanya dipakai sebagai cadangan kalau
+     satu jenis kaos belum punya gambar sendiri. */
   useEffect(() => {
     let alive = true;
     fetch("/api/public/brand")
@@ -235,17 +237,19 @@ export default function PriceList() {
                       onClick={() => pickShirt(s)}
                       className={`dp-frame text-left bg-card border-2 border-foreground lift overflow-hidden ${active ? "shadow-stamp-red ring-2 ring-primary" : "shadow-stamp"}`}
                     >
-                      {/* Kepala frame: kotak logo toko + nama jenis kaos */}
+                      {/* Kepala frame: gambar jenis kaos (dari menu admin
+                          "Jenis Produk") + nama jenis kaos. Kalau jenis kaos
+                          itu belum punya gambar, pakai logo toko. */}
                       <div className="flex items-start gap-3 border-b-2 border-foreground px-4 py-3">
                         <span
-                          className="dp-frame flex h-12 w-12 shrink-0 items-center justify-center border-2 border-foreground bg-[#F7F5F0] p-1.5"
-                          data-testid={`price-list-shirt-logo-${s.product_key}`}
+                          className="dp-frame flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden border-2 border-foreground bg-white p-1"
+                          data-testid={`price-list-shirt-thumb-${s.product_key}`}
                         >
                           <img
-                            src={brandLogo}
-                            alt=""
+                            src={s.thumbnail_url || brandLogo}
+                            alt={s.title}
                             loading="lazy"
-                            onError={(e) => { e.currentTarget.src = FALLBACK_LOGO; }}
+                            onError={(e) => { e.currentTarget.src = brandLogo || FALLBACK_LOGO; }}
                             className="h-full w-full object-contain"
                           />
                         </span>
