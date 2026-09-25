@@ -62,12 +62,15 @@ export default function ChatWidget() {
   const listRef = useRef(null);
   const seenCount = useRef(0);
 
-  // Di halaman desainer ada bilah aksi bawah ("Simpan Desain"), jadi tombol
-  // chat dinaikkan sedikit supaya tidak saling menutupi.
+  // Di halaman desainer, pojok kanan bawah dipakai panel "Detail Produk" dan
+  // bilah aksi bawah. Jadi di sana tombol chat dipindah ke pojok KIRI bawah
+  // (area kosong di bawah rail alat) dan dibuat bulat ikon saja supaya tidak
+  // menutupi informasi apa pun. Di halaman publik lain tetap kanan bawah.
   const pathname = usePathname() || '';
   const onDesigner = pathname.startsWith('/custom');
-  const buttonPos = onDesigner ? 'bottom-[84px] right-5' : 'bottom-5 right-5';
-  const panelPos = onDesigner ? 'bottom-[152px] right-4' : 'bottom-24 right-4';
+  const buttonPos = onDesigner ? 'bottom-[84px] left-4' : 'bottom-5 right-5';
+  const panelPos = onDesigner ? 'bottom-[152px] left-4' : 'bottom-24 right-4';
+  const buttonShape = onDesigner ? 'h-12 w-12 justify-center' : 'h-14 px-4';
 
   // Ingat kode tiket di perangkat ini.
   useEffect(() => {
@@ -218,10 +221,10 @@ export default function ChatWidget() {
         data-testid="chat-widget-button"
         aria-label="Customer Live Chat Daneswara"
         title="Customer Live Chat"
-        className={`fixed ${buttonPos} z-[60] flex h-14 items-center gap-2 rounded-full bg-green-500 px-4 text-white shadow-[0_10px_30px_rgba(34,197,94,0.45)] transition hover:scale-105 hover:bg-green-400`}
+        className={`fixed ${buttonPos} ${buttonShape} z-[60] flex items-center gap-2 rounded-full bg-green-500 text-white shadow-[0_10px_30px_rgba(34,197,94,0.45)] transition hover:scale-105 hover:bg-green-400`}
       >
         {open ? <X className="h-6 w-6" /> : <MessageCircle className="h-6 w-6" />}
-        {!open && (
+        {!open && !onDesigner && (
           <span className="hidden text-sm font-bold sm:inline" data-testid="chat-widget-label">
             Customer Live Chat
           </span>

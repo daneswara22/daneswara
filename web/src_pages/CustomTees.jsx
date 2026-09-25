@@ -163,7 +163,6 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
   const [productId, setProductId] = useState(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
-  const [detailOpen, setDetailOpen] = useState(false);
 
   const [activeTool, setActiveTool] = useState("Produk");
   const [sizeQty, setSizeQty] = useState({ L: 1 });
@@ -765,7 +764,7 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
               </button>
             );
           })}
-          {/* Bantuan pelanggan sekarang lewat tombol "Customer Live Chat" di pojok kanan bawah. */}
+          {/* Bantuan pelanggan lewat tombol bulat "Customer Live Chat" di pojok kiri bawah. */}
         </nav>
 
         {/* -------- Left panel (konten sesuai tool aktif) -------- */}
@@ -826,8 +825,6 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
               swatches={swatches}
               onOpenPicker={() => setPickerOpen(true)}
               onOpenSizeGuide={() => setSizeGuideOpen(true)}
-              detailOpen={detailOpen}
-              setDetailOpen={setDetailOpen}
             />
           ) : (
             <ComingSoon tool={activeTool} onUpload={triggerUpload} setActiveTool={setActiveTool} />
@@ -1042,6 +1039,25 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
                   </div>
                 );
               })}
+            </div>
+          </div>
+
+          {/* Detail Produk - selalu terbuka, di bawah Status Desain (Lengan Kanan) */}
+          <div data-testid="custom-product-detail-panel">
+            <div className="mb-2 rounded-xl bg-blue-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm">
+              Detail Produk
+            </div>
+            <div
+              className="space-y-1.5 rounded-xl border border-blue-200 bg-blue-50/60 p-3 text-[12px]"
+              data-testid="custom-product-detail"
+            >
+              <DetailRow label="Suplier" value={product?.supplier} />
+              <DetailRow label="Size" value={product?.size_region} />
+              <DetailRow label="Model" value={product?.model} />
+              <DetailRow label="Bahan" value={product?.material} />
+              {product?.description && (
+                <p className="pt-1 leading-relaxed text-zinc-600">{product.description}</p>
+              )}
             </div>
           </div>
         </aside>
@@ -1991,7 +2007,7 @@ function fmtDateTime(iso) {
 function ProductPanel({
   color, setColor, sizeQty, setSizeQty,
   product, products, productsLoading, sizes, swatches,
-  onOpenPicker, onOpenSizeGuide, detailOpen, setDetailOpen,
+  onOpenPicker, onOpenSizeGuide,
 }) {
   const isSizeSelected = (s) => Object.prototype.hasOwnProperty.call(sizeQty || {}, s);
   const selectedSizes = selectedSizeItems(sizeQty);
@@ -2032,17 +2048,26 @@ function ProductPanel({
         </button>
       </div>
 
-      <div className="flex items-center gap-3 rounded-xl border border-zinc-200 p-3">
+      {/* Kartu produk: seluruh kartu (termasuk gambar) bisa diklik untuk ganti produk */}
+      <button
+        type="button"
+        onClick={onOpenPicker}
+        disabled={productsLoading}
+        data-testid="custom-product-card"
+        title="Klik untuk memilih / mengganti produk"
+        aria-label="Pilih atau ganti produk"
+        className="group flex w-full items-center gap-3 rounded-xl border border-zinc-200 bg-white p-3 text-left transition hover:border-zinc-900 hover:shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900/20 disabled:cursor-not-allowed disabled:opacity-60"
+      >
         {product?.thumbnail_url || activeColorThumb ? (
           <img
             src={activeColorThumb || product.thumbnail_url}
             alt={product?.title || "Kaos"}
-            className="h-12 w-12 shrink-0 rounded-lg border border-zinc-200 object-contain"
+            className="h-12 w-12 shrink-0 rounded-lg border border-zinc-200 object-contain transition group-hover:scale-105"
           />
         ) : (
           <TintedThumb src={MOCKUPS["Depan"]} mask={MOCKUP_MASKS["Depan"]} color={color.hex} alt="Kaos" size={48} inner={36} />
         )}
-        <div className="min-w-0 leading-tight">
+        <div className="min-w-0 flex-1 leading-tight">
           <div className="truncate text-[13px] font-semibold" data-testid="custom-product-title">
             {product?.title || FALLBACK_PRODUCT.title}
           </div>
@@ -2055,33 +2080,12 @@ function ProductPanel({
             </div>
           )}
         </div>
-      </div>
+        <ChevronRight className="h-4 w-4 shrink-0 text-zinc-300 transition group-hover:text-zinc-900" />
+      </button>
       {(products || []).length > 1 && (
         <p className="mt-1.5 text-[11px] text-zinc-500">
-          Tersedia {products.length} jenis kaos — tekan &quot;Ganti Produk&quot; untuk melihat semuanya.
+          Tersedia {products.length} jenis kaos — klik kartu produk di atas untuk melihat semuanya.
         </p>
-      )}
-
-      {/* Detail produk (info dari halaman admin "Jenis Produk") */}
-      <button
-        onClick={() => setDetailOpen?.(!detailOpen)}
-        data-testid="custom-product-detail-toggle"
-        aria-expanded={!!detailOpen}
-        className="mt-4 flex w-full items-center justify-between rounded-xl bg-blue-600 px-3.5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
-      >
-        Detail Produk
-        <ChevronDown className={`h-4 w-4 text-white/80 transition-transform ${detailOpen ? "rotate-180" : ""}`} />
-      </button>
-      {detailOpen && (
-        <div className="mt-2 space-y-1.5 rounded-xl border border-blue-200 bg-blue-50/60 p-3 text-[12px]" data-testid="custom-product-detail">
-          <DetailRow label="Suplier" value={product?.supplier} />
-          <DetailRow label="Size" value={product?.size_region} />
-          <DetailRow label="Model" value={product?.model} />
-          <DetailRow label="Bahan" value={product?.material} />
-          {product?.description && (
-            <p className="pt-1 leading-relaxed text-zinc-600">{product.description}</p>
-          )}
-        </div>
       )}
 
       <div className="mt-5 flex items-center justify-between">

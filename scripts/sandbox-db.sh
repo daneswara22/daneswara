@@ -60,10 +60,31 @@ esac
 log "target: user=$DB_USER db=$DB_NAME host=$DB_HOST"
 
 # --- 1) Server binary (the sandbox apt layer is ephemeral) --------------------
+DEB_CACHE="${SANDBOX_DB_DEB_CACHE:-/root/.sandbox-mariadb-debs}"
 if ! command -v mariadbd >/dev/null 2>&1; then
-  log "mariadbd missing - installing mariadb-server ..."
   export DEBIAN_FRONTEND=noninteractive
-  apt-get update -qq && apt-get install -y -qq mariadb-server >>"$LOG" 2>&1
+  # Another copy of this script (or a previous supervisor attempt) may already
+  # hold the dpkg lock right after a pod restart; wait instead of failing.
+  for _ in $(seq 1 60); do
+    fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 || break
+    sleep 2
+  done
+  if command -v mariadbd >/dev/null 2>&1; then
+    log "mariadbd appeared while waiting for dpkg lock"
+  elif ls "$DEB_CACHE"/*.deb >/dev/null 2>&1; then
+    # Offline path: reuse the .deb files cached on the persistent disk, so a pod
+    # restart does not depend on the network being reachable.
+    log "mariadbd missing - installing from cache $DEB_CACHE ..."
+    dpkg -i "$DEB_CACHE"/*.deb >>"$LOG" 2>&1 || apt-get -y -qq -f install >>"$LOG" 2>&1
+  fi
+  if ! command -v mariadbd >/dev/null 2>&1; then
+    log "mariadbd missing - installing mariadb-server from apt ..."
+    apt-get update -qq >>"$LOG" 2>&1
+    apt-get install -y -qq -d mariadb-server >>"$LOG" 2>&1 \
+      && mkdir -p "$DEB_CACHE" \
+      && cp -n /var/cache/apt/archives/*.deb "$DEB_CACHE"/ 2>/dev/null
+    apt-get install -y -qq mariadb-server >>"$LOG" 2>&1
+  fi
 fi
 
 mkdir -p "$SOCKET_DIR" "$DATADIR"
