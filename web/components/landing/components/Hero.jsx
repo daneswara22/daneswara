@@ -89,7 +89,7 @@ export const Hero = ({ onQuoteClick, onGalleryClick }) => {
             href="/custom"
             data-testid="hero-designer-link"
             aria-label={t("hero_designer_cta")}
-            className="group relative block focus:outline-none focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-4"
+            className="group relative block cursor-pointer rounded-3xl border-2 border-dashed border-foreground/25 p-2 transition-colors duration-300 hover:border-foreground hover:bg-foreground/[0.03] focus:outline-none focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-4"
           >
             <img
               data-testid="hero-image"
@@ -101,9 +101,10 @@ export const Hero = ({ onQuoteClick, onGalleryClick }) => {
               className="mx-auto w-full max-w-[560px] select-none transition-transform duration-300 ease-out group-hover:-translate-y-1.5 group-hover:scale-[1.015]"
             />
 
-            {/* Penanda bahwa ilustrasi ini bisa diklik */}
-            <span className="pointer-events-none absolute inset-x-0 bottom-2 mx-auto flex w-fit items-center gap-2 rounded-full bg-foreground px-5 py-2.5 text-[11px] font-bold uppercase tracking-[0.14em] text-background opacity-0 shadow-lg transition-all duration-300 group-hover:opacity-100 group-focus-visible:opacity-100 sm:bottom-4">
-              {t("hero_designer_cta")} <ArrowRight size={14} />
+            {/* Tombol penanda: selalu tampil supaya pelanggan langsung sadar
+                area edit kaos ini bisa diklik. */}
+            <span className="pointer-events-none absolute inset-x-0 bottom-2 mx-auto flex w-fit items-center gap-2 rounded-full border-2 border-foreground bg-foreground px-5 py-2.5 text-[11px] font-bold uppercase tracking-[0.14em] text-background shadow-lg transition-transform duration-300 group-hover:-translate-y-1 group-hover:scale-[1.03] sm:bottom-4 sm:px-6 sm:py-3 sm:text-xs">
+              {t("hero_designer_cta")} <ArrowRight size={14} className="animate-pulse" />
             </span>
           </a>
         </div>
