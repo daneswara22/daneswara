@@ -258,15 +258,28 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
      transform. Semua perhitungan geser/putar/ubah-ukuran memakai persentase
      dari getBoundingClientRect, jadi tetap akurat meski diperkecil. */
   const canvasWrapRef = useRef(null);
+  const canvasAreaRef = useRef(null);
   const [canvasScale, setCanvasScale] = useState(1);
   const fitCanvas = useCallback(() => {
     const el = canvasRef.current;
     const wrap = canvasWrapRef.current;
     if (!el || !wrap) return;
-    const natural = el.offsetWidth;   // lebar layout, tidak terpengaruh transform
-    const avail = wrap.clientWidth;
-    if (!natural || !avail) return;
-    setCanvasScale(natural > avail ? avail / natural : 1);
+    const naturalW = el.offsetWidth;   // lebar layout, tidak terpengaruh transform
+    const naturalH = el.offsetHeight;  // 62vh
+    const availW = wrap.clientWidth;
+    if (!naturalW || !naturalH || !availW) return;
+    let scale = availW / naturalW;
+    // Selain lebar, kanvas juga dipaskan ke TINGGI area yang tersisa supaya di
+    // HP seluruh antarmuka (bilah alat bawah) langsung terlihat tanpa scroll.
+    const area = canvasAreaRef.current;
+    if (area) {
+      const reserved =
+        wrap.getBoundingClientRect().top - area.getBoundingClientRect().top + area.scrollTop;
+      const belowCanvas = 46; // label "AREA CETAK AMAN" + jarak bawah
+      const availH = area.clientHeight - reserved - belowCanvas;
+      if (availH > 80) scale = Math.min(scale, availH / naturalH);
+    }
+    setCanvasScale(Math.min(1, scale));
   }, []);
   useLayoutEffect(() => {
     fitCanvas();
@@ -779,7 +792,7 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
   );
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-zinc-100 text-zinc-900">      {/* input file tersembunyi untuk upload */}
+    <div className="flex h-screen w-full overflow-hidden bg-zinc-100 text-zinc-900" style={{ height: "100dvh" }}>      {/* input file tersembunyi untuk upload */}
       <input
         ref={fileInputRef}
         type="file"
@@ -921,7 +934,7 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
         </aside>
 
         {/* -------- Canvas -------- */}
-        <main className="relative flex min-w-0 flex-1 flex-col items-center overflow-y-auto overflow-x-hidden bg-zinc-100 md:justify-center">
+        <main ref={canvasAreaRef} className="relative flex min-w-0 flex-1 flex-col items-center overflow-y-auto overflow-x-hidden bg-zinc-100 md:justify-center">
           {/* HP: pemilih tampilan kaos (Depan / Belakang / Lengan) */}
           <div
             className="sticky top-0 z-10 flex w-full shrink-0 gap-2 overflow-x-auto border-b border-zinc-200 bg-white/95 px-3 py-2 backdrop-blur md:hidden"
@@ -1176,18 +1189,18 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
       </div>
 
       {/* ============================ BOTTOM BAR ============================ */}
-      <footer className="flex shrink-0 items-center justify-between gap-2 border-t border-zinc-200 bg-white px-3 py-2 md:h-16 md:px-4 md:py-0">
-        <div className="flex shrink-0 items-center gap-2 md:gap-3">
+      <footer className="flex shrink-0 items-center justify-between gap-1 border-t border-zinc-200 bg-white px-2 py-2 md:h-16 md:gap-2 md:px-4 md:py-0">
+        <div className="flex shrink-0 items-center gap-1 md:gap-3">
           <button
             onClick={() => resizeSelected(-5)}
             disabled={!selectedLayer}
             data-testid="size-minus-button"
             aria-label="Perkecil objek"
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-300 text-zinc-600 hover:bg-zinc-50 disabled:opacity-40 md:h-8 md:w-8"
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-300 text-zinc-600 hover:bg-zinc-50 disabled:opacity-40"
           >
             <Minus className="h-4 w-4" />
           </button>
-          <span className="w-10 text-center text-sm font-semibold md:w-16">
+          <span className="w-8 text-center text-xs font-semibold md:w-16 md:text-sm">
             {selectedLayer ? `${Math.round(selectedLayer.wPct)}%` : "—"}
           </span>
           <button
@@ -1195,7 +1208,7 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
             disabled={!selectedLayer}
             data-testid="size-plus-button"
             aria-label="Perbesar objek"
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-300 text-zinc-600 hover:bg-zinc-50 disabled:opacity-40 md:h-8 md:w-8"
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-300 text-zinc-600 hover:bg-zinc-50 disabled:opacity-40"
           >
             <Plus className="h-4 w-4" />
           </button>
@@ -1206,7 +1219,7 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
             data-testid="mobile-undo-button"
             aria-label="Undo"
             title="Undo"
-            className="ml-1 flex h-9 w-9 items-center justify-center rounded-full border border-zinc-300 text-zinc-600 disabled:opacity-40 md:hidden"
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-300 text-zinc-600 disabled:opacity-40 md:hidden"
           >
             <Undo2 className="h-4 w-4" />
           </button>
@@ -1216,7 +1229,7 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
             data-testid="mobile-redo-button"
             aria-label="Redo"
             title="Redo"
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-300 text-zinc-600 disabled:opacity-40 md:hidden"
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-300 text-zinc-600 disabled:opacity-40 md:hidden"
           >
             <Redo2 className="h-4 w-4" />
           </button>
@@ -1227,7 +1240,7 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
             onClick={() => setPreviewOpen(true)}
             data-testid="save-design-button"
             title="Simpan Desain"
-            className="flex items-center gap-2 rounded-lg border border-zinc-300 px-2.5 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 md:px-4"
+            className="flex items-center gap-2 rounded-lg border border-zinc-300 px-1.5 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 md:px-4"
           >
             <Save className="h-4 w-4" />
             <span className="hidden md:inline">Simpan Desain</span>
@@ -1236,7 +1249,7 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
             onClick={resetView}
             data-testid="reset-design-button"
             title="Reset Desain"
-            className="flex items-center gap-2 rounded-lg border border-zinc-300 px-2.5 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-50 md:px-4"
+            className="flex items-center gap-2 rounded-lg border border-zinc-300 px-1.5 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-50 md:px-4"
           >
             <RotateCcw className="h-4 w-4" />
             <span className="hidden md:inline">Reset Desain</span>
@@ -1244,7 +1257,7 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
           <button
             onClick={() => setPreviewOpen(true)}
             data-testid="continue-button"
-            className="flex shrink-0 items-center gap-1.5 rounded-lg bg-zinc-900 px-3.5 py-2 text-sm font-semibold text-white hover:bg-zinc-800 md:gap-2 md:px-5"
+            className="flex shrink-0 items-center gap-1 rounded-lg bg-zinc-900 px-2 py-2 text-xs font-semibold text-white hover:bg-zinc-800 md:gap-2 md:px-5 md:text-sm"
           >
             Lanjutkan <ArrowRight className="h-4 w-4" />
           </button>
