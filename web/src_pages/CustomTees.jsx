@@ -2064,6 +2064,7 @@ function OrdersModal({ open, onClose, onCountChange }) {
   const [loading, setLoading] = useState(false);
   const [detail, setDetail] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -2092,8 +2093,6 @@ function OrdersModal({ open, onClose, onCountChange }) {
       setDetailLoading(false);
     }
   };
-
-  const [deletingId, setDeletingId] = useState(null);
 
   // Hapus pesanan (Owner/Manager). Baris langsung hilang dari daftar.
   const deleteOrder = async (row) => {
