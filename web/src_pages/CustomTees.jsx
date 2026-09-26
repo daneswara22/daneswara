@@ -906,6 +906,11 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
 
       {/* ============================ BODY ============================ */}
       <div className="flex min-h-0 flex-1">
+        {/* -------- Left panel (konten sesuai tool aktif) -------- */}
+        <aside className="hidden w-[300px] shrink-0 flex-col overflow-y-auto border-r border-zinc-200 bg-white p-4 lg:flex">
+          {toolPanel}
+        </aside>
+
         {/* -------- Tool rail -------- */}
         <nav className="hidden w-[92px] shrink-0 flex-col items-center gap-1 border-r border-zinc-200 bg-white py-3 md:flex">
           {TOOLS.map((t) => {
@@ -927,11 +932,6 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
           })}
           {/* Bantuan pelanggan lewat tombol bulat "Customer Live Chat" di pojok kiri bawah. */}
         </nav>
-
-        {/* -------- Left panel (konten sesuai tool aktif) -------- */}
-        <aside className="hidden w-[300px] shrink-0 flex-col overflow-y-auto border-r border-zinc-200 bg-white p-4 lg:flex">
-          {toolPanel}
-        </aside>
 
         {/* -------- Canvas -------- */}
         <main ref={canvasAreaRef} className="relative flex min-w-0 flex-1 flex-col items-center overflow-y-auto overflow-x-hidden bg-zinc-100 md:justify-center">
@@ -2362,13 +2362,13 @@ function ProductPanel({
         data-testid="custom-product-card"
         title="Klik untuk memilih / mengganti produk"
         aria-label="Pilih atau ganti produk"
-        className="group flex w-full items-center gap-3 rounded-xl border border-zinc-200 bg-white p-3 text-left transition hover:border-zinc-900 hover:shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900/20 disabled:cursor-not-allowed disabled:opacity-60"
+        className="group flex w-full items-center gap-3 rounded-xl border border-blue-500 bg-white p-3 text-left transition hover:border-blue-600 hover:shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/20 disabled:cursor-not-allowed disabled:opacity-60"
       >
         {product?.thumbnail_url || activeColorThumb ? (
           <img
             src={activeColorThumb || product.thumbnail_url}
             alt={product?.title || "Kaos"}
-            className="h-12 w-12 shrink-0 rounded-lg border border-zinc-200 object-contain transition group-hover:scale-105"
+            className="h-12 w-12 shrink-0 rounded-lg border border-blue-300 object-contain transition group-hover:scale-105"
           />
         ) : (
           <TintedThumb src={MOCKUPS["Depan"]} mask={MOCKUP_MASKS["Depan"]} color={color.hex} alt="Kaos" size={48} inner={36} />
@@ -2417,7 +2417,7 @@ function ProductPanel({
               className={`h-9 rounded-lg border text-sm font-semibold transition ${
                 active
                   ? "border-zinc-900 bg-zinc-900 text-white"
-                  : "border-zinc-200 text-zinc-700 hover:border-zinc-400"
+                  : "border-blue-500 text-zinc-700 hover:border-blue-600"
               }`}
             >
               {s}
@@ -2454,8 +2454,8 @@ function ProductPanel({
                 data-testid={`qty-input-${s}`}
                 className={`h-9 w-full rounded-lg border text-center text-sm font-semibold outline-none transition ${
                   active
-                    ? "border-zinc-900 bg-white text-zinc-900 focus:ring-2 focus:ring-zinc-900/10"
-                    : "cursor-not-allowed border-zinc-200 bg-zinc-100 text-zinc-400 placeholder:text-zinc-300"
+                    ? "border-blue-600 bg-white text-zinc-900 focus:ring-2 focus:ring-blue-500/10"
+                    : "cursor-not-allowed border-blue-300 bg-zinc-100 text-zinc-400 placeholder:text-zinc-300"
                 }`}
               />
             </div>
@@ -2463,7 +2463,7 @@ function ProductPanel({
         })}
       </div>
       {selectedSizes.length > 0 && (
-        <div className="mt-2 rounded-xl border border-zinc-200 bg-zinc-50 p-2.5" data-testid="size-recap-panel">
+        <div className="mt-2 rounded-xl border border-blue-500 bg-zinc-50 p-2.5" data-testid="size-recap-panel">
           <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">Rekap Ukuran</div>
           <div className="mt-1 flex flex-wrap gap-1.5">
             {selectedSizes.map((it) => (
@@ -2485,7 +2485,7 @@ function ProductPanel({
           {swatches.length} varian
         </span>
       </div>
-      <div className="mt-2 flex items-center gap-3 rounded-xl border border-zinc-200 p-2.5">
+      <div className="mt-2 flex items-center gap-3 rounded-xl border border-blue-500 p-2.5">
         <span
           className="h-8 w-8 rounded-full border border-zinc-300 shadow-inner transition-colors"
           style={{ backgroundColor: color.hex }}
