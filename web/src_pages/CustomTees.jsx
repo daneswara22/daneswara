@@ -15,7 +15,7 @@ import api, { formatApiError } from "@/lib/api";
 import {
   Shirt, Upload, Type, Shapes, ImageIcon, LayoutTemplate, Layers,
   Undo2, Redo2, Save, ChevronRight, ChevronDown, Check,
-  Minus, Plus, RotateCcw, RotateCw, ArrowRight, Trash2, X, Move,
+  Minus, Plus, RotateCcw, RotateCw, ArrowRight, Trash2, X, Move, Copy,
   Bold, Italic, AlignLeft, AlignCenter, AlignRight, Search, Loader2,
   ArrowUp, ArrowDown, ChevronsUp, ChevronsDown, ClipboardList, Send, CheckCircle2,
   Home, LayoutDashboard, MessageCircle,
@@ -2093,6 +2093,25 @@ function OrdersModal({ open, onClose, onCountChange }) {
     }
   };
 
+  const [deletingId, setDeletingId] = useState(null);
+
+  // Hapus pesanan (Owner/Manager). Baris langsung hilang dari daftar.
+  const deleteOrder = async (row) => {
+    if (!window.confirm(`Hapus pesanan ${row.order_code}? Tindakan ini tidak bisa dibatalkan.`)) return;
+    setDeletingId(row.id);
+    try {
+      await api.delete(`/custom-tees/orders/${row.id}`);
+      setRows((rs) => (rs || []).filter((r) => r.id !== row.id));
+      setDetail((d) => (d && d.id === row.id ? null : d));
+      onCountChange && onCountChange();
+      toast.success(`Pesanan ${row.order_code} dihapus`);
+    } catch (e) {
+      toast.error(formatApiError(e.response?.data?.detail));
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   const changeStatus = async (id, status) => {
     try {
       const { data } = await api.patch(`/custom-tees/orders/${id}`, { status });
@@ -2155,7 +2174,18 @@ function OrdersModal({ open, onClose, onCountChange }) {
                     <Info label="Tanggal / Waktu" value={fmtDateTime(detail.submitted_at || detail.created_at)} testid="detail-datetime" />
                     <Info label="Status" value={detail.status} testid="detail-status" />
                     <Info label="Nama Customer" value={detail.customer_name} testid="detail-name" />
-                    <Info label="No. Telepon" value={detail.customer_phone} testid="detail-phone" />
+                    <Info
+                      label="No. Telepon"
+                      value={detail.customer_phone}
+                      testid="detail-phone"
+                      action={
+                        <CopyButton
+                          text={`${detail.customer_name || ""} ${detail.customer_phone || ""}`.trim()}
+                          label="Salin nama + no. WA"
+                          testid="detail-copy-contact"
+                        />
+                      }
+                    />
                     <Info label="Email" value={detail.customer_email || "—"} testid="detail-email" />
                     <Info label="Produk" value={detail.product_title} testid="detail-product" />
                     <Info label="Ukuran & Jumlah" value={sizeRecapText(detail.size_items)} testid="detail-size" />
@@ -2270,13 +2300,25 @@ function OrdersModal({ open, onClose, onCountChange }) {
                       </span>
                     </td>
                     <td className="px-2 py-2 text-right">
-                      <button
-                        onClick={() => openDetail(r.id)}
-                        data-testid={`order-view-${r.order_code}`}
-                        className="rounded-lg border border-zinc-300 px-3 py-1 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
-                      >
-                        Lihat Desain
-                      </button>
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          onClick={() => openDetail(r.id)}
+                          data-testid={`order-view-${r.order_code}`}
+                          className="rounded-lg border border-zinc-300 px-3 py-1 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
+                        >
+                          Lihat Desain
+                        </button>
+                        <button
+                          onClick={() => deleteOrder(r)}
+                          disabled={deletingId === r.id}
+                          title="Hapus pesanan"
+                          aria-label={`Hapus pesanan ${r.order_code}`}
+                          data-testid={`order-delete-${r.order_code}`}
+                          className="flex h-7 w-7 items-center justify-center rounded-lg border border-rose-200 text-rose-600 transition hover:bg-rose-50 disabled:opacity-50"
+                        >
+                          {deletingId === r.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -2289,12 +2331,57 @@ function OrdersModal({ open, onClose, onCountChange }) {
   );
 }
 
-function Info({ label, value, testid }) {
+function Info({ label, value, testid, action }) {
   return (
     <div>
-      <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">{label}</div>
+      <div className="flex items-center gap-2">
+        <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">{label}</div>
+        {action}
+      </div>
       <div className="font-semibold text-zinc-900" data-testid={testid}>{value || "—"}</div>
     </div>
+  );
+}
+
+/* Tombol kecil untuk menyalin teks ke papan klip (dengan cadangan untuk
+   browser lama / konteks non-HTTPS). */
+function CopyButton({ text, label, testid }) {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    const value = String(text || "").trim();
+    if (!value) return toast.error("Tidak ada data untuk disalin");
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(value);
+      } else {
+        const ta = document.createElement("textarea");
+        ta.value = value;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+      }
+      setCopied(true);
+      toast.success("Disalin: " + value);
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch {
+      toast.error("Gagal menyalin, silakan salin manual");
+    }
+  };
+  return (
+    <button
+      type="button"
+      onClick={copy}
+      title={label}
+      aria-label={label}
+      data-testid={testid}
+      className="inline-flex items-center gap-1 rounded-md border border-zinc-300 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-zinc-600 transition hover:bg-zinc-50"
+    >
+      {copied ? <Check className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3" />}
+      {copied ? "Tersalin" : "Salin"}
+    </button>
   );
 }
 
