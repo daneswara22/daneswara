@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from "react";
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,7 @@ import {
   LayoutDashboard, Package, Tags, Warehouse, BarChart3, Users as UsersIcon,
   Settings as SettingsIcon, ShoppingCart, Sun, Moon, LogOut, Menu, X, Store,
   UserCircle, Truck, ClipboardList, ShoppingBag, KeyRound, Wallet, DownloadCloud, HandCoins, ReceiptText, Images, Shirt, Palette,
-  MessagesSquare,
+  MessagesSquare, ChevronRight, ChevronDown,
 } from "lucide-react";
 import { playChatBeep, notifyBrowser } from "@/lib/chatNotify";
 
@@ -24,7 +24,6 @@ const NAV = [
   { to: "/app/inventory", label: "Inventory", icon: Warehouse, roles: ["Owner", "Manager", "Gudang"] },
   { to: "/app/pelanggan", label: "Pelanggan", icon: UserCircle, roles: ["Owner", "Manager", "Kasir"] },
   { to: "/app/pesanan", label: "Pesanan", icon: ShoppingBag, roles: ["Owner", "Manager", "Kasir"] },
-  { to: "/app/chat", label: "Chat Pelanggan", icon: MessagesSquare, roles: ["Owner", "Manager", "Kasir"] },
   { to: "/app/riwayat", label: "Riwayat Transaksi", icon: ReceiptText, roles: ["Owner", "Manager", "Kasir"] },
   { to: "/app/supplier", label: "Supplier", icon: Truck, roles: ["Owner", "Manager", "Gudang"] },
   { to: "/app/pembelian", label: "Pembelian", icon: ClipboardList, roles: ["Owner", "Manager", "Gudang"] },
@@ -33,11 +32,97 @@ const NAV = [
   { to: "/app/laporan", label: "Laporan", icon: BarChart3, roles: ["Owner", "Manager"] },
   { to: "/app/ekspor", label: "Ekspor Data", icon: DownloadCloud, roles: ["Owner"] },
   { to: "/app/galeri-web", label: "Galeri Website", icon: Images, roles: ["Owner", "Manager"] },
-  { to: "/app/mockup-kaos", label: "Jenis Produk", icon: Shirt, roles: ["Owner", "Manager"] },
-  { to: "/custom-tees", label: "Custom Tees", icon: Palette, roles: ["Owner", "Manager", "Kasir"], dev: true },
+  // Menu utama yang punya submenu. Pola ini bisa dipakai ulang: cukup tambah
+  // objek baru dengan `key`, `label`, `icon`, dan daftar `children`.
+  {
+    key: "custom-tees",
+    label: "Custom Tees",
+    icon: Palette,
+    children: [
+      { to: "/custom-tees", label: "Pesanan Custom", icon: Shirt, roles: ["Owner", "Manager", "Kasir"] },
+      { to: "/app/chat", label: "Chat Pelanggan", icon: MessagesSquare, roles: ["Owner", "Manager", "Kasir"] },
+      { to: "/app/mockup-kaos", label: "Jenis Produk", icon: Package, roles: ["Owner", "Manager"] },
+    ],
+  },
   { to: "/app/pengguna", label: "Pengguna", icon: UsersIcon, roles: ["Owner", "Manager"] },
   { to: "/app/pengaturan", label: "Pengaturan", icon: SettingsIcon, roles: ["Owner", "Manager", "Kasir"] },
 ];
+
+const BADGE_TESTID = {
+  "/app/chat": "nav-chat-badge",
+  "/custom-tees": "nav-custom-tees-badge",
+};
+
+const badgeClass =
+  "inline-flex min-w-[20px] items-center justify-center rounded-full bg-blue-600 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white";
+
+// Satu baris menu (dipakai untuk menu utama biasa maupun submenu).
+function NavItem({ item, onNavigate, badge = 0, nested = false }) {
+  const size = nested ? 16 : 18;
+  return (
+    <NavLink
+      to={item.to}
+      end={item.end}
+      onClick={onNavigate}
+      data-testid={`nav-${item.label.toLowerCase()}`}
+      className={({ isActive }) =>
+        `flex items-center gap-3 rounded-md font-medium transition-colors duration-200 ${
+          nested ? "px-3 py-2 text-[13px]" : "px-3 py-2.5 text-sm"
+        } ${
+          isActive
+            ? "bg-primary text-primary-foreground"
+            : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+        }`
+      }
+    >
+      <item.icon style={{ width: size, height: size }} />
+      <span className="flex-1">{item.label}</span>
+      {badge > 0 && (
+        <span data-testid={BADGE_TESTID[item.to]} className={badgeClass}>
+          {badge}
+        </span>
+      )}
+    </NavLink>
+  );
+}
+
+// Menu utama yang bisa dibuka/tutup beserta submenunya.
+function NavGroup({ item, open, onToggle, onNavigate, badgeFor }) {
+  const hiddenBadge = open ? 0 : item.children.reduce((sum, c) => sum + badgeFor(c.to), 0);
+  const Chevron = open ? ChevronDown : ChevronRight;
+  return (
+    <div className="flex flex-col">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        data-testid={`nav-group-${item.key}`}
+        className={`flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left text-sm font-semibold uppercase tracking-wide transition-colors duration-200 ${
+          open ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+        }`}
+      >
+        <item.icon style={{ width: 18, height: 18 }} />
+        <span className="flex-1">{item.label}</span>
+        {hiddenBadge > 0 && <span className={badgeClass}>{hiddenBadge}</span>}
+        <Chevron
+          style={{ width: 16, height: 16 }}
+          className="shrink-0 opacity-70 transition-transform duration-200"
+          data-testid={`nav-group-${item.key}-chevron`}
+        />
+      </button>
+      {open && (
+        <div
+          className="ml-4 mt-1 flex flex-col gap-1 border-l border-border pl-2"
+          data-testid={`nav-group-${item.key}-submenu`}
+        >
+          {item.children.map((c) => (
+            <NavItem key={c.to} item={c} onNavigate={onNavigate} badge={badgeFor(c.to)} nested />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function Layout() {
   const { user, logout } = useAuth();
@@ -47,9 +132,44 @@ export default function Layout() {
   const [pwOpen, setPwOpen] = useState(false);
   const [pw, setPw] = useState({ current_password: "", new_password: "", confirm: "" });
   const [pwLoading, setPwLoading] = useState(false);
-  const items = NAV.filter((n) => n.roles.includes(user?.role));
+  // Saring menu sesuai role. Untuk menu utama bergrup, submenu disaring dulu;
+  // kalau tidak ada submenu yang boleh diakses, menu utamanya disembunyikan.
+  const items = NAV.map((n) => {
+    if (!n.children) return n.roles?.includes(user?.role) ? n : null;
+    const children = n.children.filter((c) => c.roles?.includes(user?.role));
+    return children.length ? { ...n, children } : null;
+  }).filter(Boolean);
   const [customTeeNew, setCustomTeeNew] = useState(0);
   const [chatUnread, setChatUnread] = useState(0);
+  const { pathname } = useLocation();
+  // Status buka/tutup menu bergrup disimpan di localStorage supaya tetap sama
+  // saat pindah halaman (Next.js me-mount ulang layout tiap navigasi).
+  const [openGroups, setOpenGroups] = useState({});
+
+  useEffect(() => {
+    let saved = {};
+    try { saved = JSON.parse(window.localStorage.getItem("dnsw.nav.groups") || "{}") || {}; } catch { saved = {}; }
+    // Menu utama otomatis terbuka kalau salah satu submenunya sedang aktif.
+    const next = { ...saved };
+    NAV.forEach((n) => {
+      if (n.children?.some((c) => pathname === c.to || pathname.startsWith(`${c.to}/`))) next[n.key] = true;
+    });
+    setOpenGroups(next);
+  }, [pathname]);
+
+  const toggleGroup = useCallback((key) => {
+    setOpenGroups((prev) => {
+      const next = { ...prev, [key]: !prev[key] };
+      try { window.localStorage.setItem("dnsw.nav.groups", JSON.stringify(next)); } catch { /* abaikan */ }
+      return next;
+    });
+  }, []);
+
+  const badgeFor = (to) => {
+    if (to === "/app/chat") return chatUnread;
+    if (to === "/custom-tees") return customTeeNew;
+    return 0;
+  };
   const lastChatUnread = useRef(0);
   const chatFirstLoad = useRef(true);
 
@@ -130,46 +250,20 @@ export default function Layout() {
           <span className="font-display text-lg font-bold tracking-tight">Daneswara POS</span>
         </div>
         <nav className="flex flex-1 flex-col gap-1 overflow-y-auto p-4">
-          {(items || []).map((n) => (
-            <NavLink
-              key={n.to}
-              to={n.to}
-              end={n.end}
-              onClick={() => setOpen(false)}
-              data-testid={`nav-${n.label.toLowerCase()}`}
-              className={({ isActive }) =>
-                `flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors duration-200 ${
-                  isActive
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-                }`
-              }
-            >
-              <n.icon className="h-4.5 w-4.5" style={{ width: 18, height: 18 }} />
-              <span className="flex-1">{n.label}</span>
-              {n.to === "/app/chat" && chatUnread > 0 && (
-                <span
-                  data-testid="nav-chat-badge"
-                  className="inline-flex min-w-[20px] items-center justify-center rounded-full bg-blue-600 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white"
-                >
-                  {chatUnread}
-                </span>
-              )}
-              {n.to === "/custom-tees" && customTeeNew > 0 && (
-                <span
-                  data-testid="nav-custom-tees-badge"
-                  className="inline-flex min-w-[20px] items-center justify-center rounded-full bg-blue-600 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white"
-                >
-                  {customTeeNew}
-                </span>
-              )}
-              {n.dev && (
-                <span className="rounded bg-amber-400 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-950">
-                  Dev
-                </span>
-              )}
-            </NavLink>
-          ))}
+          {(items || []).map((n) =>
+            n.children ? (
+              <NavGroup
+                key={n.key}
+                item={n}
+                open={!!openGroups[n.key]}
+                onToggle={() => toggleGroup(n.key)}
+                onNavigate={() => setOpen(false)}
+                badgeFor={badgeFor}
+              />
+            ) : (
+              <NavItem key={n.to} item={n} onNavigate={() => setOpen(false)} badge={badgeFor(n.to)} />
+            ),
+          )}
         </nav>
         <div className="w-full shrink-0 border-t border-border p-4">
           <Button
