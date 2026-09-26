@@ -35,3 +35,12 @@ export const PATCH = handle(async (req: NextRequest, ctx: any) => {
   await logActivity(user.tenant_id, user, 'Update Pesanan Custom Tees', `${row.order_code} → ${status}`);
   return serializeCustomTeeOrder(updated, true);
 });
+
+/** Hapus pesanan custom tees (Owner/Manager saja). */
+export const DELETE = handle(async (req: NextRequest, ctx: any) => {
+  await requireRoles(req, 'Owner', 'Manager');
+  const { user, row } = await find(req, ctx);
+  await prisma.custom_tee_orders.delete({ where: { id: row.id } });
+  await logActivity(user.tenant_id, user, 'Hapus Pesanan Custom Tees', row.order_code);
+  return { ok: true, id: row.id };
+});
