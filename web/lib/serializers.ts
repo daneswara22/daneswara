@@ -290,6 +290,8 @@ export function serializeMockup(m: any) {
     color_hex: m.color_hex,
     color_name: m.color_name,
     image_url: m.image_url,
+    // Selalu same-origin supaya bisa dipakai sebagai CSS mask-image (pewarnaan).
+    file_href: m.image_url ? `/api/public/mockups/${m.id}/file` : '',
     width: m.width || 0,
     height: m.height || 0,
     bytes: m.bytes || 0,

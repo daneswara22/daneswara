@@ -130,7 +130,10 @@ function useProductMockup(view, hex, productKey) {
     if (!list.length) return null;
     const want = String(hex || "").toLowerCase();
     const exact = list.find((m) => String(m.color_hex || "").toLowerCase() === want);
-    return { src: (exact || list[0]).image_url, exact: !!exact };
+    const row = exact || list[0];
+    // file_href = URL same-origin; wajib supaya gambar bisa dipakai sebagai
+    // CSS mask-image (URL CDN mentah diblokir CORS saat jadi mask).
+    return { src: row.file_href || row.image_url, exact: !!exact };
   }, [rows, view, hex]);
 }
 
