@@ -13,6 +13,7 @@ import { storage } from '@/lib/storage';
 import { serializeProductType } from '@/lib/serializers';
 import { getProductTypeById } from '@/lib/productTypeQueries';
 import { createSchema } from '../route';
+import { slugifyProductKey } from '@/lib/productTypes';
 import { ensureProductTypeSchema } from '@/lib/schemaGuard';
 
 const updateSchema = createSchema.partial();
@@ -33,6 +34,31 @@ export const PUT = handle(async (req: NextRequest, ctx: any) => {
   const existing = await getProductTypeById(id, user.tenant_id);
   if (!existing) throw new HttpError(404, 'Jenis produk tidak ditemukan');
   const data = updateSchema.parse(await readBody(req));
+
+  // --- Kode produk: boleh diubah, wajib unik, dan referensi ikut dipindah ----
+  let nextKey = existing.product_key;
+  if (data.product_key !== undefined && data.product_key !== null) {
+    const slug = slugifyProductKey(data.product_key);
+    if (!slug) throw new HttpError(400, 'Kode produk tidak valid');
+    if (slug !== existing.product_key) {
+      const taken = await prisma.custom_products.findFirst({
+        where: { tenant_id: user.tenant_id, product_key: slug, id: { not: id } },
+        select: { id: true },
+      });
+      if (taken) throw new HttpError(400, `Kode produk "${slug}" sudah dipakai produk lain`);
+      nextKey = slug;
+    }
+  }
+
+  // --- Validasi aktivasi: minimal 1 mockup -----------------------------------
+  if (data.is_active === true) {
+    const mockups = await prisma.custom_mockups.count({
+      where: { tenant_id: user.tenant_id, product_key: existing.product_key },
+    });
+    if (mockups === 0) {
+      throw new HttpError(400, 'Tambahkan minimal 1 mockup produk sebelum mengaktifkan produk ini');
+    }
+  }
 
   let thumb: string | null = existing.thumbnail_url;
   if (data.thumbnail_url !== undefined) {
@@ -63,6 +89,8 @@ export const PUT = handle(async (req: NextRequest, ctx: any) => {
       ...(data.model !== undefined ? { model: data.model || null } : {}),
       ...(data.material !== undefined ? { material: data.material || null } : {}),
       ...(data.is_active !== undefined ? { is_active: data.is_active } : {}),
+      ...(data.category !== undefined ? { category: data.category?.trim() || null } : {}),
+      ...(nextKey !== existing.product_key ? { product_key: nextKey } : {}),
       ...(data.sort_order !== undefined ? { sort_order: data.sort_order } : {}),
       thumbnail_url: thumb,
       updated_at: new Date(),
@@ -72,8 +100,22 @@ export const PUT = handle(async (req: NextRequest, ctx: any) => {
       size_chart: { orderBy: [{ sort_order: 'asc' }] },
     },
   });
+  if (nextKey !== existing.product_key) {
+    // mockup & riwayat pesanan tetap menempel ke produk yang sama
+    await prisma.custom_mockups.updateMany({
+      where: { tenant_id: user.tenant_id, product_key: existing.product_key },
+      data: { product_key: nextKey },
+    });
+    await prisma.custom_tee_orders.updateMany({
+      where: { tenant_id: user.tenant_id, product_key: existing.product_key },
+      data: { product_key: nextKey },
+    });
+  }
+  const mockup_count = await prisma.custom_mockups.count({
+    where: { tenant_id: user.tenant_id, product_key: nextKey },
+  });
   await logActivity(user.tenant_id, user, 'Ubah Jenis Produk', updated.title);
-  return serializeProductType(updated);
+  return serializeProductType({ ...updated, mockup_count });
 });
 
 export const DELETE = handle(async (req: NextRequest, ctx: any) => {
@@ -83,12 +125,47 @@ export const DELETE = handle(async (req: NextRequest, ctx: any) => {
   const existing = await getProductTypeById(id, user.tenant_id);
   if (!existing) throw new HttpError(404, 'Jenis produk tidak ditemukan');
 
+  // Produk yang sudah punya pesanan / mockup TIDAK dihapus permanen supaya
+  // riwayat pesanan dan desain pelanggan tetap utuh (soft delete).
+  const [orders, mockups] = await Promise.all([
+    prisma.custom_tee_orders.count({
+      where: { tenant_id: user.tenant_id, product_key: existing.product_key },
+    }),
+    prisma.custom_mockups.count({
+      where: { tenant_id: user.tenant_id, product_key: existing.product_key },
+    }),
+  ]);
+  if (orders > 0) {
+    await prisma.custom_products.update({
+      where: { id },
+      data: { deleted_at: new Date(), is_active: false, updated_at: new Date() },
+    });
+    await logActivity(user.tenant_id, user, 'Arsip Jenis Produk', existing.title);
+    return {
+      ok: true,
+      id,
+      soft_deleted: true,
+      message: `Produk dipakai ${orders} pesanan, jadi diarsipkan (tidak tampil ke pelanggan) supaya riwayat pesanan tetap utuh.`,
+    };
+  }
+
   // best-effort: bersihkan berkas di R2 (thumbnail produk + thumbnail warna)
   const urls = [existing.thumbnail_url, ...(existing.colors || []).map((c: any) => c.thumb_url)];
   for (const u of urls) {
     if (u && u.startsWith('http')) await storage.delete(u).catch(() => {});
   }
 
+  if (mockups > 0) {
+    const rows = await prisma.custom_mockups.findMany({
+      where: { tenant_id: user.tenant_id, product_key: existing.product_key },
+    });
+    for (const m of rows) {
+      if (m.image_url?.startsWith('http')) await storage.delete(m.image_url).catch(() => {});
+    }
+    await prisma.custom_mockups.deleteMany({
+      where: { tenant_id: user.tenant_id, product_key: existing.product_key },
+    });
+  }
   await prisma.custom_products.delete({ where: { id } });
   await logActivity(user.tenant_id, user, 'Hapus Jenis Produk', existing.title);
   return { ok: true, id };

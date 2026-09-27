@@ -28,6 +28,7 @@ export const createSchema = z.object({
   is_active: z.boolean().optional(),
   sort_order: z.coerce.number().int().min(0).max(100000).optional(),
   product_key: z.string().trim().max(80).optional().nullable(),
+  category: z.string().trim().max(120).optional().nullable(),
 });
 
 export const GET = handle(async (req: NextRequest) => {
@@ -49,15 +50,26 @@ export const POST = handle(async (req: NextRequest) => {
   const user = await requireRoles(req, 'Owner', 'Manager');
   const data = createSchema.parse(await readBody(req));
 
-  let key = slugifyProductKey(data.product_key || data.title);
-  // pastikan unik per tenant
-  for (let i = 2; i < 100; i++) {
+  const explicitKey = !!(data.product_key && data.product_key.trim());
+  const base = slugifyProductKey(data.product_key || data.title);
+  if (!base) throw new HttpError(400, 'Kode produk tidak valid');
+  let key = base;
+  if (explicitKey) {
+    // Kode diisi manual => wajib unik, jangan diubah diam-diam.
     const taken = await prisma.custom_products.findFirst({
       where: { tenant_id: user.tenant_id, product_key: key },
       select: { id: true },
     });
-    if (!taken) break;
-    key = `${slugifyProductKey(data.product_key || data.title)}-${i}`;
+    if (taken) throw new HttpError(400, `Kode produk "${key}" sudah dipakai produk lain`);
+  } else {
+    for (let i = 2; i < 100; i++) {
+      const taken = await prisma.custom_products.findFirst({
+        where: { tenant_id: user.tenant_id, product_key: key },
+        select: { id: true },
+      });
+      if (!taken) break;
+      key = `${base}-${i}`;
+    }
   }
 
   const thumb = await storage.normalizeImageField(data.thumbnail_url, 'mockup');
@@ -76,6 +88,7 @@ export const POST = handle(async (req: NextRequest) => {
       model: data.model || null,
       material: data.material || null,
       thumbnail_url: thumb || null,
+      category: data.category?.trim() || null,
       size_guide_url: null,
       sizes_json: '[]',
       specs_json: '[]',
