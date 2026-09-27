@@ -4,6 +4,12 @@ import { z } from 'zod';
 export const PAYMENT_METHODS = ['Tunai', 'BCA TOKO', 'BRI TOKO', 'BCA ADMIN (ELIS)', 'QRIS', 'E-Wallet'] as const;
 export const ROLES = ['Owner', 'Manager', 'Kasir', 'Gudang'] as const;
 
+// Beberapa form mengirim nilai null untuk kolom kosong (hasil dari data DB
+// yang bernilai NULL). Helper ini menerima null/undefined lalu mengubahnya ke
+// nilai bawaan supaya tidak memicu "Expected string, received null".
+const optStr = (def = '') => z.string().nullish().transform((v) => v ?? def);
+const optNum = (def = 0) => z.number().nullish().transform((v) => (v == null ? def : v));
+
 export const loginSchema = z.object({ username: z.string(), password: z.string() });
 export const changePasswordSchema = z.object({ current_password: z.string(), new_password: z.string() });
 
@@ -22,23 +28,23 @@ export const userUpdateSchema = z.object({
 
 export const categoryInputSchema = z.object({
   name: z.string(),
-  color: z.string().optional().default('#2563EB'),
-  image: z.string().optional().default(''),
+  color: optStr('#2563EB').optional().default('#2563EB'),
+  image: optStr().optional().default(''),
 });
 
 export const productInputSchema = z.object({
   name: z.string(),
-  sku: z.string().optional().default(''),
-  barcode: z.string().optional().default(''),
+  sku: optStr().optional().default(''),
+  barcode: optStr().optional().default(''),
   category_id: z.string().nullable().optional(),
-  price: z.number().default(0),
-  cost: z.number().default(0),
-  stock: z.number().int().default(0),
-  min_stock: z.number().int().default(5),
-  unit: z.string().optional().default('pcs'),
-  image: z.string().optional().default(''),
-  description: z.string().optional().default(''),
-  active: z.boolean().default(true),
+  price: optNum(0).optional().default(0),
+  cost: optNum(0).optional().default(0),
+  stock: optNum(0).optional().default(0),
+  min_stock: optNum(5).optional().default(5),
+  unit: optStr('pcs').optional().default('pcs'),
+  image: optStr().optional().default(''),
+  description: optStr().optional().default(''),
+  active: z.boolean().nullish().transform((v) => v ?? true).optional().default(true),
 });
 
 export const reorderInputSchema = z.object({ ids: z.array(z.string()) });
@@ -50,7 +56,7 @@ export const saleItemSchema = z.object({
   qty: z.number().int(),
   cost: z.number().default(0),
   disc: z.number().default(0),
-  note: z.string().optional().default(''),
+  note: optStr().optional().default(''),
 });
 
 export const saleInputSchema = z.object({
@@ -59,7 +65,7 @@ export const saleInputSchema = z.object({
   tax_rate: z.number().default(0),
   payment_method: z.enum(PAYMENT_METHODS),
   paid_amount: z.number().default(0),
-  customer_name: z.string().optional().default(''),
+  customer_name: optStr().optional().default(''),
   customer_id: z.string().nullable().optional(),
   order_id: z.string().nullable().optional(),
   channel: z.string().optional().default('Toko'),
@@ -69,7 +75,7 @@ export const stockInputSchema = z.object({
   product_id: z.string(),
   type: z.enum(['Masuk', 'Keluar', 'Penyesuaian', 'Opname']),
   qty: z.number().int(),
-  note: z.string().optional().default(''),
+  note: optStr().optional().default(''),
 });
 
 export const settingsInputSchema = z.object({
@@ -88,9 +94,9 @@ export const settingsInputSchema = z.object({
 
 export const customerInputSchema = z.object({
   name: z.string(),
-  phone: z.string().optional().default(''),
-  email: z.string().optional().default(''),
-  address: z.string().optional().default(''),
+  phone: optStr().optional().default(''),
+  email: optStr().optional().default(''),
+  address: optStr().optional().default(''),
 });
 
 export const supplierInputSchema = customerInputSchema;
@@ -104,9 +110,9 @@ export const poItemSchema = z.object({
 
 export const purchaseOrderInputSchema = z.object({
   supplier_id: z.string().nullable().optional(),
-  supplier_name: z.string().optional().default(''),
+  supplier_name: optStr().optional().default(''),
   items: z.array(poItemSchema),
-  note: z.string().optional().default(''),
+  note: optStr().optional().default(''),
 });
 
 export const supplierRefSchema = z.object({ supplier_id: z.string().nullable().optional() });
@@ -119,14 +125,14 @@ export const heldOrderInputSchema = z.object({
 
 export const customOrderInputSchema = z.object({
   customer_id: z.string().nullable().optional(),
-  customer_name: z.string().optional().default(''),
+  customer_name: optStr().optional().default(''),
   items: z.array(saleItemSchema),
   discount: z.number().default(0),
   tax_rate: z.number().default(0),
   deposit_amount: z.number().default(0),
   deposit_method: z.enum(PAYMENT_METHODS).default('Tunai'),
   order_type: z.string().default('Reguler'),
-  note: z.string().optional().default(''),
+  note: optStr().optional().default(''),
   channel: z.string().optional().default('Toko'),
 });
 
@@ -139,7 +145,7 @@ export const updateOrderSchema = z.object({
   items: z.array(saleItemSchema),
   discount: z.number().default(0),
   tax_rate: z.number().default(0),
-  customer_name: z.string().optional().default(''),
+  customer_name: optStr().optional().default(''),
   order_type: z.string().default('Reguler'),
 });
 
@@ -156,7 +162,7 @@ export const financeCategoryInputSchema = z.object({
 export const financeEntryInputSchema = z.object({
   category: z.string(),
   amount: z.number(),
-  note: z.string().optional().default(''),
+  note: optStr().optional().default(''),
   date: z.string().nullable().optional(),
   source: z.string().optional().default('Tunai'),
 });
@@ -164,8 +170,8 @@ export const financeEntryInputSchema = z.object({
 export const galleryInputSchema = z.object({
   src: z.string(),
   label: z.string(),
-  tag: z.string().optional().default(''),
-  span: z.string().optional().default(''),
+  tag: optStr().optional().default(''),
+  span: optStr().optional().default(''),
   sort_order: z.number().int().nullable().optional().default(0),
 });
 
@@ -181,7 +187,7 @@ const customTeeBase = {
   qty: z.coerce.number().int().min(1).max(99999).optional().default(1),
   color_name: z.string().optional().default('Putih'),
   color_hex: z.string().optional().default('#ffffff'),
-  note: z.string().optional().default(''),
+  note: optStr().optional().default(''),
 };
 
 export const customTeeDraftSchema = z.object({
@@ -203,8 +209,8 @@ export const customTeeQuoteSchema = z.object({
 export const customTeeOrderSchema = z.object({
   ...customTeeBase,
   draft_id: z.string().nullable().optional(),
-  customer_name: z.string().optional().default(''),
-  customer_phone: z.string().optional().default(''),
+  customer_name: optStr().optional().default(''),
+  customer_phone: optStr().optional().default(''),
   customer_email: z.string().nullable().optional().default(''),
   design: z.record(z.string(), z.array(z.any())).nullable().optional(),
 });
