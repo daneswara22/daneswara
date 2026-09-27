@@ -2,6 +2,7 @@ import { forwardRef, useImperativeHandle, useState } from "react";
 import { toast } from "sonner";
 import { Send } from "lucide-react";
 import { useLang } from "@/components/landing/i18n/LangContext";
+import { GoogleReviews } from "@/components/landing/components/GoogleReviews";
 
 const PACKAGES = ["screen", "dtg", "bulk"];
 
@@ -116,6 +117,9 @@ export const QuoteForm = forwardRef(function QuoteForm(_, ref) {
             <div className="mt-3 text-sm">daneswara.made@gmail.com</div>
             <div className="text-sm">+62 858 8810 2930</div>
           </div>
+
+          {/* Ulasan Google (menggantikan area kosong di kolom kiri) */}
+          <GoogleReviews />
         </div>
 
         <form
