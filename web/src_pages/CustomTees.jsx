@@ -68,6 +68,52 @@ const FALLBACK_SWATCHES = [
 ];
 const VIEWS = ["Depan", "Belakang", "Lengan Kiri", "Lengan Kanan"];
 
+/* ---------- mockup hasil unggahan admin (per jenis produk) ----------------
+   Tampilan pada desainer memakai nama Indonesia, sedangkan mockup di database
+   disimpan dengan kode view (front/back/left/right). Kalau produk yang dipilih
+   punya mockup sendiri (mis. Hoodie), gambar itulah yang dipakai kanvas &
+   preview — bukan lagi mockup kaos bawaan. */
+const VIEW_KEY = { "Depan": "front", "Belakang": "back", "Lengan Kiri": "left", "Lengan Kanan": "right" };
+
+const mockupCache = new Map();
+
+/** Ambil (dan cache) daftar mockup milik satu jenis produk. */
+function useMockupRows(productKey) {
+  const [rows, setRows] = useState(() => mockupCache.get(productKey) || []);
+  useEffect(() => {
+    if (!productKey) { setRows([]); return; }
+    if (mockupCache.has(productKey)) { setRows(mockupCache.get(productKey)); return; }
+    let alive = true;
+    api.get(`/public/mockups?product_key=${encodeURIComponent(productKey)}`)
+      .then(({ data }) => {
+        const list = Array.isArray(data) ? data : [];
+        mockupCache.set(productKey, list);
+        if (alive) setRows(list);
+      })
+      .catch(() => { if (alive) setRows([]); });
+    return () => { alive = false; };
+  }, [productKey]);
+  return rows;
+}
+
+/**
+ * Cari mockup untuk satu tampilan + warna pada sebuah jenis produk.
+ * Urutan: warna sama persis -> mockup lain pada tampilan yang sama -> null
+ * (null berarti pakai mockup kaos bawaan + pewarnaan otomatis).
+ */
+function useProductMockup(view, hex, productKey) {
+  const rows = useMockupRows(productKey);
+  return useMemo(() => {
+    if (!rows || !rows.length) return null;
+    const key = VIEW_KEY[view];
+    const list = rows.filter((m) => m.view === key && m.image_url);
+    if (!list.length) return null;
+    const want = String(hex || "").toLowerCase();
+    const exact = list.find((m) => String(m.color_hex || "").toLowerCase() === want);
+    return { src: (exact || list[0]).image_url, exact: !!exact };
+  }, [rows, view, hex]);
+}
+
 /* ---------- tool rail ---------- */
 const TOOLS = [
   { icon: Shirt, label: "Produk", sub: "Warna & Ukuran" },
@@ -383,6 +429,9 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
     () => products.find((p) => p.id === productId) || (products.length ? products[0] : FALLBACK_PRODUCT),
     [products, productId],
   );
+
+  // Mockup milik jenis produk yang sedang dipilih (kalau admin sudah unggah).
+  const productMockup = useProductMockup(view, color.hex, product?.product_key);
 
   /** Ukuran yang tersedia = size chart produk (fallback ke daftar standar). */
   const sizes = useMemo(() => {
@@ -992,14 +1041,14 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
               onLostPointerCapture={endGesture}
             >
               <img
-                src={MOCKUPS[view]}
-                alt={`Kaos tampak ${view}`}
+                src={productMockup?.src || MOCKUPS[view]}
+                alt={`${product?.title || "Produk"} tampak ${view}`}
                 onLoad={fitCanvas}
                 className="pointer-events-none h-full w-auto object-contain drop-shadow-sm"
                 data-testid="tee-mockup-image"
                 draggable={false}
               />
-              {!isWhite && (
+              {!productMockup && !isWhite && (
                 <div
                   aria-hidden="true"
                   data-testid="tee-color-overlay"
@@ -1153,7 +1202,7 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
                       view === v ? "border-zinc-900 bg-zinc-50 font-semibold" : "border-zinc-200 hover:border-zinc-400"
                     }`}
                   >
-                    <TintedThumb src={MOCKUPS[v]} mask={MOCKUP_MASKS[v]} color={color.hex} alt={v} />
+                    <ViewThumb view={v} color={color} productKey={product?.product_key} />
                     <span className="flex-1 text-left">{v}</span>
                     {count > 0 && (
                       <span className="rounded-full bg-zinc-900 px-1.5 text-[10px] font-bold text-white">{count}</span>
@@ -1339,6 +1388,7 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
         sizeItems={selectedSizeItems(sizeQty)}
         onCheckPrice={handleCheckPrice}
         checkingPrice={checkingPrice}
+        productKey={product?.product_key}
       />
 
       {/* Form data customer (setelah "Cek Harga") */}
@@ -1395,18 +1445,19 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
    Ukuran teks/curved memakai vh (sama seperti kanvas), lalu di-scale via CSS
    transform agar pas dalam tile — hasil identik dengan kanvas.
    ========================================================================= */
-function PreviewStage({ view, color, layers, onReady }) {
+function PreviewStage({ view, color, layers, onReady, productKey }) {
   const white = (color?.hex || "#ffffff").toLowerCase() === "#ffffff";
+  const mk = useProductMockup(view, color?.hex, productKey);
   return (
     <div className="relative h-[62vh] w-auto">
       <img
-        src={MOCKUPS[view]}
-        alt={`Kaos ${view}`}
+        src={mk?.src || MOCKUPS[view]}
+        alt={`Mockup ${view}`}
         onLoad={onReady}
         draggable={false}
         className="pointer-events-none h-full w-auto max-w-full object-contain"
       />
-      {!white && (
+      {!mk && !white && (
         <div
           aria-hidden="true"
           className="pointer-events-none absolute inset-0"
@@ -1467,7 +1518,7 @@ function PreviewStage({ view, color, layers, onReady }) {
 // never cropped. The stage is laid out at its NATURAL size (so the mockup image is
 // not clamped by max-width) and then transform-scaled into a clip box, keeping the
 // vh-based text/positions identical to the canvas.
-function PreviewFitTile({ view, color, layers }) {
+function PreviewFitTile({ view, color, layers, productKey }) {
   const wrapRef = useRef(null);   // available cell area
   const stageRef = useRef(null);  // wraps PreviewStage (accurate layout height)
   const [s, setS] = useState({ scale: 0, w: 0, h: 0, nw: 0, nh: 0 });
@@ -1509,7 +1560,7 @@ function PreviewFitTile({ view, color, layers }) {
             }}
           >
             <div ref={stageRef} className="inline-block">
-              <PreviewStage view={view} color={color} layers={layers} onReady={measure} />
+              <PreviewStage view={view} color={color} layers={layers} onReady={measure} productKey={productKey} />
             </div>
           </div>
         </div>
@@ -1520,7 +1571,7 @@ function PreviewFitTile({ view, color, layers }) {
 
 const PREVIEW_VIEWS = ["Depan", "Belakang", "Lengan Kiri", "Lengan Kanan"];
 
-function PreviewModal({ open, onClose, design, color, sizeItems, onCheckPrice, checkingPrice }) {
+function PreviewModal({ open, onClose, design, color, sizeItems, onCheckPrice, checkingPrice, productKey }) {
   const bodyRef = useRef(null);
   const [side, setSide] = useState(0);
 
@@ -1601,7 +1652,7 @@ function PreviewModal({ open, onClose, design, color, sizeItems, onCheckPrice, c
                   <div className="z-10 mx-auto mb-1 inline-flex shrink-0 items-center gap-1.5 rounded-full bg-zinc-900 px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-white sm:text-[11px]">
                     <Shirt className="h-3.5 w-3.5" /> {v}
                   </div>
-                  <PreviewFitTile view={v} color={color} layers={design[v] || []} />
+                  <PreviewFitTile view={v} color={color} layers={design[v] || []} productKey={productKey} />
                   <span className="pointer-events-none absolute bottom-1.5 right-2 text-[10px] font-medium text-zinc-400">
                     {n === 0 ? "Kosong" : `${n} objek`}
                   </span>
@@ -1890,7 +1941,7 @@ function OrderFormModal({ open, onClose, design, color, sizeItems, product, quot
                       <div className="z-10 mx-auto mb-1 inline-flex shrink-0 items-center gap-1 rounded-full bg-zinc-900 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white">
                         <Shirt className="h-3 w-3" /> {v}
                       </div>
-                      <PreviewFitTile view={v} color={color} layers={design[v] || []} />
+                      <PreviewFitTile view={v} color={color} layers={design[v] || []} productKey={product?.product_key} />
                     </div>
                   ))}
                 </div>
@@ -2244,7 +2295,7 @@ function OrdersModal({ open, onClose, onCountChange }) {
                     <div className="z-10 mx-auto mb-1 inline-flex shrink-0 items-center gap-1 rounded-full bg-zinc-900 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white">
                       <Shirt className="h-3 w-3" /> {v}
                     </div>
-                    <PreviewFitTile view={v} color={detailColor} layers={Array.isArray(views[v]) ? views[v] : []} />
+                    <PreviewFitTile view={v} color={detailColor} layers={Array.isArray(views[v]) ? views[v] : []} productKey={detail?.product_key} />
                   </div>
                 ))}
               </div>
@@ -4282,6 +4333,19 @@ function ToolbarIcon({ icon: Icon, label, onClick, disabled }) {
 /**
  * Thumbnail mockup yang ikut ter-tint sesuai warna aktif.
  */
+/** Thumbnail tampilan (Depan/Belakang/...) pada panel kanan. */
+function ViewThumb({ view, color, productKey }) {
+  const mk = useProductMockup(view, color?.hex, productKey);
+  if (mk) {
+    return (
+      <span className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-md border border-zinc-200 bg-white">
+        <img src={mk.src} alt={view} className="h-7 w-7 object-contain" draggable={false} />
+      </span>
+    );
+  }
+  return <TintedThumb src={MOCKUPS[view]} mask={MOCKUP_MASKS[view]} color={color.hex} alt={view} />;
+}
+
 function TintedThumb({ src, mask, color, alt, size = 36, inner = 28 }) {
   const isWhite = color.toLowerCase() === "#ffffff";
   return (
