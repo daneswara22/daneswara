@@ -75,6 +75,26 @@ const VIEWS = ["Depan", "Belakang", "Lengan Kiri", "Lengan Kanan"];
    preview — bukan lagi mockup kaos bawaan. */
 const VIEW_KEY = { "Depan": "front", "Belakang": "back", "Lengan Kiri": "left", "Lengan Kanan": "right" };
 
+/**
+ * Lapisan pewarna mockup. Untuk mockup kaos bawaan memakai berkas mask khusus;
+ * untuk mockup unggahan admin (PNG/WEBP transparan) gambar mockup itu sendiri
+ * dipakai sebagai mask, sehingga warna dari palet langsung terlihat.
+ */
+function tintStyle(hex, maskUrl) {
+  return {
+    backgroundColor: hex,
+    mixBlendMode: "multiply",
+    WebkitMaskImage: `url(${maskUrl})`,
+    maskImage: `url(${maskUrl})`,
+    WebkitMaskSize: "contain",
+    maskSize: "contain",
+    WebkitMaskPosition: "center",
+    maskPosition: "center",
+    WebkitMaskRepeat: "no-repeat",
+    maskRepeat: "no-repeat",
+  };
+}
+
 const mockupCache = new Map();
 
 /** Ambil (dan cache) daftar mockup milik satu jenis produk. */
@@ -1048,23 +1068,12 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
                 data-testid="tee-mockup-image"
                 draggable={false}
               />
-              {!productMockup && !isWhite && (
+              {!isWhite && !productMockup?.exact && (
                 <div
                   aria-hidden="true"
                   data-testid="tee-color-overlay"
                   className="pointer-events-none absolute inset-0 transition-[background-color] duration-200"
-                  style={{
-                    backgroundColor: color.hex,
-                    mixBlendMode: "multiply",
-                    WebkitMaskImage: `url(${MOCKUP_MASKS[view]})`,
-                    maskImage: `url(${MOCKUP_MASKS[view]})`,
-                    WebkitMaskSize: "contain",
-                    maskSize: "contain",
-                    WebkitMaskPosition: "center",
-                    maskPosition: "center",
-                    WebkitMaskRepeat: "no-repeat",
-                    maskRepeat: "no-repeat",
-                  }}
+                  style={tintStyle(color.hex, productMockup?.src || MOCKUP_MASKS[view])}
                 />
               )}
 
@@ -1457,19 +1466,11 @@ function PreviewStage({ view, color, layers, onReady, productKey }) {
         draggable={false}
         className="pointer-events-none h-full w-auto max-w-full object-contain"
       />
-      {!mk && !white && (
+      {!white && !mk?.exact && (
         <div
           aria-hidden="true"
           className="pointer-events-none absolute inset-0"
-          style={{
-            backgroundColor: color.hex,
-            mixBlendMode: "multiply",
-            WebkitMaskImage: `url(${MOCKUP_MASKS[view]})`,
-            maskImage: `url(${MOCKUP_MASKS[view]})`,
-            WebkitMaskSize: "contain", maskSize: "contain",
-            WebkitMaskPosition: "center", maskPosition: "center",
-            WebkitMaskRepeat: "no-repeat", maskRepeat: "no-repeat",
-          }}
+          style={tintStyle(color.hex, mk?.src || MOCKUP_MASKS[view])}
         />
       )}
       {layers.map((l, idx) => {
@@ -4338,9 +4339,12 @@ function ViewThumb({ view, color, productKey }) {
   const mk = useProductMockup(view, color?.hex, productKey);
   if (mk) {
     return (
-      <span className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-md border border-zinc-200 bg-white">
-        <img src={mk.src} alt={view} className="h-7 w-7 object-contain" draggable={false} />
-      </span>
+      <TintedThumb
+        src={mk.src}
+        mask={mk.exact ? null : mk.src}
+        color={color.hex}
+        alt={view}
+      />
     );
   }
   return <TintedThumb src={MOCKUPS[view]} mask={MOCKUP_MASKS[view]} color={color.hex} alt={view} />;
