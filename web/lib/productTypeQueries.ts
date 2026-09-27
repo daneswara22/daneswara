@@ -19,7 +19,7 @@ export interface ListArgs {
 export async function listProductTypes({ tenantId, page, limit, q, activeOnly }: ListArgs) {
   const safeLimit = Math.min(Math.max(limit || 12, 1), 50);
   const safePage = Math.max(page || 1, 1);
-  const where: any = {};
+  const where: any = { deleted_at: null };
   if (tenantId) where.tenant_id = tenantId;
   if (activeOnly) where.is_active = true;
   if (q && q.trim()) {
@@ -29,6 +29,7 @@ export async function listProductTypes({ tenantId, page, limit, q, activeOnly }:
       { supplier: { contains: term } },
       { material: { contains: term } },
       { product_key: { contains: term } },
+      { category: { contains: term } },
     ];
   }
 
@@ -46,7 +47,21 @@ export async function listProductTypes({ tenantId, page, limit, q, activeOnly }:
     }),
   ]);
 
-  const items = (rows || []).map((r) => serializeProductType(r));
+  // Jumlah mockup per produk (dipakai tabel admin & validasi aktivasi).
+  const keys = (rows || []).map((r) => r.product_key);
+  const counts = new Map<string, number>();
+  if (keys.length) {
+    const grouped = await prisma.custom_mockups.groupBy({
+      by: ['product_key'],
+      where: { product_key: { in: keys }, ...(tenantId ? { tenant_id: tenantId } : {}) },
+      _count: { _all: true },
+    });
+    for (const g of grouped) counts.set(g.product_key, g._count._all);
+  }
+
+  const items = (rows || []).map((r) =>
+    serializeProductType({ ...r, mockup_count: counts.get(r.product_key) || 0 }),
+  );
   return {
     items,
     total,
@@ -65,9 +80,12 @@ export async function getProductTypeById(id: string, tenantId?: string) {
       size_chart: { orderBy: [{ sort_order: 'asc' }] },
     },
   });
-  if (!row) return null;
+  if (!row || row.deleted_at) return null;
   if (tenantId && row.tenant_id !== tenantId) return null;
-  return row;
+  const mockup_count = await prisma.custom_mockups.count({
+    where: { product_key: row.product_key, tenant_id: row.tenant_id },
+  });
+  return { ...row, mockup_count } as any;
 }
 
 /**

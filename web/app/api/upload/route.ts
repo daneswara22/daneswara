@@ -27,7 +27,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ detail: 'Ukuran gambar maksimal 15MB' }, { status: 413 });
     }
     const buf = Buffer.from(await file.arrayBuffer());
-    const info = await storage.uploadImage(buf, kind);
+    let info;
+    try {
+      info = await storage.uploadImage(buf, kind);
+    } catch (err: any) {
+      // Berkas bukan gambar yang bisa dibaca (rusak / format tidak didukung).
+      // Ini kesalahan input, jadi balas 400 dengan pesan yang jelas.
+      const msg = String(err?.message || '');
+      if (/unsupported image format|Input buffer|premature end|VipsJpeg|corrupt/i.test(msg)) {
+        return NextResponse.json(
+          { detail: 'Gambar tidak bisa dibaca. Pakai file PNG, JPG, JPEG, atau WEBP yang valid.' },
+          { status: 400 },
+        );
+      }
+      throw err;
+    }
     return NextResponse.json(info);
   } catch (e) {
     return errorResponse(e);

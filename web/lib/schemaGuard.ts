@@ -83,6 +83,8 @@ export const ensureProductTypeSchema = once(async () => {
   await addColumnIfMissing('custom_products', 'thumbnail_url', 'TEXT NULL');
   await addColumnIfMissing('custom_products', 'is_active', 'BOOLEAN NOT NULL DEFAULT TRUE');
   await addColumnIfMissing('custom_products', 'sort_order', 'INTEGER NOT NULL DEFAULT 0');
+  await addColumnIfMissing('custom_products', 'category', 'VARCHAR(120) NULL');
+  await addColumnIfMissing('custom_products', 'deleted_at', 'DATETIME(0) NULL');
 
   if (!(await tableExists('custom_product_colors'))) {
     await prisma.$executeRawUnsafe(`

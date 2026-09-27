@@ -34,10 +34,12 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import ProductMockupsPanel from "@/src_pages/ProductMockupsPanel";
 import { toast } from "sonner";
 import {
   Plus, Pencil, Trash2, Shirt, Search, UploadCloud, Loader2, RefreshCw,
   Palette, Ruler, ImageOff, Check, X, PackageSearch, Eye, EyeOff, Layers,
+  Image as ImageIcon, LayoutGrid, Table as TableIcon,
 } from "lucide-react";
 
 const PAGE_SIZE = 9;
@@ -45,7 +47,17 @@ const SIZE_REGIONS = ["Asia / Local Size", "Eropa / USA"];
 const EMPTY_PRODUCT = {
   title: "", subtitle: "", price: 0, supplier: "", size_region: SIZE_REGIONS[0],
   model: "", material: "", description: "", thumbnail_url: "", is_active: true, sort_order: 0,
+  product_key: "", category: "",
 };
+
+/** Saran kode produk dari nama (huruf kecil, tanda hubung). */
+const suggestKey = (title) =>
+  String(title || "")
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
 const EMPTY_COLOR = { name: "", hex: "#111111", thumb_url: "" };
 const EMPTY_SIZE = { label: "", chest_cm: "", length_cm: "" };
 
@@ -75,8 +87,12 @@ export default function ProductTypes() {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
 
-  // panel warna & size chart
+  // panel warna, size chart & mockup
   const [colorTarget, setColorTarget] = useState(null);
+  const [mockupTarget, setMockupTarget] = useState(null);
+  const [categories, setCategories] = useState([]);
+  const [viewMode, setViewMode] = useState("cards");   // cards | table
+  const [keyTouched, setKeyTouched] = useState(false);
   const [sizeTarget, setSizeTarget] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
@@ -117,6 +133,13 @@ export default function ProductTypes() {
 
   useEffect(() => { reload(); }, [reload]);
 
+  const loadCategories = useCallback(() => {
+    api.get("/custom-products/categories")
+      .then((r) => setCategories(r.data?.items || []))
+      .catch(() => {});
+  }, []);
+  useEffect(() => { loadCategories(); }, [loadCategories]);
+
   const loadMore = useCallback(() => {
     if (loading || loadingMore || !hasMore) return;
     setLoadingMore(true);
@@ -141,14 +164,16 @@ export default function ProductTypes() {
     setItems((prev) => (prev || []).map((it) => (it.id === updated.id ? updated : it)));
 
   /* -------------------------------- produk -------------------------------- */
-  const openAdd = () => { setForm(EMPTY_PRODUCT); setEditId(null); setFormOpen(true); };
+  const openAdd = () => { setForm(EMPTY_PRODUCT); setEditId(null); setKeyTouched(false); setFormOpen(true); };
   const openEdit = (p) => {
     setForm({
       title: p.title || "", subtitle: p.subtitle || "", price: p.price || 0,
       supplier: p.supplier || "", size_region: p.size_region || SIZE_REGIONS[0],
       model: p.model || "", material: p.material || "", description: p.description || "",
       thumbnail_url: p.thumbnail_url || "", is_active: p.is_active !== false, sort_order: p.sort_order || 0,
+      product_key: p.product_key || "", category: p.category || "",
     });
+    setKeyTouched(true);
     setEditId(p.id);
     setFormOpen(true);
   };
@@ -175,21 +200,28 @@ export default function ProductTypes() {
     if (!form.title.trim()) return toast.error("Nama produk wajib diisi");
     if (Number(form.price) < 0) return toast.error("Harga tidak boleh negatif");
     setSaving(true);
+    const code = (form.product_key || suggestKey(form.title)).trim();
+    if (!code) return toast.error("Kode produk wajib diisi");
     const payload = {
       ...form,
       title: form.title.trim(),
       price: Number(form.price) || 0,
       sort_order: Number(form.sort_order) || 0,
+      product_key: code,
+      category: (form.category || "").trim(),
     };
     try {
       if (editId) {
         const { data } = await api.put(`/custom-products/${editId}`, payload);
         patchItem(data);
+        loadCategories();
         toast.success("Jenis produk diperbarui");
       } else {
-        await api.post("/custom-products", payload);
-        toast.success("Jenis produk ditambahkan");
+        const { data } = await api.post("/custom-products", payload);
+        toast.success("Jenis produk ditambahkan — lanjut unggah mockup");
         reload();
+        loadCategories();
+        setMockupTarget(data);   // langsung arahkan ke pengelolaan mockup
       }
       setFormOpen(false);
     } catch (e) {
@@ -213,8 +245,9 @@ export default function ProductTypes() {
     if (!deleteTarget) return;
     setDeleting(true);
     try {
-      await api.delete(`/custom-products/${deleteTarget.id}`);
-      toast.success(`"${deleteTarget.title}" dihapus`);
+      const { data } = await api.delete(`/custom-products/${deleteTarget.id}`);
+      if (data?.soft_deleted) toast.success(data.message || "Produk diarsipkan");
+      else toast.success(`"${deleteTarget.title}" dihapus`);
       setDeleteTarget(null);
       reload();
     } catch (e) {
@@ -250,8 +283,18 @@ export default function ProductTypes() {
           <Button data-testid="product-types-refresh" variant="outline" onClick={reload} disabled={loading}>
             <RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} /> Muat Ulang
           </Button>
+          <Button
+            data-testid="product-types-view-toggle"
+            variant="outline"
+            onClick={() => setViewMode((v) => (v === "cards" ? "table" : "cards"))}
+            title="Ganti tampilan kartu / tabel"
+          >
+            {viewMode === "cards"
+              ? <><TableIcon className="mr-2 h-4 w-4" /> Tabel</>
+              : <><LayoutGrid className="mr-2 h-4 w-4" /> Kartu</>}
+          </Button>
           <Button data-testid="product-types-add" onClick={openAdd}>
-            <Plus className="mr-2 h-4 w-4" /> Tambah Jenis Produk
+            <Plus className="mr-2 h-4 w-4" /> Tambah Produk
           </Button>
         </div>
       </div>
@@ -314,19 +357,32 @@ export default function ProductTypes() {
         </div>
       ) : (
         <>
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" data-testid="product-types-grid">
-            {items.map((p) => (
-              <ProductCard
-                key={p.id}
-                product={p}
-                onEdit={() => openEdit(p)}
-                onColors={() => setColorTarget(p)}
-                onSizes={() => setSizeTarget(p)}
-                onDelete={() => setDeleteTarget(p)}
-                onToggleActive={() => toggleActive(p)}
-              />
-            ))}
-          </div>
+          {viewMode === "table" ? (
+            <ProductTable
+              items={items}
+              onEdit={openEdit}
+              onMockups={setMockupTarget}
+              onColors={setColorTarget}
+              onSizes={setSizeTarget}
+              onDelete={setDeleteTarget}
+              onToggleActive={toggleActive}
+            />
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" data-testid="product-types-grid">
+              {items.map((p) => (
+                <ProductCard
+                  key={p.id}
+                  product={p}
+                  onEdit={() => openEdit(p)}
+                  onColors={() => setColorTarget(p)}
+                  onSizes={() => setSizeTarget(p)}
+                  onMockups={() => setMockupTarget(p)}
+                  onDelete={() => setDeleteTarget(p)}
+                  onToggleActive={() => toggleActive(p)}
+                />
+              ))}
+            </div>
+          )}
 
           {/* Sentinel lazy-load */}
           <div ref={sentinelRef} className="h-4" data-testid="product-types-sentinel" />
@@ -417,9 +473,39 @@ export default function ProductTypes() {
                 <Input
                   data-testid="product-form-title"
                   value={form.title}
-                  onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+                  onChange={(e) => {
+                    const title = e.target.value;
+                    setForm((f) => ({
+                      ...f,
+                      title,
+                      product_key: keyTouched ? f.product_key : suggestKey(title),
+                    }));
+                  }}
                   placeholder="SIZE LOCAL (BuildUp Tees)"
                 />
+              </Field>
+              <Field label="Kode Produk *">
+                <Input
+                  data-testid="product-form-key"
+                  value={form.product_key}
+                  onChange={(e) => { setKeyTouched(true); setForm((f) => ({ ...f, product_key: e.target.value })); }}
+                  placeholder="hoodie-premium"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Identitas unik produk (huruf kecil &amp; tanda hubung). Otomatis disarankan dari nama produk.
+                </p>
+              </Field>
+              <Field label="Kategori">
+                <Input
+                  data-testid="product-form-category"
+                  list="pt-category-options"
+                  value={form.category}
+                  onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
+                  placeholder="Kaos / Hoodie / Tote Bag"
+                />
+                <datalist id="pt-category-options">
+                  {categories.map((c) => <option key={c} value={c} />)}
+                </datalist>
               </Field>
               <Field label="Harga Kaos (Rp) *">
                 <Input
@@ -531,6 +617,16 @@ export default function ProductTypes() {
         onChanged={(updated) => { patchItem(updated); setColorTarget(updated); }}
       />
 
+      {/* Panel mockup produk */}
+      <ProductMockupsPanel
+        product={mockupTarget}
+        onClose={() => setMockupTarget(null)}
+        onChanged={(updated) => {
+          if (updated && updated.id) { patchItem(updated); setMockupTarget(updated); }
+          else reload();
+        }}
+      />
+
       {/* Panel size chart */}
       <SizeChartManager
         product={sizeTarget}
@@ -589,7 +685,7 @@ function Field({ label, children }) {
   );
 }
 
-function ProductCard({ product, onEdit, onColors, onSizes, onDelete, onToggleActive }) {
+function ProductCard({ product, onEdit, onColors, onSizes, onMockups, onDelete, onToggleActive }) {
   const p = product;
   const colors = p.colors || [];
   const shown = colors.slice(0, 8);
@@ -686,6 +782,9 @@ function ProductCard({ product, onEdit, onColors, onSizes, onDelete, onToggleAct
           </Button>
           <Button data-testid={`product-sizes-${p.product_key}`} variant="outline" size="sm" onClick={onSizes}>
             <Ruler className="mr-1.5 h-3.5 w-3.5" /> Size Chart
+          </Button>
+          <Button data-testid={`product-mockups-${p.product_key}`} variant="outline" size="sm" onClick={onMockups}>
+            <ImageIcon className="mr-1.5 h-3.5 w-3.5" /> Mockup ({p.mockup_count || 0})
           </Button>
           <div className="grid grid-cols-2 gap-2">
             <Button
@@ -1335,5 +1434,97 @@ function SizeChartManager({ product, onClose, onChanged }) {
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/* ------------------------------------------------------------------------- */
+/* Tabel admin jenis produk (alternatif tampilan kartu)                      */
+/* ------------------------------------------------------------------------- */
+function ProductTable({ items, onEdit, onMockups, onColors, onSizes, onDelete, onToggleActive }) {
+  const fmtDate = (iso) => {
+    if (!iso) return "—";
+    try {
+      return new Date(iso).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" });
+    } catch { return "—"; }
+  };
+  return (
+    <div className="overflow-x-auto rounded-xl border border-border bg-card" data-testid="product-types-table">
+      <table className="w-full min-w-[980px] text-left text-sm">
+        <thead className="border-b border-border bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
+          <tr>
+            <th className="px-3 py-2">Gambar</th>
+            <th className="px-3 py-2">Nama Produk</th>
+            <th className="px-3 py-2">Kode</th>
+            <th className="px-3 py-2">Kategori</th>
+            <th className="px-3 py-2">Mockup</th>
+            <th className="px-3 py-2">Status</th>
+            <th className="px-3 py-2">Dibuat</th>
+            <th className="px-3 py-2 text-right">Aksi</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((p) => (
+            <tr key={p.id} className="border-b border-border last:border-0" data-testid={`product-row-${p.product_key}`}>
+              <td className="px-3 py-2">
+                <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-lg border border-border bg-muted">
+                  {p.thumbnail_url
+                    ? <img src={p.thumbnail_url} alt={p.title} loading="lazy" className="h-full w-full object-contain" />
+                    : <ImageOff className="h-4 w-4 text-muted-foreground" />}
+                </div>
+              </td>
+              <td className="px-3 py-2">
+                <div className="font-semibold">{p.title}</div>
+                <div className="text-xs text-muted-foreground">{rp(p.price)}</div>
+              </td>
+              <td className="px-3 py-2 font-mono text-xs">{p.product_key}</td>
+              <td className="px-3 py-2">{p.category || "—"}</td>
+              <td className="px-3 py-2">
+                <Badge variant={p.mockup_count ? "secondary" : "outline"} data-testid={`product-mockup-count-${p.product_key}`}>
+                  {p.mockup_count || 0}
+                </Badge>
+              </td>
+              <td className="px-3 py-2">
+                <Badge variant={p.is_active ? "default" : "secondary"}>{p.is_active ? "Aktif" : "Non-aktif"}</Badge>
+              </td>
+              <td className="px-3 py-2 text-xs text-muted-foreground">{fmtDate(p.created_at)}</td>
+              <td className="px-3 py-2">
+                <div className="flex flex-wrap justify-end gap-1.5">
+                  <Button size="sm" variant="outline" onClick={() => onEdit(p)} data-testid={`product-row-edit-${p.product_key}`}>
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => onMockups(p)} data-testid={`product-row-mockups-${p.product_key}`}>
+                    <ImageIcon className="mr-1 h-3.5 w-3.5" /> Mockup
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => onColors(p)} data-testid={`product-row-colors-${p.product_key}`}>
+                    <Palette className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => onSizes(p)} data-testid={`product-row-sizes-${p.product_key}`}>
+                    <Ruler className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onToggleActive(p)}
+                    title={p.is_active ? "Nonaktifkan" : "Aktifkan"}
+                    data-testid={`product-row-toggle-${p.product_key}`}
+                  >
+                    {p.is_active ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-destructive"
+                    onClick={() => onDelete(p)}
+                    data-testid={`product-row-delete-${p.product_key}`}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
