@@ -140,11 +140,11 @@ export function quoteCustomTee(
 
   const lines: QuoteLine[] = [];
 
-  // 1) Kaos per ukuran
+  // 1) Produk per ukuran
   for (const it of items) {
     const unit = p.base_by_size[it.size] ?? p.base_fallback;
     lines.push({
-      label: `Kaos ukuran ${it.size}`,
+      label: `Produk ukuran ${it.size}`,
       detail: `${it.qty} pcs x ${unit.toLocaleString('id-ID')}`,
       qty: it.qty,
       unit_price: unit,
