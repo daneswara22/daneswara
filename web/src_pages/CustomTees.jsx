@@ -245,8 +245,6 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
   const [draftId, setDraftId] = useState(null);
   const [ordersOpen, setOrdersOpen] = useState(false);
   const [newOrderCount, setNewOrderCount] = useState(0);
-  /** Estimasi harga dari server (POST /api/public/custom-tees/quote). */
-  const [quote, setQuote] = useState(null);
 
   /* ---------- font kustom (diunggah admin lewat panel Teks) ----------
      Daftar font aktif diambil dari GET /api/public/fonts, lalu aturan
@@ -763,20 +761,10 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
     setCheckingPrice(true);
     try {
       const payload = designPayload();
-      // Estimasi harga dihitung di server supaya angkanya tidak bisa diubah
-      // dari browser. Kalau gagal, alur pesanan tetap lanjut tanpa angka.
-      const quotePromise = api
-        .post("/public/custom-tees/quote", {
-          size: payload.size,
-          size_items: payload.size_items,
-          qty: payload.qty,
-          design: payload.design,
-        })
-        .then((r) => r.data)
-        .catch(() => null);
+      // Harga tidak lagi ditampilkan ke customer — konfirmasi harga dilakukan
+      // oleh tim Customer Service setelah pesanan masuk.
       const { data } = await api.post("/public/custom-tees/drafts", payload);
       setDraftId(data?.id || null);
-      setQuote(await quotePromise);
       setPreviewOpen(false);
       setOrderFormOpen(true);
     } catch (e) {
@@ -1411,7 +1399,6 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
         color={color}
         sizeItems={selectedSizeItems(sizeQty)}
         product={product}
-        quote={quote}
         onSubmit={submitOrder}
       />
 
@@ -1704,7 +1691,7 @@ function PreviewModal({ open, onClose, design, color, sizeItems, onCheckPrice, c
               className="flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
             >
               {checkingPrice ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              Cek Harga
+              Lanjut Pesan
             </button>
           )}
           <button
@@ -1728,7 +1715,7 @@ function PreviewModal({ open, onClose, design, color, sizeItems, onCheckPrice, c
    diisi, memakai nomor resmi yang sama dengan halaman landing. */
 const STUDIO_WA = (process.env.NEXT_PUBLIC_WA_NUMBER || "6285888102930").replace(/[^0-9]/g, "");
 
-function buildWaText({ order, form, product, color, sizeItems, design, quote }) {
+function buildWaText({ order, form, product, color, sizeItems, design }) {
   const items = sizeItems || [];
   const totalQty = items.reduce((a, it) => a + it.qty, 0);
   const objek = PREVIEW_VIEWS
@@ -1747,7 +1734,6 @@ function buildWaText({ order, form, product, color, sizeItems, design, quote }) 
     `Ukuran: ${items.length ? items.map((it) => `${it.size} x ${it.qty}`).join(", ") : "-"}`,
     `Total: ${totalQty} pcs`,
     `Objek Desain: ${objek}`,
-    quote ? `Estimasi Harga: ${rupiah(quote.total)} (${rupiah(quote.price_per_pcs)} / pcs)` : null,
     "",
     "Mohon dibantu proses pesanan saya. Terima kasih.",
   ].filter((l) => l !== null);
@@ -1758,7 +1744,7 @@ function waUrl(text) {
   return `https://wa.me/${STUDIO_WA}?text=${encodeURIComponent(text)}`;
 }
 
-function OrderFormModal({ open, onClose, design, color, sizeItems, product, quote, onSubmit }) {
+function OrderFormModal({ open, onClose, design, color, sizeItems, product, onSubmit }) {
   const [form, setForm] = useState({ name: "", phone: "", email: "" });
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
@@ -1819,7 +1805,7 @@ function OrderFormModal({ open, onClose, design, color, sizeItems, product, quot
       setSentForm(snapshot);
       setDone(data || {});
       setForm({ name: "", phone: "", email: "" });
-      const text = buildWaText({ order: data, form: snapshot, product, color, sizeItems, design, quote });
+      const text = buildWaText({ order: data, form: snapshot, product, color, sizeItems, design });
       const win = window.open(waUrl(text), "_blank", "noopener,noreferrer");
       if (!win) toast.info("Tekan tombol WhatsApp di bawah untuk melanjutkan chat");
     } catch (e) {
@@ -1830,7 +1816,7 @@ function OrderFormModal({ open, onClose, design, color, sizeItems, product, quot
   };
 
   const waHref = waUrl(buildWaText({
-    order: done, form: sentForm || form, product, color, sizeItems, design, quote,
+    order: done, form: sentForm || form, product, color, sizeItems, design,
   }));
 
   return (
@@ -2006,7 +1992,6 @@ function OrderFormModal({ open, onClose, design, color, sizeItems, product, quot
 }
 
 /* ---------- pesan penutup untuk customer (menggantikan estimasi harga) ---------- */
-const rupiah = (n) => "Rp " + Number(n || 0).toLocaleString("id-ID");
 
 function CsNoticeCard() {
   return (
