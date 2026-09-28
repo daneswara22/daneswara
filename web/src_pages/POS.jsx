@@ -960,7 +960,7 @@ export default function POS() {
             className="h-11 w-full gap-2 font-semibold"
             data-testid="pos-hold-button"
           >
-            <PauseCircle className="h-4 w-4" /> Simpan ke Pesanan
+            <PauseCircle className="h-4 w-4" /> Pesan (PO)
           </Button>
           <Button
             onClick={resetOrder}
