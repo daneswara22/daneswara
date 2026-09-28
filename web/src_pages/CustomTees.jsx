@@ -67,6 +67,9 @@ const FALLBACK_SWATCHES = [
   { name: "Tosca",        hex: "#2ea67a" },
 ];
 const VIEWS = ["Depan", "Belakang", "Lengan Kiri", "Lengan Kanan"];
+// Label tampilan untuk pengguna (kunci data tetap agar desain lama tidak rusak).
+const VIEW_LABEL = { "Lengan Kiri": "Sisi Kiri", "Lengan Kanan": "Sisi Kanan" };
+export const viewLabel = (v) => VIEW_LABEL[v] || v;
 
 /* ---------- mockup hasil unggahan admin (per jenis produk) ----------------
    Tampilan pada desainer memakai nama Indonesia, sedangkan mockup di database
@@ -715,7 +718,7 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
     if ((design[view] || []).length === 0) return toast.info("Tampilan ini masih kosong");
     setDesign((d) => ({ ...d, [view]: [] }));
     setSelectedId(null);
-    toast.success(`Desain tampilan ${view} direset`);
+    toast.success(`Desain tampilan ${viewLabel(view)} direset`);
   };
 
   const totalObjects = VIEWS.reduce((a, v) => a + (design[v] || []).length, 0);
@@ -1012,7 +1015,7 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
                     active ? "border-zinc-900 bg-zinc-900 text-white" : "border-zinc-300 bg-white text-zinc-600"
                   }`}
                 >
-                  {v}
+                  {viewLabel(v)}
                   {count > 0 && (
                     <span className={`rounded-full px-1.5 text-[10px] font-bold ${active ? "bg-white text-zinc-900" : "bg-zinc-900 text-white"}`}>
                       {count}
@@ -1030,7 +1033,7 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
               data-testid="active-view-label"
             >
               <Shirt className="h-4 w-4" />
-              {view}
+              {viewLabel(view)}
             </div>
             {/* Pembungkus penyesuai lebar: di HP kanvas diperkecil, bukan dipotong */}
             <div
@@ -1053,7 +1056,7 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
             >
               <img
                 src={productMockup?.src || MOCKUPS[view]}
-                alt={`${product?.title || "Produk"} tampak ${view}`}
+                alt={`${product?.title || "Produk"} tampak ${viewLabel(view)}`}
                 onLoad={fitCanvas}
                 className="pointer-events-none h-full w-auto object-contain drop-shadow-sm"
                 data-testid="tee-mockup-image"
@@ -1203,7 +1206,7 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
                     }`}
                   >
                     <ViewThumb view={v} color={color} productKey={product?.product_key} />
-                    <span className="flex-1 text-left">{v}</span>
+                    <span className="flex-1 text-left">{viewLabel(v)}</span>
                     {count > 0 && (
                       <span className="rounded-full bg-zinc-900 px-1.5 text-[10px] font-bold text-white">{count}</span>
                     )}
@@ -1221,7 +1224,7 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
                 return (
                   <div key={v} className="flex items-center justify-between text-sm">
                     <span className="flex items-center gap-2 text-zinc-700">
-                      <Check className={`h-4 w-4 ${count > 0 ? "text-emerald-500" : "text-zinc-300"}`} /> {v}
+                      <Check className={`h-4 w-4 ${count > 0 ? "text-emerald-500" : "text-zinc-300"}`} /> {viewLabel(v)}
                     </span>
                     <span className={`text-xs font-semibold ${count > 0 ? "text-emerald-600" : "text-zinc-400"}`}>
                       {count > 0 ? `${count} objek` : "Kosong"}
@@ -1451,7 +1454,7 @@ function PreviewStage({ view, color, layers, onReady, productKey }) {
     <div className="relative h-[62vh] w-auto">
       <img
         src={mk?.src || MOCKUPS[view]}
-        alt={`Mockup ${view}`}
+        alt={`Mockup ${viewLabel(view)}`}
         onLoad={onReady}
         draggable={false}
         className="pointer-events-none h-full w-auto max-w-full object-contain"
@@ -1641,7 +1644,7 @@ function PreviewModal({ open, onClose, design, color, sizeItems, onCheckPrice, c
                   data-testid={`preview-cell-${v.toLowerCase().replace(/\s+/g, "-")}`}
                 >
                   <div className="z-10 mx-auto mb-1 inline-flex shrink-0 items-center gap-1.5 rounded-full bg-zinc-900 px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-white sm:text-[11px]">
-                    <Shirt className="h-3.5 w-3.5" /> {v}
+                    <Shirt className="h-3.5 w-3.5" /> {viewLabel(v)}
                   </div>
                   <PreviewFitTile view={v} color={color} layers={design[v] || []} productKey={productKey} />
                   <span className="pointer-events-none absolute bottom-1.5 right-2 text-[10px] font-medium text-zinc-400">
@@ -1719,7 +1722,7 @@ function buildWaText({ order, form, product, color, sizeItems, design }) {
   const items = sizeItems || [];
   const totalQty = items.reduce((a, it) => a + it.qty, 0);
   const objek = PREVIEW_VIEWS
-    .map((v) => `${v}: ${(design?.[v] || []).length}`)
+    .map((v) => `${viewLabel(v)}: ${(design?.[v] || []).length}`)
     .join(" | ");
   const lines = [
     "*PESANAN CUSTOM TEES - Daneswara Print*",
@@ -1911,7 +1914,7 @@ function OrderFormModal({ open, onClose, design, color, sizeItems, product, onSu
                     <div className="mt-1 space-y-1 text-sm">
                       {PREVIEW_VIEWS.map((v) => (
                         <div key={v} className="flex items-center justify-between">
-                          <span className="text-zinc-600">{v}</span>
+                          <span className="text-zinc-600">{viewLabel(v)}</span>
                           <span className="font-semibold text-zinc-800" data-testid={`summary-count-${v.toLowerCase().replace(/\s+/g, "-")}`}>
                             {(design[v] || []).length} objek
                           </span>

@@ -32,7 +32,15 @@ const NAV = [
   { to: "/app/laporan", label: "Laporan", icon: BarChart3, roles: ["Owner", "Manager"] },
   { to: "/app/ekspor", label: "Ekspor Data", icon: DownloadCloud, roles: ["Owner"] },
   { to: "/app/galeri-web", label: "Galeri Website", icon: Images, roles: ["Owner", "Manager"] },
-  { to: "/app/sales-channels", label: "Sales Channel", icon: Store, roles: ["Owner", "Manager"] },
+  {
+    key: "sales-channel",
+    label: "Sales Channel",
+    icon: Store,
+    children: [
+      { to: "/app/sales-channels", label: "Kanal Penjualan", icon: Store, roles: ["Owner", "Manager"] },
+      { to: "/app/kanal-pesanan", label: "Pesanan Kanal", icon: ShoppingBag, roles: ["Owner", "Manager", "Kasir"] },
+    ],
+  },
   // Menu utama yang punya submenu. Pola ini bisa dipakai ulang: cukup tambah
   // objek baru dengan `key`, `label`, `icon`, dan daftar `children`.
   {
@@ -40,7 +48,7 @@ const NAV = [
     label: "Custom Tees",
     icon: Palette,
     children: [
-      { to: "/custom-tees", label: "Pesanan Custom", icon: Shirt, roles: ["Owner", "Manager", "Kasir"] },
+      { to: "/custom-tees", label: "Design", icon: Shirt, roles: ["Owner", "Manager", "Kasir"] },
       { to: "/app/chat", label: "Chat Pelanggan", icon: MessagesSquare, roles: ["Owner", "Manager", "Kasir"] },
       { to: "/app/mockup-kaos", label: "Jenis Produk", icon: Package, roles: ["Owner", "Manager"] },
     ],
