@@ -10,10 +10,46 @@ import { serializeOrder } from '@/lib/serializers';
 export const GET = handle(async (req: NextRequest) => {
   const user = await getCurrentUser(req);
   const tid = user.tenant_id;
+  const url = new URL(req.url);
+  const p = (k: string) => (url.searchParams.get(k) || '').trim();
+  const channel = p('sales_channel').toLowerCase();
+  const status = p('status');
+  const internalStatus = p('internal_status').toUpperCase();
+  const paymentStatus = p('payment_status').toUpperCase();
+  const customer = p('customer');
+  const sku = p('sku');
+  const product = p('product');
+  const dateFrom = p('date_from');
+  const dateTo = p('date_to');
+  const limit = Math.min(1000, Math.max(1, Number(p('limit')) || 500));
+
+  const where: any = { tenant_id: tid };
+  // Pesanan lama (POS/toko) tidak punya sales_channel -> dianggap 'manual'.
+  if (channel && channel !== 'all') {
+    where.OR = channel === 'manual' ? [{ sales_channel: 'manual' }, { sales_channel: null }] : [{ sales_channel: channel }];
+  }
+  if (status) where.status = status;
+  if (internalStatus) where.internal_status = internalStatus;
+  // Pesanan lama belum punya payment_status -> turunkan dari sisa tagihan.
+  if (paymentStatus) {
+    const legacy: any[] = [{ payment_status: paymentStatus }];
+    if (paymentStatus === 'PAID') legacy.push({ payment_status: null, remaining: { lte: 0 } });
+    if (paymentStatus === 'UNPAID') legacy.push({ payment_status: null, deposit_amount: { lte: 0 }, remaining: { gt: 0 } });
+    if (paymentStatus === 'PARTIAL') legacy.push({ payment_status: null, deposit_amount: { gt: 0 }, remaining: { gt: 0 } });
+    where.AND = [...(where.AND || []), { OR: legacy }];
+  }
+  if (customer) where.customer_name = { contains: customer };
+  if (dateFrom || dateTo) {
+    where.created_at = {};
+    if (dateFrom) where.created_at.gte = new Date(`${dateFrom}T00:00:00`);
+    if (dateTo) where.created_at.lte = new Date(`${dateTo}T23:59:59`);
+  }
+  if (sku || product) where.items = { contains: sku || product };
+
   const orders = await prisma.orders.findMany({
-    where: { tenant_id: tid },
+    where,
     orderBy: { created_at: 'desc' },
-    take: 500,
+    take: limit,
   });
   const pos = await prisma.purchases.findMany({
     where: { tenant_id: tid, order_id: { not: null } },
@@ -59,6 +95,11 @@ export const POST = handle(async (req: NextRequest) => {
       note: data.note || '', order_type: data.order_type || 'Reguler',
       channel: (data.channel || 'Toko').trim() || 'Toko',
       status: isDraft ? 'Draft' : 'Proses', cashier: user.name || '',
+      sales_channel: 'manual',
+      internal_status: isDraft ? 'NEW' : 'PROCESSING',
+      payment_status: isDraft ? 'UNPAID' : 'PARTIAL',
+      order_date: new Date(),
+      updated_at: new Date(),
       created_at: new Date(),
     },
   });

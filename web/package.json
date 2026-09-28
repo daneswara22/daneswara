@@ -10,6 +10,7 @@
     "prisma:pull": "prisma db pull",
     "prisma:generate": "prisma generate",
     "test:core": "tsx scripts/test-core.ts",
+    "test:shopee": "tsx scripts/test-shopee-sync.ts",
     "test:palette": "tsx scripts/test-palette.ts"
   },
   "dependencies": {

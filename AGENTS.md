@@ -58,6 +58,7 @@ Perlu diingat lagi, datanya produksi dan hidup. Jangan menjalankan endpoint yang
 - `web/components/landing` berisi komponen, halaman, dan i18n landing (gaya CSS-nya dikurung di `.dp-landing`).
 - `web/src_pages` dan `web/components` berisi halaman dan komponen POS gaya CRA, dipakai lewat alias.
 - `web/lib` berisi berkas inti: `db.ts` (Prisma), `storage.ts` (R2 dan sharp), `auth.ts`, `api.ts`, `media.ts`, dan `printer.js`.
+- `web/lib/channels` berisi integrasi kanal penjualan (marketplace). `types.ts` mendaftar kanal, `store.ts` satu-satunya tempat token dibaca/ditulis (terenkripsi AES-256-GCM lewat `lib/crypto.ts`), dan `shopee/` berisi klien Shopee Open API v2, pemetaan status, pemetaan produk, serta sinkronisasi idempoten. Endpointnya di `web/app/api/channels/**` dan halaman adminnya `web/src_pages/SalesChannels.jsx`. Jangan pernah menaruh partner key atau token di env frontend maupun di repo; semuanya diisi dari halaman admin dan disimpan di tabel `channel_credentials`.
 - `web/middleware.ts` mengalihkan halaman utama ke `/login` untuk host POS seperti `pos`, `app`, atau `dashboard`.
 - `backend/scripts/r2_cors.py` memasang CORS bucket R2 (butuh token R2 dengan izin Admin baca tulis).
 - `web/scripts/ensure-admin.ts` membuat atau mereset akun Owner tanpa menyimpan rahasia.

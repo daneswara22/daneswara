@@ -129,6 +129,14 @@ model custom_tee_orders {
   created_at     DateTime  @db.DateTime(0)
   updated_at     DateTime  @db.DateTime(0)
 
+  // Asal pesanan: null/'manual' = desainer web sendiri, 'shopee' = hasil sinkron
+  // marketplace. `source_order_id` menunjuk ke orders.id supaya alur produksi
+  // Custom Tees yang sudah ada tetap dipakai (tidak bikin sistem baru).
+  sales_channel     String? @db.VarChar(30)
+  external_order_id String? @db.VarChar(64)
+  source_order_id   String? @db.VarChar(36)
+
+  @@unique([tenant_id, sales_channel, external_order_id], map: "uq_custom_tee_orders_external")
   @@index([tenant_id], map: "ix_custom_tee_orders_tenant_id")
   @@index([status], map: "ix_custom_tee_orders_status")
   @@index([created_at], map: "ix_custom_tee_orders_created_at")
@@ -265,6 +273,35 @@ model orders {
   completed_at   DateTime? @db.DateTime(0)
   created_at     DateTime  @db.DateTime(0)
 
+  // --- Multi sales-channel (marketplace) extension -------------------------
+  // Kolom di bawah ini opsional supaya pesanan toko/POS lama tetap valid.
+  // `sales_channel` = 'manual' untuk pesanan internal, 'shopee' untuk Shopee, dst.
+  sales_channel     String?   @db.VarChar(30)
+  sales_channel_id  String?   @db.VarChar(36)
+  external_order_id String?   @db.VarChar(64)
+  external_status   String?   @db.VarChar(40)
+  external_shop_id  String?   @db.VarChar(40)
+  internal_status   String?   @db.VarChar(30)
+  payment_status    String?   @db.VarChar(30)
+  shipping_status   String?   @db.VarChar(30)
+  customer_phone    String?   @db.VarChar(40)
+  shipping_address  String?   @db.Text
+  shipping_city     String?   @db.VarChar(120)
+  shipping_province String?   @db.VarChar(120)
+  shipping_postal   String?   @db.VarChar(20)
+  shipping_fee      Float?    @db.Float
+  shipping_carrier  String?   @db.VarChar(120)
+  tracking_number   String?   @db.VarChar(80)
+  customer_note     String?   @db.Text
+  seller_note       String?   @db.Text
+  order_date        DateTime? @db.DateTime(0)
+  synced_at         DateTime? @db.DateTime(0)
+  updated_at        DateTime? @db.DateTime(0)
+  external_raw      String?   @db.LongText
+
+  @@unique([tenant_id, sales_channel, external_order_id], map: "uq_orders_channel_external")
+  @@index([sales_channel], map: "ix_orders_sales_channel")
+  @@index([external_order_id], map: "ix_orders_external_order_id")
   @@index([created_at], map: "ix_orders_created_at")
   @@index([order_number], map: "ix_orders_order_number")
   @@index([status], map: "ix_orders_status")
@@ -486,4 +523,109 @@ model chat_messages {
   @@index([tenant_id], map: "ix_chat_messages_tenant_id")
   @@index([thread_id], map: "ix_chat_messages_thread_id")
   @@index([created_at], map: "ix_chat_messages_created_at")
+}
+
+// ---------------------------------------------------------------------------
+// SALES CHANNEL (multi marketplace)
+// Satu baris per kanal penjualan yang terhubung (shopee, website, manual, ...).
+// Dibuat generik supaya kanal lain (Tokopedia, TikTok Shop) cukup menambah
+// baris + adapter baru di lib/channels/<type>, tanpa mengubah sistem pesanan.
+// ---------------------------------------------------------------------------
+model sales_channels {
+  id               String    @id @db.VarChar(36)
+  tenant_id        String    @db.VarChar(36)
+  type             String    @db.VarChar(30)
+  name             String    @db.VarChar(80)
+  status           String    @db.VarChar(20)
+  environment      String?   @db.VarChar(20)
+  external_shop_id String?   @db.VarChar(40)
+  shop_name        String?   @db.VarChar(160)
+  shop_region      String?   @db.VarChar(10)
+  auto_sync        Boolean   @default(true)
+  connected_at     DateTime? @db.DateTime(0)
+  last_sync_at     DateTime? @db.DateTime(0)
+  last_sync_status String?   @db.VarChar(20)
+  last_error       String?   @db.Text
+  created_at       DateTime  @db.DateTime(0)
+  updated_at       DateTime  @db.DateTime(0)
+
+  @@unique([tenant_id, type], map: "uq_sales_channels_tenant_type")
+  @@index([tenant_id], map: "ix_sales_channels_tenant_id")
+  @@index([external_shop_id], map: "ix_sales_channels_shop_id")
+}
+
+/// Kredensial kanal. SEMUA nilai rahasia disimpan terenkripsi (AES-256-GCM)
+/// dan tidak pernah dikirim ke frontend maupun ditulis ke log.
+model channel_credentials {
+  id                 String    @id @db.VarChar(36)
+  sales_channel_id   String    @unique @db.VarChar(36)
+  partner_id         String?   @db.VarChar(40)
+  partner_key_enc    String?   @db.Text
+  access_token_enc   String?   @db.Text
+  refresh_token_enc  String?   @db.Text
+  expires_at         DateTime? @db.DateTime(0)
+  refresh_expires_at DateTime? @db.DateTime(0)
+  created_at         DateTime  @db.DateTime(0)
+  updated_at         DateTime  @db.DateTime(0)
+}
+
+/// Pemetaan produk marketplace -> produk internal. Kalau belum dipetakan,
+/// mapping_status = UNMAPPED dan pesanan TETAP diimpor.
+model channel_products {
+  id                    String   @id @db.VarChar(36)
+  tenant_id             String   @db.VarChar(36)
+  sales_channel_id      String   @db.VarChar(36)
+  external_product_id   String   @db.VarChar(40)
+  external_variation_id String   @db.VarChar(40)
+  external_sku          String?  @db.VarChar(120)
+  external_name         String?  @db.VarChar(255)
+  external_variation    String?  @db.VarChar(255)
+  internal_product_id   String?  @db.VarChar(36)
+  custom_product_key    String?  @db.VarChar(80)
+  is_custom             Boolean  @default(false)
+  mapping_status        String   @db.VarChar(20)
+  last_seen_at          DateTime @db.DateTime(0)
+  created_at            DateTime @db.DateTime(0)
+  updated_at            DateTime @db.DateTime(0)
+
+  @@unique([sales_channel_id, external_product_id, external_variation_id], map: "uq_channel_products_external")
+  @@index([tenant_id], map: "ix_channel_products_tenant_id")
+  @@index([mapping_status], map: "ix_channel_products_mapping_status")
+  @@index([external_sku], map: "ix_channel_products_sku")
+}
+
+/// Riwayat sinkronisasi (manual, cron, webhook) untuk audit & troubleshooting.
+model channel_sync_logs {
+  id               String    @id @db.VarChar(36)
+  tenant_id        String    @db.VarChar(36)
+  sales_channel_id String    @db.VarChar(36)
+  sync_type        String    @db.VarChar(20)
+  status           String    @db.VarChar(20)
+  started_at       DateTime  @db.DateTime(0)
+  finished_at      DateTime? @db.DateTime(0)
+  orders_checked   Int       @default(0)
+  orders_created   Int       @default(0)
+  orders_updated   Int       @default(0)
+  orders_skipped   Int       @default(0)
+  errors_count     Int       @default(0)
+  api_status       String?   @db.VarChar(40)
+  message          String?   @db.Text
+  created_at       DateTime  @db.DateTime(0)
+
+  @@index([sales_channel_id, started_at], map: "ix_channel_sync_logs_channel_started")
+  @@index([tenant_id], map: "ix_channel_sync_logs_tenant_id")
+}
+
+/// Dedupe push notification marketplace (Shopee bisa mengirim ulang event).
+model channel_webhook_events {
+  id               String   @id @db.VarChar(36)
+  sales_channel_id String?  @db.VarChar(36)
+  event_key        String   @unique @db.VarChar(160)
+  event_code       String?  @db.VarChar(20)
+  external_shop_id String?  @db.VarChar(40)
+  payload          String?  @db.LongText
+  processed_at     DateTime? @db.DateTime(0)
+  created_at       DateTime @db.DateTime(0)
+
+  @@index([created_at], map: "ix_channel_webhook_events_created_at")
 }

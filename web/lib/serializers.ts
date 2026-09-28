@@ -118,6 +118,19 @@ export function serializeSale(s: any) {
 }
 
 export function serializeOrder(o: any) {
+  const channel = o.sales_channel || 'manual';
+  // Pesanan lama (sebelum multi-kanal) belum punya internal_status; turunkan dari
+  // status lama supaya UI & filter tetap konsisten tanpa migrasi data.
+  const LEGACY_TO_INTERNAL: Record<string, string> = {
+    Draft: 'NEW',
+    Proses: 'PROCESSING',
+    Selesai: 'COMPLETED',
+    Dibatalkan: 'CANCELLED',
+  };
+  const internal = o.internal_status || LEGACY_TO_INTERNAL[o.status] || 'PROCESSING';
+  const payment =
+    o.payment_status ||
+    (Number(o.remaining) > 0 ? (Number(o.deposit_amount) > 0 ? 'PARTIAL' : 'UNPAID') : 'PAID');
   return {
     id: o.id,
     tenant_id: o.tenant_id,
@@ -143,6 +156,36 @@ export function serializeOrder(o: any) {
     settle_paid: o.settle_paid,
     completed_at: toIso(o.completed_at),
     created_at: toIso(o.created_at),
+    // --- sales channel (marketplace) ---------------------------------------
+    sales_channel: channel,
+    sales_channel_id: o.sales_channel_id || null,
+    external_order_id: o.external_order_id || null,
+    external_status: o.external_status || null,
+    external_shop_id: o.external_shop_id || null,
+    internal_status: internal,
+    payment_status: payment,
+    shipping_status: o.shipping_status || null,
+    customer_phone: o.customer_phone || '',
+    shipping_address: o.shipping_address || '',
+    shipping_city: o.shipping_city || '',
+    shipping_province: o.shipping_province || '',
+    shipping_postal: o.shipping_postal || '',
+    shipping_fee: o.shipping_fee || 0,
+    shipping_carrier: o.shipping_carrier || '',
+    tracking_number: o.tracking_number || '',
+    customer_note: o.customer_note || '',
+    seller_note: o.seller_note || '',
+    order_date: toIso(o.order_date),
+    synced_at: toIso(o.synced_at),
+    updated_at: toIso(o.updated_at),
+  };
+}
+
+/** Detail lengkap + data mentah marketplace (khusus halaman detail pesanan). */
+export function serializeOrderDetail(o: any) {
+  return {
+    ...serializeOrder(o),
+    external_raw: safeJson(o.external_raw, null),
   };
 }
 

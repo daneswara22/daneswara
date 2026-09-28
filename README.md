@@ -28,6 +28,7 @@
 7. [Environment Variables](#7--environment-variables)
 8. [Struktur CDN (R2)](#8--struktur-cdn-r2)
 9. [API Surface](#9--api-surface)
+9b. [Sales Channel & Integrasi Shopee](#9b--sales-channel--integrasi-shopee)
 10. [Script Operasional](#10--script-operasional)
 11. [Migrasi Data (MongoDB → MariaDB)](#11--migrasi-data-mongodb--mariadb)
 12. [Deployment (Coolify)](#12--deployment-coolify)
@@ -218,6 +219,18 @@ SEED_CUSTOMERS=true
 SEED_GALLERY=true
 ```
 
+### Sales Channel / Shopee (opsional, boleh kosong sampai dipakai)
+
+```bash
+# Partner ID & Partner Key TIDAK disimpan di env — diisi dari
+# Pengaturan → Sales Channel lalu disimpan terenkripsi di tabel
+# channel_credentials. Env di bawah hanya pelengkap:
+CHANNEL_ENC_KEY=            # 64 hex opsional; default diturunkan dari JWT_SECRET
+CHANNEL_PUBLIC_BASE_URL=    # mis. https://pos.daneswara.com — HARUS sama dengan
+                            # Redirect/Push URL yang didaftarkan di Shopee Console
+WEBHOOK_CRON_SECRET=        # Bearer token untuk POST /api/cron/sync-channels
+```
+
 Catatan untuk produksi di Coolify: dari dalam VPS pakai alamat MariaDB yang internal, sedangkan dari luar VPS pakai proxy TCP publik `HOST:6796`.
 
 ---
@@ -299,8 +312,64 @@ GET/POST  /api/gallery             DELETE /api/gallery/[gid]
 POST      /api/gallery/reorder     GET /api/public/gallery
 GET/POST  /api/suppliers           PUT/DELETE /api/suppliers/[sid]
 GET/PUT   /api/settings            GET/POST/PUT /api/users, /api/users/[uid]
+
+# Sales Channel (marketplace)
+GET       /api/channels                        daftar kanal + status
+GET/POST/DELETE /api/channels/shopee           status, simpan kredensial, putus koneksi
+GET       /api/channels/shopee/oauth/start     redirect ke otorisasi penjual Shopee
+GET       /api/channels/shopee/oauth/callback  tukar code -> token (server-side)
+POST      /api/channels/shopee/test            test koneksi (get_shop_info)
+POST      /api/channels/shopee/sync            sinkron sekarang / retry
+GET       /api/channels/shopee/logs            riwayat sinkronisasi
+GET/PUT   /api/channels/shopee/products        mapping produk Shopee -> internal
+POST      /api/channels/shopee/webhook         order_status_push (publik, HMAC)
+POST      /api/cron/sync-channels              rekonsiliasi berkala (Bearer secret)
+GET       /api/orders?sales_channel=&payment_status=&date_from=&date_to=&sku=
+GET       /api/orders/[oid]                    detail + data mentah marketplace
 ```
 </details>
+
+---
+
+## 9b · Sales Channel & Integrasi Shopee
+
+Pesanan dari semua kanal masuk ke **satu** tabel `orders` (tidak ada sistem
+pesanan kedua). Kolom `sales_channel` membedakan asalnya: `manual` (POS/toko),
+`website`, `shopee`, dan nanti marketplace lain.
+
+- **Menu**: Pengaturan → Sales Channel (`/app/sales-channels`) untuk hubungkan
+  akun, Test Koneksi, Sync Now, mapping produk, dan log sinkronisasi.
+- **Keamanan**: Partner Key + access/refresh token disimpan terenkripsi
+  (AES-256-GCM) di `channel_credentials`, tidak pernah dikirim ke frontend, tidak
+  pernah masuk log, dan tidak pernah di-commit. Aplikasi tidak pernah meminta
+  password Shopee — otorisasi lewat halaman resmi Shopee.
+- **Anti-dobel**: unique `(tenant_id, sales_channel, external_order_id)`; sinkron
+  ulang selalu meng-update baris yang sama (idempoten).
+- **Status**: status asli Shopee disimpan di `external_status`, dipetakan ke
+  `internal_status` kanonik (NEW/PAID/PROCESSING/PRODUCTION/READY_TO_PACK/
+  PACKED/SHIPPED/COMPLETED/CANCELLED/RETURNED) lalu ke status lama aplikasi
+  (Draft/Proses/Selesai/Dibatalkan) supaya laporan & POS tetap jalan.
+- **Custom Tees**: item yang dipetakan sebagai produk custom otomatis membuat
+  baris `custom_tee_orders` (alur produksi lama, bukan sistem baru) dengan
+  `source_order_id` menunjuk ke pesanannya.
+- **Produk belum dipetakan tidak menolak pesanan** — ditandai `UNMAPPED` dan
+  muncul di tab Mapping Produk.
+- **Sinkronisasi**: webhook `order_status_push` + rekonsiliasi berkala
+  (`/api/cron/sync-channels`, inkremental `update_time`, jendela maks 15 hari,
+  cursor pagination, throttle + backoff untuk rate limit).
+- **Menambah marketplace baru**: tambah entri di `web/lib/channels/types.ts` dan
+  adapter di `web/lib/channels/<nama>/` — tabel `sales_channels`,
+  `channel_credentials`, `channel_products`, `channel_sync_logs` sudah generik.
+- **Uji tanpa kredensial**: `cd web && yarn test:shopee` (tanda tangan HMAC,
+  pemetaan status, enkripsi, idempotensi, Custom Tees; data uji `ZZ_TEST_`
+  dibersihkan otomatis).
+
+Di Coolify, jadwalkan rekonsiliasi lewat scheduled task:
+
+```bash
+curl -fsS -X POST https://pos.daneswara.com/api/cron/sync-channels \
+  -H "Authorization: Bearer $WEBHOOK_CRON_SECRET"
+```
 
 ---
 

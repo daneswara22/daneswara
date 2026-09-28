@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { promises as fs } from 'fs';
+import fsSync, { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
 import { spawn } from 'child_process';
@@ -12,9 +12,43 @@ export const maxDuration = 120;
 
 const CLIP_DIR = path.join(process.cwd(), 'public', 'cliparts');
 const MANIFEST = path.join(CLIP_DIR, 'manifest.json');
-const SCRIPT = '/app/scripts/process_clipart_sheet.py';
-// Use the venv python that has numpy/scipy/Pillow (Next server PATH may differ).
-const PYTHON = process.env.CLIPART_PYTHON || '/root/.venv/bin/python3';
+const SCRIPT_CANDIDATES = [
+  path.join(process.cwd(), '..', 'scripts', 'process_clipart_sheet.py'),
+  '/app/scripts/process_clipart_sheet.py',
+];
+
+// The interpreter must have numpy/scipy/Pillow. The sandbox venv is the usual one,
+// but it may be missing (or not executable) on other hosts, so probe candidates
+// instead of hardcoding a single path -> that is what caused "spawn ... EACCES".
+function resolvePython(): string {
+  const candidates = [
+    process.env.CLIPART_PYTHON,
+    '/root/.venv/bin/python3',
+    '/usr/local/bin/python3',
+    '/usr/bin/python3',
+  ].filter(Boolean) as string[];
+  for (const c of candidates) {
+    try {
+      fsSync.accessSync(c, fsSync.constants.X_OK);
+      return c;
+    } catch {
+      /* try next */
+    }
+  }
+  return 'python3'; // last resort: whatever is on PATH
+}
+
+function resolveScript(): string {
+  for (const c of SCRIPT_CANDIDATES) {
+    try {
+      fsSync.accessSync(c, fsSync.constants.R_OK);
+      return c;
+    } catch {
+      /* try next */
+    }
+  }
+  return SCRIPT_CANDIDATES[SCRIPT_CANDIDATES.length - 1];
+}
 
 async function readManifest(): Promise<any[]> {
   try {
@@ -35,16 +69,30 @@ function nextIndex(manifest: any[]): number {
 
 function runProcessor(sheetPath: string, startIndex: number): Promise<string> {
   return new Promise((resolve, reject) => {
-    const args = [SCRIPT, sheetPath, CLIP_DIR, '--dilate', '2', '--minarea', '400', '--start-index', String(startIndex)];
-    const proc = spawn(PYTHON, args, { env: process.env });
+    const python = resolvePython();
+    const script = resolveScript();
+    const args = [script, sheetPath, CLIP_DIR, '--dilate', '2', '--minarea', '400', '--start-index', String(startIndex)];
+    const proc = spawn(python, args, { env: process.env });
     let out = '';
     let err = '';
     proc.stdout.on('data', (d) => (out += d.toString()));
     proc.stderr.on('data', (d) => (err += d.toString()));
-    proc.on('error', reject);
+    proc.on('error', (e: any) => {
+      reject(
+        new Error(
+          `Tidak bisa menjalankan pemroses gambar (${python}: ${e?.code || e?.message}). ` +
+            'Set CLIPART_PYTHON ke interpreter Python yang punya numpy, scipy, dan Pillow.',
+        ),
+      );
+    });
     proc.on('close', (code) => {
-      if (code === 0) resolve(out);
-      else reject(new Error(`Processor gagal (exit ${code}): ${err || out}`));
+      if (code === 0) return resolve(out);
+      const detail = (err || out || '').trim();
+      if (/ModuleNotFoundError|ImportError/.test(detail)) {
+        const mod = detail.match(/No module named '([^']+)'/)?.[1] || 'numpy/scipy/Pillow';
+        return reject(new Error(`Pemroses gambar butuh modul Python "${mod}". Jalankan: pip install numpy scipy pillow`));
+      }
+      reject(new Error(`Processor gagal (exit ${code}): ${detail}`));
     });
   });
 }
