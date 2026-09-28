@@ -28,6 +28,13 @@ const CHANNEL_FILTERS = [
   { value: "manual", label: "Manual / Toko" },
 ];
 
+// Halaman "Pesanan Kanal" hanya menampilkan pesanan marketplace (Shopee) dan Custom Tees.
+const CHANNEL_VIEW_FILTERS = [
+  { value: "all", label: "Semua Kanal" },
+  { value: "shopee", label: "Shopee" },
+  { value: "custom-tees", label: "Custom Tees" },
+];
+
 const CHANNEL_BADGE = {
   shopee: { label: "SHOPEE", cls: "bg-orange-500 text-white" },
   website: { label: "WEBSITE", cls: "bg-blue-600 text-white" },
@@ -78,7 +85,7 @@ function MethodPicker({ method, setMethod, prefix }) {
   );
 }
 
-export default function Orders() {
+export default function Orders({ channelView = false }) {
   const [list, setList] = useState([]);
   const [settings, setSettings] = useState({});
   const [settle, setSettle] = useState(null);
@@ -105,20 +112,27 @@ export default function Orders() {
   const [dateTo, setDateTo] = useState("");
   const [detailId, setDetailId] = useState(null);
   const [syncing, setSyncing] = useState(false);
+  const [teeOrders, setTeeOrders] = useState([]);
   const navigate = useNavigate();
 
   const load = () => {
     const p = new URLSearchParams();
-    if (channel !== "all") p.set("sales_channel", channel);
+    // Di halaman kanal, pesanan POS/toko & website tidak ditampilkan.
+    if (channelView) p.set("sales_channel", "shopee");
+    else if (channel !== "all") p.set("sales_channel", channel);
     if (payment !== "all") p.set("payment_status", payment);
     if (dateFrom) p.set("date_from", dateFrom);
     if (dateTo) p.set("date_to", dateTo);
     const qs = p.toString();
-    api.get(`/orders${qs ? `?${qs}` : ""}`).then((r) => setList(r.data));
+    api.get(`/orders${qs ? `?${qs}` : ""}`).then((r) => setList(channelView && channel === "custom-tees" ? [] : r.data));
   };
   useEffect(() => {
     load();
   }, [channel, payment, dateFrom, dateTo]); // eslint-disable-line
+  useEffect(() => {
+    if (!channelView) return;
+    api.get("/custom-tees/orders").then((r) => setTeeOrders(r.data || [])).catch(() => setTeeOrders([]));
+  }, [channelView]);
   useEffect(() => {
     api.get("/settings").then((r) => setSettings(r.data || {}));
     api.get("/customers").then((r) => setCustomers(r.data || [])).catch(() => {});
@@ -357,14 +371,15 @@ export default function Orders() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Pesanan</p>
-        <h1 className="font-display text-3xl font-bold tracking-tight">Pesanan & Draft</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Semua kanal dalam satu daftar: POS/toko, website, dan marketplace (Shopee). Draft dari tombol "Tahan" di POS juga muncul di sini.</p>
+        <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">{channelView ? "Sales Channel" : "Pesanan"}</p>
+        <h1 className="font-display text-3xl font-bold tracking-tight">{channelView ? "Pesanan Kanal" : "Pesanan & Draft"}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">{channelView ? "Filter pesanan per kanal penjualan (Shopee, website, manual/toko) dan sinkronkan pesanan marketplace." : "Daftar pesanan dan draft dari tombol \"Tahan\" di POS."}</p>
       </div>
 
+      {channelView && (
       <div className="space-y-3 rounded-lg border border-border bg-card p-3" data-testid="order-filters">
         <div className="flex flex-wrap items-center gap-2">
-          {CHANNEL_FILTERS.map((c) => (
+          {(channelView ? CHANNEL_VIEW_FILTERS : CHANNEL_FILTERS).map((c) => (
             <button
               key={c.value}
               onClick={() => setChannel(c.value)}
@@ -403,8 +418,37 @@ export default function Orders() {
           </div>
         </div>
       </div>
+      )}
 
-      {list.length === 0 && <p className="text-sm text-muted-foreground">Belum ada pesanan.</p>}
+      {channelView && (channel === "all" || channel === "custom-tees") && (
+        <div className="space-y-2 rounded-lg border border-border bg-card p-3" data-testid="channel-custom-tees">
+          <div className="flex items-center justify-between">
+            <h2 className="font-display text-base font-semibold">Pesanan Custom Tees</h2>
+            <Button variant="outline" size="sm" onClick={() => navigate("/custom-tees")} data-testid="channel-open-custom-tees">
+              Buka Custom Tees
+            </Button>
+          </div>
+          {teeOrders.filter((t) => !term || `${t.order_code} ${t.customer_name} ${t.customer_phone} ${t.product_title} ${t.status}`.toLowerCase().includes(term)).length === 0 ? (
+            <p className="text-sm text-muted-foreground">Belum ada pesanan Custom Tees.</p>
+          ) : (
+            <div className="divide-y divide-border">
+              {teeOrders
+                .filter((t) => !term || `${t.order_code} ${t.customer_name} ${t.customer_phone} ${t.product_title} ${t.status}`.toLowerCase().includes(term))
+                .map((t) => (
+                  <div key={t.id} className="flex flex-wrap items-center gap-2 py-2 text-sm" data-testid={`tee-order-${t.id}`}>
+                    <span className="rounded-full bg-purple-600 px-2 py-0.5 text-[10px] font-bold text-white">CUSTOM TEES</span>
+                    <span className="font-semibold">{t.order_code}</span>
+                    <span className="text-muted-foreground">{t.customer_name || "-"}</span>
+                    <span className="text-muted-foreground">{t.product_title || t.product_key}</span>
+                    <span className="ml-auto text-xs font-semibold uppercase text-muted-foreground">{t.status}</span>
+                  </div>
+                ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {list.length === 0 && <p className="text-sm text-muted-foreground">{channelView ? "Belum ada pesanan Shopee." : "Belum ada pesanan."}</p>}
       {list.length > 0 && filtered.length === 0 && <p className="text-sm text-muted-foreground">Tidak ada pesanan cocok.</p>}
 
       {list.length > 0 && filtered.length > 0 && (

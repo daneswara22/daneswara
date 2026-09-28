@@ -18,8 +18,8 @@ const DEFAULT_PRODUCT_LABEL = "New States Apparel Premium Cotton 7200";
 const VIEWS = [
   { id: "front", label: "Depan" },
   { id: "back", label: "Belakang" },
-  { id: "left", label: "Lengan Kiri" },
-  { id: "right", label: "Lengan Kanan" },
+  { id: "left", label: "Sisi Kiri" },
+  { id: "right", label: "Sisi Kanan" },
   { id: "label", label: "Label" },
 ];
 
