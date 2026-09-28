@@ -703,7 +703,14 @@ export default function POS() {
           {resumeOrder ? (
             <Button size="sm" className="gap-1" onClick={updateDraft} data-testid="pos-update-draft-button"><CheckCircle2 className="h-4 w-4" /> Perbarui Draft</Button>
           ) : (
-            <Button variant="outline" size="sm" className="gap-1" onClick={openHold} data-testid="pos-hold-button"><PauseCircle className="h-4 w-4" /> Tahan (Draft)</Button>
+            <Button variant="outline" size="sm" className="relative gap-1" onClick={handleSaveOrder} data-testid="pos-save-order-button">
+              <Save className="h-4 w-4" /> {cart.length === 0 && savedInfo ? "Buka Tersimpan" : "Simpan Keranjang"}
+              {savedInfo && cart.length === 0 && (
+                <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground" data-testid="pos-saved-badge">
+                  {savedInfo.count}
+                </span>
+              )}
+            </Button>
           )}
         </div>
         {resumeOrder && (
@@ -948,18 +955,12 @@ export default function POS() {
         </Button>
         <div className="mt-2 grid grid-cols-2 gap-2">
           <Button
-            onClick={handleSaveOrder}
+            onClick={openHold}
             variant="outline"
-            className="relative h-11 w-full gap-2 font-semibold"
-            data-testid="pos-save-order-button"
+            className="h-11 w-full gap-2 font-semibold"
+            data-testid="pos-hold-button"
           >
-            <Save className="h-4 w-4" />
-            {cart.length === 0 && savedInfo ? "Buka Tersimpan" : "Simpan Pesanan"}
-            {savedInfo && cart.length === 0 && (
-              <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground" data-testid="pos-saved-badge">
-                {savedInfo.count}
-              </span>
-            )}
+            <PauseCircle className="h-4 w-4" /> Simpan ke Pesanan
           </Button>
           <Button
             onClick={resetOrder}
