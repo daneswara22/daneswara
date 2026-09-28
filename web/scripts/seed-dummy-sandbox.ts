@@ -217,15 +217,18 @@ async function main() {
     console.log('sales: +6 (+ stock movements)');
   }
 
-  // ---- Orders (5: mixed status) ----
+  // ---- Orders (5: mixed status, memakai status & kanal asli aplikasi) ----
   if ((await prisma.orders.count({ where: { tenant_id: tid } })) === 0) {
-    const statuses = ['pending', 'pending', 'in_progress', 'ready', 'completed'];
+    const statuses = ['Draft', 'Draft', 'Proses', 'Proses', 'Selesai'];
+    const internal = ['NEW', 'NEW', 'PROCESSING', 'PRODUCTION', 'COMPLETED'];
     for (let i = 0; i < 5; i++) {
       const p = prods[(i + 2) % prods.length];
       const qty = (i % 4) + 2;
-      const items = [{ product_id: p.id, name: p.name, price: p.price, cost: p.cost, qty, unit: 'pcs' }];
+      const items = [{ product_id: p.id, name: p.name, sku: p.sku, price: p.price, cost: p.cost, qty, unit: 'pcs' }];
       const subtotal = p.price * qty;
-      const deposit = Math.round(subtotal * 0.5);
+      const isDraft = statuses[i] === 'Draft';
+      const isDone = statuses[i] === 'Selesai';
+      const deposit = isDraft ? 0 : isDone ? subtotal : Math.round(subtotal * 0.5);
       const cust = custs[(i + 1) % custs.length];
       const d = daysAgo(i + 1);
       const yy = String(d.getFullYear()).slice(2), mm = String(d.getMonth() + 1).padStart(2, '0'), dd = String(d.getDate()).padStart(2, '0');
@@ -234,10 +237,13 @@ async function main() {
           id: nid(), tenant_id: tid, order_number: `ORD-${yy}${mm}${dd}-${String(101 + i)}`,
           customer_id: cust.id, customer_name: cust.name, items: JSON.stringify(items),
           subtotal, discount: 0, tax_rate: 0, tax: 0, total: subtotal,
-          deposit_amount: deposit, deposit_method: 'cash', remaining: subtotal - deposit,
-          note: 'Pesanan sample sandbox', order_type: 'custom', channel: i % 2 ? 'whatsapp' : 'offline',
-          status: statuses[i], cashier: 'Budi Kasir', invoice: null, payment_method: null,
-          settle_paid: null, completed_at: statuses[i] === 'completed' ? d : null, created_at: d,
+          deposit_amount: deposit, deposit_method: isDraft ? null : 'Tunai', remaining: subtotal - deposit,
+          note: 'Pesanan sample sandbox', order_type: i % 2 ? 'Custom' : 'Reguler', channel: i % 2 ? 'WhatsApp' : 'Toko',
+          status: statuses[i], cashier: 'Budi Kasir', invoice: null, payment_method: isDraft ? null : 'Tunai',
+          settle_paid: null, completed_at: isDone ? d : null, created_at: d,
+          sales_channel: 'manual', internal_status: internal[i],
+          payment_status: isDraft ? 'UNPAID' : isDone ? 'PAID' : 'PARTIAL',
+          customer_phone: cust.phone || '', order_date: d, updated_at: d,
         },
       });
     }

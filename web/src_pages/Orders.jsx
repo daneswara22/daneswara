@@ -8,22 +8,53 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { NumberInput } from "@/components/NumberInput";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { NotaDialog } from "@/components/NotaDialog";
+import { OrderDetailDialog } from "@/components/OrderDetailDialog";
 import { DraftPreviewDialog, buildDraftText } from "@/components/DraftPreviewDialog";
 import { SupplierPickerDialog } from "@/components/SupplierPickerDialog";
 import { printReceiptSmart } from "@/lib/printer";
 import { toast } from "sonner";
-import { CheckCircle2, Clock, Trash2, Printer, Search, FileText, Copy, HandCoins, Wallet, Pencil, Plus, Minus, PackagePlus, PackageCheck, Store } from "lucide-react";
+import { CheckCircle2, Clock, Trash2, Printer, Search, FileText, Copy, HandCoins, Wallet, Pencil, Plus, Minus, PackagePlus, PackageCheck, Store, Eye, XCircle, ShoppingBag } from "lucide-react";
 
 const METHODS = ["Tunai", "Bank Transfer", "QRIS", "E-Wallet"];
 const BANKS = ["BCA TOKO", "BRI TOKO", "BCA ADMIN (ELIS)"];
 const ORDER_TYPES = ["Reguler", "Express", "Custom", "Lainnya"];
 const isBank = (m) => BANKS.includes(m);
 
+// Filter kanal penjualan. 'manual' mencakup pesanan POS/toko lama (tanpa kanal).
+const CHANNEL_FILTERS = [
+  { value: "all", label: "Semua Kanal" },
+  { value: "shopee", label: "Shopee" },
+  { value: "website", label: "Website" },
+  { value: "manual", label: "Manual / Toko" },
+];
+
+const CHANNEL_BADGE = {
+  shopee: { label: "SHOPEE", cls: "bg-orange-500 text-white" },
+  website: { label: "WEBSITE", cls: "bg-blue-600 text-white" },
+  tokopedia: { label: "TOKOPEDIA", cls: "bg-emerald-600 text-white" },
+  tiktok: { label: "TIKTOK", cls: "bg-neutral-900 text-white" },
+};
+
+const PAYMENT_FILTERS = [
+  { value: "all", label: "Semua Pembayaran" },
+  { value: "PAID", label: "Sudah Dibayar" },
+  { value: "UNPAID", label: "Belum Dibayar" },
+  { value: "PARTIAL", label: "DP / Sebagian" },
+  { value: "REFUNDED", label: "Refund" },
+];
+
 const GROUPS = [
   { key: "Draft", label: "Draft / Belum Bayar", tint: "bg-amber-500/15 text-amber-600", icon: FileText },
   { key: "Proses", label: "DP / Proses", tint: "bg-orange-500/15 text-orange-600", icon: Clock },
   { key: "Selesai", label: "Selesai", tint: "bg-emerald-500/15 text-emerald-600", icon: CheckCircle2 },
+  { key: "Dibatalkan", label: "Batal / Retur", tint: "bg-red-500/15 text-red-600", icon: XCircle },
 ];
+
+/** Pesanan marketplace tidak boleh diedit/dihapus dari sini (ikut data sumber). */
+const isMarketplace = (o) => {
+  const ch = o?.sales_channel || "manual";
+  return ch !== "manual" && ch !== "website";
+};
 
 function MethodPicker({ method, setMethod, prefix }) {
   return (
@@ -68,14 +99,44 @@ export default function Orders() {
   const [editType, setEditType] = useState("Reguler");
   const [customers, setCustomers] = useState([]);
   const [nameSuggestOpen, setNameSuggestOpen] = useState(false);
+  const [channel, setChannel] = useState("all");
+  const [payment, setPayment] = useState("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [detailId, setDetailId] = useState(null);
+  const [syncing, setSyncing] = useState(false);
   const navigate = useNavigate();
 
-  const load = () => { api.get("/orders").then((r) => setList(r.data)); };
+  const load = () => {
+    const p = new URLSearchParams();
+    if (channel !== "all") p.set("sales_channel", channel);
+    if (payment !== "all") p.set("payment_status", payment);
+    if (dateFrom) p.set("date_from", dateFrom);
+    if (dateTo) p.set("date_to", dateTo);
+    const qs = p.toString();
+    api.get(`/orders${qs ? `?${qs}` : ""}`).then((r) => setList(r.data));
+  };
   useEffect(() => {
     load();
+  }, [channel, payment, dateFrom, dateTo]); // eslint-disable-line
+  useEffect(() => {
     api.get("/settings").then((r) => setSettings(r.data || {}));
     api.get("/customers").then((r) => setCustomers(r.data || [])).catch(() => {});
   }, []);
+
+  const syncShopee = async () => {
+    setSyncing(true);
+    try {
+      const { data } = await api.post("/channels/shopee/sync", { days: 7 });
+      if (data.status === "failed") toast.error(`Sinkron Shopee gagal: ${data.message}`);
+      else toast.success(`Sinkron Shopee ${data.status} — baru ${data.orders_created}, diperbarui ${data.orders_updated}`);
+      load();
+    } catch (e) {
+      toast.error(formatApiError(e.response?.data?.detail));
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const complete = async () => {
     if (Number(paid) < settle.remaining) return toast.error("Nominal pelunasan kurang");
@@ -180,55 +241,115 @@ export default function Orders() {
 
   const term = q.trim().toLowerCase();
   const filtered = term
-    ? list.filter((o) => `${o.order_number} ${o.customer_name || ""} ${o.status} ${o.order_type || ""}`.toLowerCase().includes(term))
+    ? list.filter((o) => {
+        const skus = (o.items || []).map((i) => `${i.sku || ""} ${i.name || ""}`).join(" ");
+        return `${o.order_number} ${o.external_order_id || ""} ${o.customer_name || ""} ${o.customer_phone || ""} ${o.status} ${o.order_type || ""} ${o.sales_channel || ""} ${o.tracking_number || ""} ${skus}`
+          .toLowerCase()
+          .includes(term);
+      })
     : list;
+
+  const ChannelBadge = ({ order }) => {
+    const b = CHANNEL_BADGE[order.sales_channel];
+    if (!b) return null;
+    return (
+      <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${b.cls}`} data-testid={`channel-badge-${order.id}`}>
+        {b.label}
+      </span>
+    );
+  };
 
   const renderCard = (o) => (
     <div key={o.id} className="rounded-lg border border-border bg-card p-4" data-testid={`order-${o.id}`}>
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <ChannelBadge order={o} />
             <p className="truncate font-semibold">{o.order_number}</p>
             {o.order_type && <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground" data-testid={`order-type-${o.id}`}>{o.order_type}</span>}
           </div>
-          <p className="text-xs text-muted-foreground">{o.customer_name || "Tanpa nama"} · {new Date(o.created_at).toLocaleString("id-ID")}</p>
+          <p className="text-xs text-muted-foreground">{o.customer_name || "Tanpa nama"} · {new Date(o.order_date || o.created_at).toLocaleString("id-ID")}</p>
+          {(o.items || []).length > 0 && (
+            <p className="mt-0.5 truncate text-xs text-muted-foreground" data-testid={`order-items-${o.id}`}>
+              {(o.items || [])
+                .slice(0, 2)
+                .map((i) => `${i.name}${i.variation_name ? ` (${i.variation_name})` : ""} ×${i.qty}`)
+                .join(", ")}
+              {(o.items || []).length > 2 ? ` +${(o.items || []).length - 2} lainnya` : ""}
+            </p>
+          )}
+          {o.internal_status && (
+            <span className="mt-1 mr-1 inline-block rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground" data-testid={`internal-status-${o.id}`}>
+              {o.internal_status}
+            </span>
+          )}
+          {o.tracking_number && (
+            <span className="mt-1 inline-block rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] font-semibold text-blue-600">
+              Resi {o.tracking_number}
+            </span>
+          )}
+          {(o.items || []).some((i) => i.mapping_status === "UNMAPPED") && (
+            <span className="mt-1 ml-1 inline-block rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-600" data-testid={`unmapped-badge-${o.id}`}>
+              Produk belum dipetakan
+            </span>
+          )}
           {o.po_created && (
             <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-blue-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-blue-600" data-testid={`po-badge-${o.id}`} title={`PO: ${(o.po_numbers || []).join(", ")}`}>
               <PackageCheck className="h-3 w-3" /> Sudah PO{o.po_numbers && o.po_numbers.length > 1 ? ` (${o.po_numbers.length})` : ""}
             </span>
           )}
         </div>
-        <span className={`flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${o.status === "Selesai" ? "bg-emerald-500/15 text-emerald-600" : o.status === "Draft" ? "bg-amber-500/15 text-amber-600" : "bg-orange-500/15 text-orange-600"}`}>
-          {o.status === "Selesai" ? <CheckCircle2 className="h-3 w-3" /> : o.status === "Draft" ? <FileText className="h-3 w-3" /> : <Clock className="h-3 w-3" />} {o.status === "Draft" ? "Belum Bayar" : o.status}
+        <span className={`flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${o.status === "Selesai" ? "bg-emerald-500/15 text-emerald-600" : o.status === "Draft" ? "bg-amber-500/15 text-amber-600" : o.status === "Dibatalkan" ? "bg-red-500/15 text-red-600" : "bg-orange-500/15 text-orange-600"}`}>
+          {o.status === "Selesai" ? <CheckCircle2 className="h-3 w-3" /> : o.status === "Draft" ? <FileText className="h-3 w-3" /> : o.status === "Dibatalkan" ? <XCircle className="h-3 w-3" /> : <Clock className="h-3 w-3" />} {o.status === "Draft" ? (isMarketplace(o) ? "Belum Dibayar" : "Belum Bayar") : o.status}
         </span>
       </div>
       <div className="mt-3 space-y-1 text-sm">
         <div className="flex justify-between text-muted-foreground"><span>Total</span><span>{rupiah(o.total)}</span></div>
-        {o.status !== "Draft" && <div className="flex justify-between text-muted-foreground"><span>Deposit (DP)</span><span>{rupiah(o.deposit_amount)}</span></div>}
-        {o.status !== "Draft" && <div className="flex justify-between font-semibold"><span>Sisa</span><span className={o.remaining > 0 ? "text-orange-600" : ""}>{rupiah(o.remaining)}</span></div>}
-      </div>
-      <div className="mt-3 flex flex-wrap gap-2">
-        {o.status === "Draft" && (
+        {isMarketplace(o) ? (
           <>
-            <Button variant="outline" size="sm" className="gap-1" onClick={() => setPreview(o)} data-testid={`preview-order-${o.id}`}><FileText className="h-4 w-4" /> Preview</Button>
-            <Button variant="outline" size="sm" className="gap-1" onClick={() => openEdit(o)} data-testid={`edit-order-${o.id}`}><Pencil className="h-4 w-4" /> Edit</Button>
-            <Button variant="outline" size="sm" className="gap-1" onClick={() => editInPos(o)} data-testid={`edit-pos-order-${o.id}`}><Store className="h-4 w-4" /> Edit di POS</Button>
-            <Button variant="secondary" size="sm" className="gap-1" onClick={() => copyDraft(o)} data-testid={`copy-order-${o.id}`}><Copy className="h-4 w-4" /> Salin</Button>
-            <Button size="sm" variant="outline" className="gap-1" onClick={() => { setDp(o); setDpMethod("Tunai"); setDpAmt(""); }} data-testid={`dp-order-${o.id}`}><HandCoins className="h-4 w-4" /> Jadi DP</Button>
-            <Button size="sm" className="gap-1" onClick={() => { setSettle(o); setMethod("Tunai"); setPaid(o.total); }} data-testid={`pay-order-${o.id}`}><Wallet className="h-4 w-4" /> Lunasi</Button>
-            <Button variant="outline" size="sm" className="gap-1" onClick={() => printDraft(o)} data-testid={`print-draft-${o.id}`}><Printer className="h-4 w-4" /> Cetak</Button>
+            {o.shipping_fee > 0 && <div className="flex justify-between text-muted-foreground"><span>Ongkir</span><span>{rupiah(o.shipping_fee)}</span></div>}
+            <div className="flex justify-between text-muted-foreground"><span>Pembayaran</span><span className="font-semibold">{o.payment_status || "-"}</span></div>
+          </>
+        ) : (
+          <>
+            {o.status !== "Draft" && <div className="flex justify-between text-muted-foreground"><span>Deposit (DP)</span><span>{rupiah(o.deposit_amount)}</span></div>}
+            {o.status !== "Draft" && <div className="flex justify-between font-semibold"><span>Sisa</span><span className={o.remaining > 0 ? "text-orange-600" : ""}>{rupiah(o.remaining)}</span></div>}
           </>
         )}
-        {o.status === "Proses" && (
-          <Button className="flex-1" onClick={() => { setSettle(o); setMethod("Tunai"); setPaid(o.remaining); }} data-testid={`complete-order-${o.id}`}>Selesaikan & Lunasi</Button>
-        )}
-        {o.status !== "Draft" && (
-          <Button variant="outline" size="sm" className="gap-1" onClick={() => setNota(o)} data-testid={`reprint-order-${o.id}`}><Printer className="h-4 w-4" /> Nota</Button>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <Button variant="outline" size="sm" className="gap-1" onClick={() => setDetailId(o.id)} data-testid={`detail-order-${o.id}`}>
+          <Eye className="h-4 w-4" /> Detail
+        </Button>
+        {isMarketplace(o) ? (
+          <span className="self-center text-xs text-muted-foreground">
+            Pembayaran & status diatur dari {o.sales_channel === "shopee" ? "Shopee Seller" : "marketplace"}.
+          </span>
+        ) : (
+          <>
+            {o.status === "Draft" && (
+              <>
+                <Button variant="outline" size="sm" className="gap-1" onClick={() => setPreview(o)} data-testid={`preview-order-${o.id}`}><FileText className="h-4 w-4" /> Preview</Button>
+                <Button variant="outline" size="sm" className="gap-1" onClick={() => openEdit(o)} data-testid={`edit-order-${o.id}`}><Pencil className="h-4 w-4" /> Edit</Button>
+                <Button variant="outline" size="sm" className="gap-1" onClick={() => editInPos(o)} data-testid={`edit-pos-order-${o.id}`}><Store className="h-4 w-4" /> Edit di POS</Button>
+                <Button variant="secondary" size="sm" className="gap-1" onClick={() => copyDraft(o)} data-testid={`copy-order-${o.id}`}><Copy className="h-4 w-4" /> Salin</Button>
+                <Button size="sm" variant="outline" className="gap-1" onClick={() => { setDp(o); setDpMethod("Tunai"); setDpAmt(""); }} data-testid={`dp-order-${o.id}`}><HandCoins className="h-4 w-4" /> Jadi DP</Button>
+                <Button size="sm" className="gap-1" onClick={() => { setSettle(o); setMethod("Tunai"); setPaid(o.total); }} data-testid={`pay-order-${o.id}`}><Wallet className="h-4 w-4" /> Lunasi</Button>
+                <Button variant="outline" size="sm" className="gap-1" onClick={() => printDraft(o)} data-testid={`print-draft-${o.id}`}><Printer className="h-4 w-4" /> Cetak</Button>
+              </>
+            )}
+            {o.status === "Proses" && (
+              <Button className="flex-1" onClick={() => { setSettle(o); setMethod("Tunai"); setPaid(o.remaining); }} data-testid={`complete-order-${o.id}`}>Selesaikan & Lunasi</Button>
+            )}
+            {o.status !== "Draft" && o.status !== "Dibatalkan" && (
+              <Button variant="outline" size="sm" className="gap-1" onClick={() => setNota(o)} data-testid={`reprint-order-${o.id}`}><Printer className="h-4 w-4" /> Nota</Button>
+            )}
+            <Button variant="ghost" size="icon" onClick={() => del(o.id)} data-testid={`delete-order-${o.id}`}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+          </>
         )}
         <Button variant="outline" size="sm" className={`gap-1 ${o.po_created ? "border-blue-500/40 text-blue-600" : ""}`} onClick={() => makePO(o)} data-testid={`po-order-${o.id}`}>
           {o.po_created ? <PackageCheck className="h-4 w-4" /> : <PackagePlus className="h-4 w-4" />} {o.po_created ? "Sudah PO" : "PO"}
         </Button>
-        <Button variant="ghost" size="icon" onClick={() => del(o.id)} data-testid={`delete-order-${o.id}`}><Trash2 className="h-4 w-4 text-destructive" /></Button>
       </div>
     </div>
   );
@@ -238,12 +359,49 @@ export default function Orders() {
       <div>
         <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Pesanan</p>
         <h1 className="font-display text-3xl font-bold tracking-tight">Pesanan & Draft</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Draft (belum bayar) dari tombol "Tahan" di POS muncul di sini. Preview & kirim penawaran ke pelanggan, lalu proses jadi DP atau langsung lunasi.</p>
+        <p className="mt-1 text-sm text-muted-foreground">Semua kanal dalam satu daftar: POS/toko, website, dan marketplace (Shopee). Draft dari tombol "Tahan" di POS juga muncul di sini.</p>
       </div>
 
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari no. pesanan, nama, jenis, atau status..." className="pl-10" data-testid="order-search" />
+      <div className="space-y-3 rounded-lg border border-border bg-card p-3" data-testid="order-filters">
+        <div className="flex flex-wrap items-center gap-2">
+          {CHANNEL_FILTERS.map((c) => (
+            <button
+              key={c.value}
+              onClick={() => setChannel(c.value)}
+              className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors duration-200 ${
+                channel === c.value ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground hover:text-foreground"
+              }`}
+              data-testid={`channel-filter-${c.value}`}
+            >
+              {c.label}
+            </button>
+          ))}
+          <Button variant="outline" size="sm" className="ml-auto gap-1" onClick={syncShopee} disabled={syncing} data-testid="orders-sync-shopee">
+            <ShoppingBag className="h-4 w-4" /> {syncing ? "Menyinkron..." : "Sinkron Shopee"}
+          </Button>
+        </div>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari no. pesanan, ID Shopee, nama, SKU, resi..." className="pl-10" data-testid="order-search" />
+          </div>
+          <Select value={payment} onValueChange={setPayment}>
+            <SelectTrigger data-testid="payment-filter"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {PAYMENT_FILTERS.map((p) => (
+                <SelectItem key={p.value} value={p.value} data-testid={`payment-filter-${p.value}`}>{p.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Dari tanggal</Label>
+            <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} data-testid="date-from-filter" />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Sampai tanggal</Label>
+            <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} data-testid="date-to-filter" />
+          </div>
+        </div>
       </div>
 
       {list.length === 0 && <p className="text-sm text-muted-foreground">Belum ada pesanan.</p>}
@@ -406,6 +564,7 @@ export default function Orders() {
       </Dialog>
 
       <NotaDialog nota={nota} onClose={() => setNota(null)} settings={settings} />
+      <OrderDetailDialog orderId={detailId} onClose={() => setDetailId(null)} />
       <DraftPreviewDialog order={preview} onClose={() => setPreview(null)} settings={settings} />
       <SupplierPickerDialog
         open={!!poOrder}

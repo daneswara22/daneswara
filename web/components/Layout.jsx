@@ -32,6 +32,7 @@ const NAV = [
   { to: "/app/laporan", label: "Laporan", icon: BarChart3, roles: ["Owner", "Manager"] },
   { to: "/app/ekspor", label: "Ekspor Data", icon: DownloadCloud, roles: ["Owner"] },
   { to: "/app/galeri-web", label: "Galeri Website", icon: Images, roles: ["Owner", "Manager"] },
+  { to: "/app/sales-channels", label: "Sales Channel", icon: Store, roles: ["Owner", "Manager"] },
   // Menu utama yang punya submenu. Pola ini bisa dipakai ulang: cukup tambah
   // objek baru dengan `key`, `label`, `icon`, dan daftar `children`.
   {

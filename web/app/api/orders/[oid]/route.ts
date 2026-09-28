@@ -5,7 +5,7 @@ import { handle, readBody } from '@/lib/handler';
 import { HttpError } from '@/lib/http';
 import { safeJsonParse } from '@/lib/business';
 import { updateOrderSchema } from '@/lib/schemas';
-import { serializeOrder } from '@/lib/serializers';
+import { serializeOrder, serializeOrderDetail } from '@/lib/serializers';
 
 async function getOrder(oid: string, tid: string) {
   const o = await prisma.orders.findFirst({ where: { id: oid, tenant_id: tid } });
@@ -13,10 +13,30 @@ async function getOrder(oid: string, tid: string) {
   return o;
 }
 
+function isMarketplace(order: any): boolean {
+  const ch = String(order?.sales_channel || 'manual');
+  return ch !== 'manual' && ch !== 'website';
+}
+
+/** GET /api/orders/:id — detail pesanan + data mentah marketplace. */
+export const GET = handle(async (req: NextRequest, ctx: { params: Promise<{ oid: string }> }) => {
+  const { oid } = await ctx.params;
+  const user = await getCurrentUser(req);
+  const order = await getOrder(oid, user.tenant_id);
+  const custom = await prisma.custom_tee_orders.findMany({
+    where: { tenant_id: user.tenant_id, source_order_id: order.id },
+    select: { id: true, order_code: true, status: true, product_title: true, qty: true },
+  });
+  return { ...serializeOrderDetail(order), custom_tee_orders: custom };
+});
+
 export const PUT = handle(async (req: NextRequest, ctx: { params: Promise<{ oid: string }> }) => {
   const { oid } = await ctx.params;
   const user = await getCurrentUser(req);
   const order = await getOrder(oid, user.tenant_id);
+  if (isMarketplace(order)) {
+    throw new HttpError(400, 'Pesanan marketplace mengikuti data Shopee — ubah dari aplikasi Shopee Seller.');
+  }
   if (order.status !== 'Draft') throw new HttpError(400, 'Hanya draft (belum bayar) yang bisa diubah');
   const data = updateOrderSchema.parse(await readBody(req));
   if (!data.items || data.items.length === 0) throw new HttpError(400, 'Item pesanan kosong');
@@ -40,6 +60,13 @@ export const PUT = handle(async (req: NextRequest, ctx: { params: Promise<{ oid:
 export const DELETE = handle(async (req: NextRequest, ctx: { params: Promise<{ oid: string }> }) => {
   const { oid } = await ctx.params;
   const user = await requireRoles(req, 'Owner', 'Manager');
+  const order = await getOrder(oid, user.tenant_id);
+  if (isMarketplace(order)) {
+    throw new HttpError(
+      400,
+      'Pesanan marketplace tidak bisa dihapus (akan muncul lagi saat sinkron). Batalkan pesanannya di Shopee Seller.',
+    );
+  }
   await prisma.orders.deleteMany({ where: { id: oid, tenant_id: user.tenant_id } });
   return { ok: true };
 });

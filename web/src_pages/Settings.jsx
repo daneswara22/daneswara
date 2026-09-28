@@ -232,6 +232,27 @@ export default function Settings() {
       </div>
       )}
 
+      {/* Sales Channels — pintu masuk integrasi marketplace */}
+      {(user?.role === "Owner" || user?.role === "Manager") && (
+        <div className="rounded-lg border border-border bg-card p-6" data-testid="settings-sales-channels-card">
+          <div className="mb-2 flex items-center gap-2">
+            <Store className="h-5 w-5 text-primary" />
+            <h3 className="font-display text-lg font-semibold">Sales Channels</h3>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Hubungkan Shopee Seller (dan nanti marketplace lain) supaya seluruh pesanannya masuk ke sistem pesanan ini.
+          </p>
+          <Button
+            variant="outline"
+            className="mt-4 gap-2"
+            onClick={() => { window.location.href = "/app/sales-channels"; }}
+            data-testid="settings-open-sales-channels"
+          >
+            <Store className="h-4 w-4" /> Buka Sales Channels → Shopee
+          </Button>
+        </div>
+      )}
+
       {/* Printer settings */}
       <div className="rounded-lg border border-border bg-card p-6">
         <div className="mb-2 flex items-center gap-2">
