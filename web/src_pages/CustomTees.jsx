@@ -1190,7 +1190,7 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
         {/* -------- Right view panel -------- */}
         <aside className="hidden w-[248px] shrink-0 flex-col gap-6 overflow-y-auto border-l border-zinc-200 bg-white p-4 xl:flex">
           <div>
-            <h3 className="mb-3 text-sm font-bold">Tampilan Kaos</h3>
+            <h3 className="mb-3 text-sm font-bold">Tampilan Produk</h3>
             <div className="flex flex-col gap-2">
               {VIEWS.map((v) => {
                 const count = (design[v] || []).length;
@@ -1729,7 +1729,7 @@ function buildWaText({ order, form, product, color, sizeItems, design }) {
     `No. HP: ${form?.phone || "-"}`,
     form?.email ? `Email: ${form.email}` : null,
     "",
-    `Jenis Kaos: ${product?.title || "-"}`,
+    `Jenis Produk: ${product?.title || "-"}`,
     `Warna: ${color?.name || "-"} (${color?.hex || "-"})`,
     `Ukuran: ${items.length ? items.map((it) => `${it.size} x ${it.qty}`).join(", ") : "-"}`,
     `Total: ${totalQty} pcs`,
@@ -1880,7 +1880,7 @@ function OrderFormModal({ open, onClose, design, color, sizeItems, product, onSu
               <div className="grid gap-5 md:grid-cols-2">
                 {/* Ringkasan pesanan */}
                 <div className="space-y-3">
-                  <SummaryRow label="Jenis Kaos" value={product?.title} testid="summary-product" />
+                  <SummaryRow label="Jenis Produk" value={product?.title} testid="summary-product" />
                   <div className="rounded-xl border border-zinc-200 p-3">
                     <div className="flex items-center justify-between">
                       <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">Ukuran &amp; Jumlah</div>
@@ -1899,7 +1899,7 @@ function OrderFormModal({ open, onClose, design, color, sizeItems, product, onSu
                     </div>
                   </div>
                   <div className="rounded-xl border border-zinc-200 p-3">
-                    <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">Warna Kaos</div>
+                    <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">Warna Produk</div>
                     <div className="mt-1 flex items-center gap-2">
                       <span className="h-6 w-6 rounded-full border border-zinc-300" style={{ backgroundColor: color?.hex }} />
                       <span className="text-sm font-semibold" data-testid="summary-color">{color?.name}</span>
@@ -2447,11 +2447,11 @@ function ProductPanel({
         {product?.thumbnail_url || activeColorThumb ? (
           <img
             src={activeColorThumb || product.thumbnail_url}
-            alt={product?.title || "Kaos"}
+            alt={product?.title || "Produk"}
             className="h-12 w-12 shrink-0 rounded-lg border border-blue-300 object-contain transition group-hover:scale-105"
           />
         ) : (
-          <TintedThumb src={MOCKUPS["Depan"]} mask={MOCKUP_MASKS["Depan"]} color={color.hex} alt="Kaos" size={48} inner={36} />
+          <TintedThumb src={MOCKUPS["Depan"]} mask={MOCKUP_MASKS["Depan"]} color={color.hex} alt="Produk" size={48} inner={36} />
         )}
         <div className="min-w-0 flex-1 leading-tight">
           <div className="truncate text-[13px] font-semibold" data-testid="custom-product-title">
@@ -2560,7 +2560,7 @@ function ProductPanel({
       )}
 
       <div className="mt-5 flex items-center justify-between">
-        <h3 className="text-sm font-bold">Warna Kaos</h3>
+        <h3 className="text-sm font-bold">Warna Produk</h3>
         <span className="text-xs font-semibold text-zinc-400" data-testid="custom-color-count">
           {swatches.length} varian
         </span>
@@ -2656,7 +2656,7 @@ function ProductPickerModal({ open, onClose, products, loading, activeId, onPick
       <div className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-2xl bg-white text-zinc-900 shadow-2xl sm:rounded-2xl" data-testid="custom-product-picker">
         <div className="flex items-center justify-between border-b border-zinc-200 px-5 py-4">
           <div>
-            <h3 className="text-base font-bold">Pilih Jenis Kaos</h3>
+            <h3 className="text-base font-bold">Pilih Jenis Produk</h3>
             <p className="text-xs text-zinc-500">Ukuran dan pilihan warna akan mengikuti produk yang dipilih.</p>
           </div>
           <button
@@ -3109,7 +3109,7 @@ function FontManagerModal({ open, onClose, onChanged }) {
                           className="mt-1 truncate text-xl leading-snug text-zinc-900"
                           style={{ fontFamily: `"${f.family}", sans-serif` }}
                         >
-                          Kaos Custom 123
+                          Produk Custom 123
                         </div>
                       </button>
                     );
@@ -3244,7 +3244,7 @@ function FontManagerModal({ open, onClose, onChanged }) {
                         style={{ fontFamily: `"${f.family}", sans-serif` }}
                         data-testid={`font-preview-${f.id}`}
                       >
-                        Contoh Teks Kaos 123
+                        Contoh Teks Produk 123
                       </div>
                       <div className="text-[11px] text-zinc-400">
                         {f.source === "google"

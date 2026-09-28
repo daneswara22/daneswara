@@ -507,7 +507,7 @@ export default function ProductTypes() {
                   {categories.map((c) => <option key={c} value={c} />)}
                 </datalist>
               </Field>
-              <Field label="Harga Kaos (Rp) *">
+              <Field label="Harga Produk (Rp) *">
                 <Input
                   data-testid="product-form-price"
                   type="number"

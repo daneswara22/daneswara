@@ -200,7 +200,7 @@ export default function PriceList() {
         <section>
           <div className="text-[10px] uppercase tracking-[0.3em] font-bold text-primary">{isID ? "Langkah 1" : "Step 1"}</div>
           <h2 className="font-display text-2xl sm:text-3xl uppercase tracking-wider mt-1">
-            {isID ? "Pilih Jenis Kaos" : "Choose Your T-Shirt"}
+            {isID ? "Pilih Jenis Produk" : "Choose Your Product"}
           </h2>
 
           {loading ? (
@@ -308,7 +308,7 @@ export default function PriceList() {
           <>
             {/* Shirt detail */}
             <section className="mt-12 bg-card border-2 border-foreground shadow-stamp-lg p-6 sm:p-8" data-testid="price-list-shirt-detail">
-              <div className="text-[10px] uppercase tracking-[0.3em] font-bold text-primary">{isID ? "Detail Kaos" : "Shirt Details"}</div>
+              <div className="text-[10px] uppercase tracking-[0.3em] font-bold text-primary">{isID ? "Detail Produk" : "Product Details"}</div>
               <h3 className="font-display text-2xl uppercase tracking-wider mt-1">{sel.title}</h3>
               {sel.subtitle && <p className="mt-1 text-sm text-muted-foreground">{sel.subtitle}</p>}
 
@@ -419,7 +419,7 @@ export default function PriceList() {
                   to={`/custom?product=${encodeURIComponent(sel.product_key)}`}
                   className="inline-flex items-center gap-2 bg-foreground text-background px-4 py-2.5 border-2 border-foreground shadow-stamp font-bold uppercase tracking-wider text-xs lift"
                 >
-                  {isID ? "Rancang Sendiri Kaos Ini" : "Design This Shirt"}
+                  {isID ? "Rancang Sendiri Produk Ini" : "Design This Product"}
                 </Link>
               </div>
             </section>
