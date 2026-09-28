@@ -18,7 +18,7 @@ import {
   Minus, Plus, RotateCcw, RotateCw, ArrowRight, Trash2, X, Move, Copy,
   Bold, Italic, AlignLeft, AlignCenter, AlignRight, Search, Loader2,
   ArrowUp, ArrowDown, ChevronsUp, ChevronsDown, ClipboardList, Send, CheckCircle2,
-  Home, LayoutDashboard, MessageCircle,
+  Home, LayoutDashboard, MessageCircle, BadgeCheck, Headset,
 } from "lucide-react";
 
 /* ---------- gambar mockup kaos (WebP ringan) per tampilan ---------- */
@@ -1951,8 +1951,8 @@ function OrderFormModal({ open, onClose, design, color, sizeItems, product, quot
                 </div>
               </div>
 
-              {/* Estimasi harga (dihitung di server) */}
-              <QuoteCard quote={quote} />
+              {/* Pesan konfirmasi untuk customer (estimasi harga dihilangkan) */}
+              <CsNoticeCard />
 
               {/* Data customer */}
               <div className="mt-6 grid gap-4 md:grid-cols-3">
@@ -2005,77 +2005,31 @@ function OrderFormModal({ open, onClose, design, color, sizeItems, product, quot
   );
 }
 
-/* ---------- estimasi harga: rincian dari /api/public/custom-tees/quote ---------- */
+/* ---------- pesan penutup untuk customer (menggantikan estimasi harga) ---------- */
 const rupiah = (n) => "Rp " + Number(n || 0).toLocaleString("id-ID");
 
-function QuoteCard({ quote }) {
-  if (!quote) return null;
+function CsNoticeCard() {
   return (
     <div
-      className="mt-6 overflow-hidden rounded-2xl border-2 border-zinc-900 bg-white"
-      data-testid="quote-card"
+      className="mt-6 overflow-hidden rounded-2xl border-2 border-zinc-900 bg-white shadow-[4px_4px_0_0_rgba(24,24,27,1)]"
+      data-testid="cs-notice-card"
     >
-      <div className="flex flex-wrap items-end justify-between gap-3 border-b border-zinc-200 bg-zinc-900 px-4 py-3 text-white">
-        <div>
-          <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-300">
-            Estimasi Harga
-          </div>
-          <div className="text-2xl font-extrabold leading-tight" data-testid="quote-total">
-            {rupiah(quote.total)}
-          </div>
-        </div>
-        <div className="text-right text-[12px] leading-tight text-zinc-300">
-          <div data-testid="quote-total-qty">{quote.total_qty} pcs</div>
-          <div data-testid="quote-per-pcs">{rupiah(quote.price_per_pcs)} / pcs</div>
+      <div className="flex items-center gap-2 border-b border-zinc-200 bg-zinc-900 px-4 py-3 text-white">
+        <BadgeCheck className="h-5 w-5 shrink-0" />
+        <div className="text-sm font-extrabold uppercase tracking-wide">
+          Terima kasih telah melakukan pemesanan
         </div>
       </div>
-
-      <div className="divide-y divide-zinc-100 px-4 py-2 text-sm" data-testid="quote-lines">
-        {(quote.lines || []).map((l, i) => (
-          <div key={`${l.label}-${i}`} className="flex items-start justify-between gap-3 py-1.5">
-            <div className="min-w-0">
-              <div className="font-semibold text-zinc-800">{l.label}</div>
-              <div className="text-[11px] text-zinc-500">{l.detail}</div>
-            </div>
-            <div className="shrink-0 font-semibold text-zinc-900">{rupiah(l.amount)}</div>
-          </div>
-        ))}
-      </div>
-
-      <div className="space-y-1 border-t border-zinc-100 px-4 py-2.5 text-sm">
-        <div className="flex items-center justify-between text-zinc-600">
-          <span>Subtotal</span>
-          <span className="font-semibold text-zinc-900" data-testid="quote-subtotal">{rupiah(quote.subtotal)}</span>
-        </div>
-        {quote.discount_percent > 0 && (
-          <div className="flex items-center justify-between text-emerald-700">
-            <span>Diskon jumlah {quote.discount_percent}%</span>
-            <span className="font-semibold" data-testid="quote-discount">- {rupiah(quote.discount_amount)}</span>
-          </div>
-        )}
-        {quote.small_order_fee > 0 && (
-          <div className="flex items-center justify-between text-zinc-600">
-            <span>Biaya order kecil</span>
-            <span className="font-semibold text-zinc-900" data-testid="quote-small-fee">{rupiah(quote.small_order_fee)}</span>
-          </div>
-        )}
-        <div className="flex items-center justify-between border-t border-zinc-200 pt-1.5 text-base">
-          <span className="font-bold text-zinc-900">Total estimasi</span>
-          <span className="font-extrabold text-zinc-900">{rupiah(quote.total)}</span>
-        </div>
-      </div>
-
-      {quote.next_tier && (
-        <div
-          className="border-t border-zinc-100 bg-emerald-50 px-4 py-2 text-[12px] font-semibold text-emerald-800"
-          data-testid="quote-next-tier"
-        >
-          Tambah {quote.next_tier.add_qty} pcs lagi (total {quote.next_tier.min_qty} pcs) untuk dapat diskon {quote.next_tier.percent}%.
-        </div>
-      )}
-
-      <div className="border-t border-zinc-100 px-4 py-2 text-[11px] leading-relaxed text-zinc-500" data-testid="quote-note">
-        {quote.note}
+      <div className="flex items-start gap-3 px-4 py-4">
+        <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-zinc-900 text-white">
+          <Headset className="h-4 w-4" />
+        </span>
+        <p className="text-sm leading-relaxed text-zinc-700">
+          Tim <span className="font-semibold text-zinc-900">Customer Service</span> kami akan segera menghubungi Anda
+          untuk proses selanjutnya. Mohon pastikan <span className="font-semibold text-zinc-900">nama</span> dan{" "}
+          <span className="font-semibold text-zinc-900">nomor kontak</span> yang tercantum dalam pesanan aktif dan dapat
+          dihubungi, agar proses konfirmasi dan pemesanan dapat berjalan dengan lancar.
+        </p>
       </div>
     </div>
   );
