@@ -263,6 +263,14 @@ export default function Orders({ channelView = false }) {
       })
     : list;
 
+  // Saat mencari, pindah otomatis ke tab pertama yang punya hasil.
+  useEffect(() => {
+    if (!term) return;
+    if (filtered.some((o) => o.status === tab)) return;
+    const g = GROUPS.find((x) => filtered.some((o) => o.status === x.key));
+    if (g) setTab(g.key);
+  }, [term, list]); // eslint-disable-line
+
   const ChannelBadge = ({ order }) => {
     const b = CHANNEL_BADGE[order.sales_channel];
     if (!b) return null;
@@ -418,6 +426,19 @@ export default function Orders({ channelView = false }) {
           </div>
         </div>
       </div>
+      )}
+
+      {!channelView && (
+        <div className="relative max-w-md" data-testid="orders-search-wrap">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Cari no. pesanan, nama pelanggan, SKU, produk..."
+            className="pl-10"
+            data-testid="order-search"
+          />
+        </div>
       )}
 
       {channelView && (channel === "all" || channel === "custom-tees") && (
