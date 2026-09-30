@@ -644,6 +644,8 @@ model sticker_orders {
   unit_price     Decimal  @db.Decimal(12, 2)
   total_price    Decimal  @db.Decimal(12, 2)
   layout_json    String?  @db.Text
+  preview_data   String?  @db.LongText
+  pos_order_id   String?  @db.VarChar(36)
   note           String?  @db.Text
   created_at     DateTime @db.DateTime(0)
   updated_at     DateTime @db.DateTime(0)
