@@ -134,7 +134,7 @@ export const QuoteForm = forwardRef(function QuoteForm(_, ref) {
               </div>
 
               <a
-                href="/app/custom-sticker"
+                href="/custom-sticker"
                 data-testid="sq-start"
                 className="lift inline-flex items-center gap-2 border-2 border-foreground bg-primary px-6 py-3 text-sm font-bold uppercase tracking-wider text-primary-foreground shadow-stamp"
               >
@@ -187,7 +187,7 @@ export const QuoteForm = forwardRef(function QuoteForm(_, ref) {
                   <div className="text-sm font-semibold leading-snug">{p.title}</div>
                   <div className="font-display text-lg text-primary">{p.price}</div>
                   <a
-                    href="/app/custom-sticker"
+                    href="/custom-sticker"
                     data-testid={`sticker-product-order-${p.id}`}
                     className="mt-auto inline-flex items-center justify-center gap-2 rounded-lg border-2 border-foreground bg-primary px-3 py-2 text-xs font-bold uppercase tracking-wider text-primary-foreground transition hover:opacity-90"
                   >

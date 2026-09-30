@@ -71,7 +71,7 @@ const toNum = (v) => {
   return Number.isFinite(n) && n > 0 ? n : 0;
 };
 
-export default function CustomSticker() {
+export default function CustomSticker({ publicMode = false }) {
   const [mode, setMode] = useState("template"); // 'template' | 'upload'
 
   // --- Template / Estimasi --------------------------------------------------
@@ -229,7 +229,7 @@ export default function CustomSticker() {
     if (sheetQty < 1) return toast.error("Jumlah lembar minimal 1");
     setSaving(true);
     try {
-      const { data } = await api.post("/sticker-orders", {
+      const { data } = await api.post(publicMode ? "/public/sticker-orders" : "/sticker-orders", {
         customer_name: custName.trim(),
         customer_phone: custPhone.trim(),
         material,
