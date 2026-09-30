@@ -132,7 +132,7 @@ export default function CustomSticker() {
   };
 
   return (
-    <div className="space-y-6" data-testid="custom-sticker-page">
+    <div className="-m-4 space-y-6 bg-zinc-100 p-4 dark:bg-zinc-900 sm:-m-6 sm:p-6" data-testid="custom-sticker-page">
       <div>
         <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Sales Channel · Pesanan Merchandise</p>
         <h1 className="font-display text-3xl font-bold tracking-tight">Custom Sticker</h1>
@@ -145,13 +145,8 @@ export default function CustomSticker() {
         {/* Panel pengaturan */}
         <div className="space-y-4">
           <div className="space-y-3 rounded-lg border border-border bg-card p-4">
-            <input ref={fileRef} type="file" accept="image/*" multiple onChange={onFiles} className="hidden" data-testid="sticker-file-input" />
-            <Button className="w-full gap-2" onClick={() => fileRef.current?.click()} data-testid="sticker-upload-button">
-              <Upload className="h-4 w-4" /> Unggah Gambar
-            </Button>
-
             <div className="space-y-1">
-              <Label className="text-xs text-muted-foreground">Bentuk / Simulasi Sticker</Label>
+              <Label className="text-xs font-semibold text-foreground">Template Sticker</Label>
               <div className="grid grid-cols-2 gap-2">
                 {SHAPES.map((s) => (
                   <button
@@ -188,6 +183,11 @@ export default function CustomSticker() {
                 {shape === "original" && <p className="text-[11px] text-muted-foreground">Tinggi mengikuti rasio gambar asli.</p>}
               </div>
             )}
+
+            <input ref={fileRef} type="file" accept="image/*" multiple onChange={onFiles} className="hidden" data-testid="sticker-file-input" />
+            <Button className="w-full gap-2" onClick={() => fileRef.current?.click()} data-testid="sticker-upload-button">
+              <Upload className="h-4 w-4" /> Unggah Gambar
+            </Button>
 
             <div className="grid grid-cols-2 gap-2">
               <Button variant="outline" className="gap-2" onClick={doArrange} data-testid="sticker-auto-arrange">
@@ -242,7 +242,7 @@ export default function CustomSticker() {
           </div>
           <div className="mx-auto w-full max-w-[520px]">
             <div
-              className="relative w-full overflow-hidden rounded-md border-2 border-dashed border-primary/50 bg-white"
+              className="relative w-full overflow-hidden rounded-md bg-white shadow-sm"
               style={{ aspectRatio: `${SHEET_W} / ${SHEET_H}` }}
               data-testid="sticker-sheet"
             >
@@ -257,7 +257,6 @@ export default function CustomSticker() {
                     top: `${(p.y / SHEET_H) * 100}%`,
                     width: `${(p.w / SHEET_W) * 100}%`,
                     height: `${(p.h / SHEET_H) * 100}%`,
-                    outline: "1px solid rgba(0,0,0,0.12)",
                   }}
                 />
               ))}
