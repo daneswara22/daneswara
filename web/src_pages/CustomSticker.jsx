@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Upload, Trash2, LayoutGrid, RefreshCw, Send } from "lucide-react";
 import api from "@/lib/api";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { STICKER_MATERIALS, stickerUnitPrice, stickerTotalPrice } from "@/lib/stickerPricing";
 
 const rp = (n) => `Rp ${Number(n || 0).toLocaleString("id-ID")}`;
@@ -148,6 +149,9 @@ export default function CustomSticker() {
   const [custPhone, setCustPhone] = useState("");
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
+  const [summaryOpen, setSummaryOpen] = useState(false);
+  const [preview, setPreview] = useState(null);
+  const [doneOpen, setDoneOpen] = useState(false);
 
   const sheetQty = Math.max(0, Math.floor(Number(sheets) || 0));
   const unitPrice = stickerUnitPrice(material, sheetQty);
@@ -157,6 +161,68 @@ export default function CustomSticker() {
   const layout = isTemplate ? templateLayout : uploadLayout;
   const layoutCount = layout.placed.length;
   const uploadHeight = (img) => +(toNum(widthCm) * (img.h > 0 ? img.h / img.w : 1)).toFixed(2);
+
+  // Render lembar cetak jadi 1 gambar (disimpan bersama pesanan).
+  const buildPreview = () => {
+    const W = 560;
+    const H = Math.round((SHEET_H / SHEET_W) * W);
+    const cv = document.createElement("canvas");
+    cv.width = W; cv.height = H;
+    const ctx = cv.getContext("2d");
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, W, H);
+    const sx = W / SHEET_W;
+    const sy = H / SHEET_H;
+    const drawShapes = () => {
+      layout.placed.forEach((p) => {
+        const x = p.x * sx, y = p.y * sy, w = p.w * sx, h = p.h * sy;
+        ctx.fillStyle = "rgba(59,130,246,0.30)";
+        ctx.strokeStyle = "#2563eb";
+        if (isTemplate && template === "circle") {
+          ctx.beginPath();
+          ctx.ellipse(x + w / 2, y + h / 2, w / 2, h / 2, 0, 0, Math.PI * 2);
+          ctx.fill(); ctx.stroke();
+        } else {
+          ctx.fillRect(x, y, w, h);
+          ctx.strokeRect(x, y, w, h);
+        }
+      });
+    };
+    if (isTemplate) {
+      drawShapes();
+      return Promise.resolve(cv.toDataURL("image/jpeg", 0.8));
+    }
+    // mode upload: gambar tiap salinan
+    const cache = {};
+    const loads = images.map(
+      (img) =>
+        new Promise((res) => {
+          const el = new window.Image();
+          el.onload = () => { cache[img.id] = el; res(); };
+          el.onerror = () => res();
+          el.src = img.src;
+        }),
+    );
+    return Promise.all(loads).then(() => {
+      layout.placed.forEach((p) => {
+        const el = cache[p.id];
+        if (el) ctx.drawImage(el, p.x * sx, p.y * sy, p.w * sx, p.h * sy);
+      });
+      return cv.toDataURL("image/jpeg", 0.8);
+    });
+  };
+
+  const openSummary = async () => {
+    if (!custName.trim() || !custPhone.trim()) return toast.error("Nama & nomor HP wajib diisi");
+    if (sheetQty < 1) return toast.error("Jumlah lembar minimal 1");
+    if (layoutCount === 0) return toast.error("Belum ada simulasi sticker pada kanvas");
+    try {
+      setPreview(await buildPreview());
+    } catch {
+      setPreview(null);
+    }
+    setSummaryOpen(true);
+  };
 
   const submitOrder = async () => {
     if (!custName.trim() || !custPhone.trim()) return toast.error("Nama & nomor WhatsApp wajib diisi");
@@ -169,6 +235,7 @@ export default function CustomSticker() {
         material,
         sheets: sheetQty,
         note: note.trim(),
+        preview,
         layout: {
           mode,
           template: isTemplate ? template : "upload",
@@ -177,6 +244,8 @@ export default function CustomSticker() {
           per_sheet: layoutCount,
         },
       });
+      setSummaryOpen(false);
+      setDoneOpen(true);
       toast.success(`Pesanan ${data.order_code} tersimpan`);
       setCustName(""); setCustPhone(""); setNote(""); setSheets(1);
     } catch (e) {
@@ -187,6 +256,7 @@ export default function CustomSticker() {
   };
 
   return (
+    <>
     <div className="-m-4 space-y-6 bg-zinc-100 p-4 dark:bg-zinc-900 sm:-m-6 sm:p-6" data-testid="custom-sticker-page">
       <div>
         <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Sales Channel · Pesanan Merchandise</p>
@@ -391,8 +461,8 @@ export default function CustomSticker() {
               </div>
             </div>
 
-            <Button className="w-full gap-2" onClick={submitOrder} disabled={saving} data-testid="sticker-submit-order">
-              <Send className="h-4 w-4" /> {saving ? "Menyimpan..." : "Pesan Sekarang"}
+            <Button className="w-full gap-2" onClick={openSummary} data-testid="sticker-submit-order">
+              <Send className="h-4 w-4" /> Pesan Sekarang
             </Button>
           </div>
         </div>
@@ -436,6 +506,66 @@ export default function CustomSticker() {
           </div>
         </div>
       </div>
+    </div>
+
+      {/* Ringkasan pesanan sebelum dikirim */}
+      <Dialog open={summaryOpen} onOpenChange={setSummaryOpen}>
+        <DialogContent className="max-w-lg" data-testid="sticker-summary-dialog">
+          <DialogHeader>
+            <DialogTitle>Ringkasan Pesanan</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 text-sm">
+            <Row label="Nama Pelanggan" value={custName} />
+            <Row label="No. HP" value={custPhone} />
+            <Row label="Bahan Sticker" value={STICKER_MATERIALS.find((m) => m.value === material)?.label} />
+            <Row
+              label="Ukuran Sticker"
+              value={isTemplate ? `${tSize.w.toFixed(2)} × ${tSize.h.toFixed(2)} cm (${template})` : `lebar ${toNum(widthCm).toFixed(2)} cm (rasio asli)`}
+            />
+            <Row label="Jumlah Sticker" value={`${layoutCount} pcs/lembar · ${sheetQty} lembar`} />
+            <Row label="Harga / lembar" value={rp(unitPrice)} />
+            <Row label="Total" value={rp(totalPrice)} />
+            {note.trim() && <Row label="Catatan" value={note} />}
+            <div className="rounded-md border border-border bg-white p-2">
+              {preview ? (
+                <img src={preview} alt="Preview lembar" className="mx-auto max-h-64 w-auto" data-testid="sticker-summary-preview" />
+              ) : (
+                <p className="text-center text-xs text-muted-foreground">Preview tidak tersedia</p>
+              )}
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setSummaryOpen(false)} data-testid="sticker-summary-cancel">Batal</Button>
+            <Button onClick={submitOrder} disabled={saving} data-testid="sticker-summary-order">
+              {saving ? "Mengirim..." : "Order"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Konfirmasi pesanan diterima */}
+      <Dialog open={doneOpen} onOpenChange={setDoneOpen}>
+        <DialogContent className="max-w-md" data-testid="sticker-done-dialog">
+          <DialogHeader>
+            <DialogTitle>Pesanan Diterima</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm">
+            Pesanan sudah diterima. CS kami akan segera menghubungi Anda untuk proses pembayaran. Pastikan nama dan nomor HP yang tercantum sudah benar.
+          </p>
+          <DialogFooter>
+            <Button onClick={() => setDoneOpen(false)} data-testid="sticker-done-close">Tutup</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+function Row({ label, value }) {
+  return (
+    <div className="flex justify-between gap-4">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="text-right font-semibold">{value || "-"}</span>
     </div>
   );
 }

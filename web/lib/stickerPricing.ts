@@ -21,3 +21,9 @@ export function stickerTotalPrice(material: string, sheets: number): number {
 }
 
 export const STICKER_STATUSES = ['Baru', 'Proses', 'Selesai', 'Batal'] as const;
+
+/** Produk POS yang dipakai saat pesanan sticker diproses (tanpa bikin duplikat). */
+export const POS_PRODUCT_BY_MATERIAL = {
+  BONTAX: { name: 'Bontax + Cutting', match: ['Bontax', 'Cutting'] },
+  VINYL: { name: 'Vinil A3 + Cut', match: ['Vinil', 'Cut'] },
+} as const;
