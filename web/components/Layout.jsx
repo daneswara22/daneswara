@@ -12,7 +12,7 @@ import { toast } from "sonner";
 import {
   LayoutDashboard, Package, Tags, Warehouse, BarChart3, Users as UsersIcon,
   Settings as SettingsIcon, ShoppingCart, Sun, Moon, LogOut, Menu, X, Store,
-  UserCircle, Truck, ClipboardList, ShoppingBag, KeyRound, Wallet, DownloadCloud, HandCoins, ReceiptText, Images, Shirt, Palette,
+  UserCircle, Truck, ClipboardList, ShoppingBag, KeyRound, Wallet, DownloadCloud, HandCoins, ReceiptText, Images, Shirt, Palette, Sticker,
   MessagesSquare, ChevronRight, ChevronDown,
 } from "lucide-react";
 import { playChatBeep, notifyBrowser } from "@/lib/chatNotify";
@@ -39,6 +39,14 @@ const NAV = [
     children: [
       { to: "/app/sales-channels", label: "Kanal Penjualan", icon: Store, roles: ["Owner", "Manager"] },
       { to: "/app/kanal-pesanan", label: "Pesanan Kanal", icon: ShoppingBag, roles: ["Owner", "Manager", "Kasir"] },
+      {
+        key: "merchandise",
+        label: "Pesanan Merchandise",
+        icon: Sticker,
+        children: [
+          { to: "/app/custom-sticker", label: "Custom Sticker", icon: Sticker, roles: ["Owner", "Manager", "Kasir"] },
+        ],
+      },
     ],
   },
   // Menu utama yang punya submenu. Pola ini bisa dipakai ulang: cukup tambah
@@ -96,8 +104,8 @@ function NavItem({ item, onNavigate, badge = 0, nested = false }) {
 }
 
 // Menu utama yang bisa dibuka/tutup beserta submenunya.
-function NavGroup({ item, open, onToggle, onNavigate, badgeFor }) {
-  const hiddenBadge = open ? 0 : item.children.reduce((sum, c) => sum + badgeFor(c.to), 0);
+function NavGroup({ item, open, onToggle, onNavigate, badgeFor, openGroups, onToggleChild }) {
+  const hiddenBadge = open ? 0 : item.children.reduce((sum, c) => sum + (c.to ? badgeFor(c.to) : 0), 0);
   const Chevron = open ? ChevronDown : ChevronRight;
   return (
     <div className="flex flex-col">
@@ -124,9 +132,22 @@ function NavGroup({ item, open, onToggle, onNavigate, badgeFor }) {
           className="ml-4 mt-1 flex flex-col gap-1 border-l border-border pl-2"
           data-testid={`nav-group-${item.key}-submenu`}
         >
-          {item.children.map((c) => (
-            <NavItem key={c.to} item={c} onNavigate={onNavigate} badge={badgeFor(c.to)} nested />
-          ))}
+          {item.children.map((c) =>
+            c.children ? (
+              <NavGroup
+                key={c.key}
+                item={c}
+                open={!!openGroups?.[c.key]}
+                onToggle={() => onToggleChild?.(c.key)}
+                onNavigate={onNavigate}
+                badgeFor={badgeFor}
+                openGroups={openGroups}
+                onToggleChild={onToggleChild}
+              />
+            ) : (
+              <NavItem key={c.to} item={c} onNavigate={onNavigate} badge={badgeFor(c.to)} nested />
+            )
+          )}
         </div>
       )}
     </div>
@@ -145,7 +166,13 @@ export default function Layout() {
   // kalau tidak ada submenu yang boleh diakses, menu utamanya disembunyikan.
   const items = NAV.map((n) => {
     if (!n.children) return n.roles?.includes(user?.role) ? n : null;
-    const children = n.children.filter((c) => c.roles?.includes(user?.role));
+    const children = n.children
+      .map((c) => {
+        if (!c.children) return c.roles?.includes(user?.role) ? c : null;
+        const sub = c.children.filter((g) => g.roles?.includes(user?.role));
+        return sub.length ? { ...c, children: sub } : null;
+      })
+      .filter(Boolean);
     return children.length ? { ...n, children } : null;
   }).filter(Boolean);
   const [customTeeNew, setCustomTeeNew] = useState(0);
@@ -161,7 +188,12 @@ export default function Layout() {
     // Menu utama otomatis terbuka kalau salah satu submenunya sedang aktif.
     const next = { ...saved };
     NAV.forEach((n) => {
-      if (n.children?.some((c) => pathname === c.to || pathname.startsWith(`${c.to}/`))) next[n.key] = true;
+      const hit = (c) =>
+        c.children ? c.children.some(hit) : pathname === c.to || pathname.startsWith(`${c.to}/`);
+      if (n.children?.some(hit)) {
+        next[n.key] = true;
+        n.children.forEach((c) => { if (c.children?.some(hit)) next[c.key] = true; });
+      }
     });
     setOpenGroups(next);
   }, [pathname]);
@@ -268,6 +300,8 @@ export default function Layout() {
                 onToggle={() => toggleGroup(n.key)}
                 onNavigate={() => setOpen(false)}
                 badgeFor={badgeFor}
+                openGroups={openGroups}
+                onToggleChild={toggleGroup}
               />
             ) : (
               <NavItem key={n.to} item={n} onNavigate={() => setOpen(false)} badge={badgeFor(n.to)} />
