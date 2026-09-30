@@ -2,13 +2,20 @@
  * Editor 28 x 43 cm tetap di halaman Custom Sticker (tidak dimuat di sini).
  */
 import { forwardRef, useImperativeHandle, useMemo, useState } from "react";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, ShoppingCart } from "lucide-react";
 import { GoogleReviews } from "@/components/landing/components/GoogleReviews";
 import { useLang } from "@/components/landing/i18n/LangContext";
 
 const SHEET_W = 28;
 const SHEET_H = 43;
 const GAP = 0.1;
+
+// 3 produk sticker (aset gambar terpisah agar bisa diedit sendiri-sendiri).
+const STICKER_PRODUCTS = [
+  { id: "bontax", title: "Stiker Bontax + Cutting", price: "Rp15.000", img: "/stickers/bontax.jpg" },
+  { id: "vinyl", title: "Stiker Vinyl + Cutting", price: "Rp25.000", img: "/stickers/vinyl.jpg" },
+  { id: "custom", title: "Stiker Custom", price: "Mulai Rp6.000", img: "/stickers/custom.jpg" },
+];
 
 const SHAPES = [
   { v: "square", l: "Kotak 1:1" },
@@ -165,6 +172,30 @@ export const QuoteForm = forwardRef(function QuoteForm(_, ref) {
               </div>
               <p className="mt-2 text-center text-[10px] text-muted-foreground">Preview cepat · kanvas penuh ada di halaman Custom Sticker</p>
             </div>
+          </div>
+
+          {/* 3 kartu produk sticker */}
+          <div className="mt-6 grid gap-4 sm:grid-cols-3" data-testid="sticker-products">
+            {STICKER_PRODUCTS.map((p) => (
+              <div
+                key={p.id}
+                data-testid={`sticker-product-${p.id}`}
+                className="flex flex-col overflow-hidden rounded-xl border-2 border-foreground bg-background shadow-sm transition hover:shadow-md"
+              >
+                <img src={p.img} alt={p.title} loading="lazy" className="aspect-square w-full object-cover" />
+                <div className="flex flex-1 flex-col gap-2 p-3">
+                  <div className="text-sm font-semibold leading-snug">{p.title}</div>
+                  <div className="font-display text-lg text-primary">{p.price}</div>
+                  <a
+                    href="/app/custom-sticker"
+                    data-testid={`sticker-product-order-${p.id}`}
+                    className="mt-auto inline-flex items-center justify-center gap-2 rounded-lg border-2 border-foreground bg-primary px-3 py-2 text-xs font-bold uppercase tracking-wider text-primary-foreground transition hover:opacity-90"
+                  >
+                    <ShoppingCart size={14} /> Order
+                  </a>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>
