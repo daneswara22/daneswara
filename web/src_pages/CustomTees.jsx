@@ -2431,9 +2431,9 @@ function ProductPanel({
           onClick={onOpenPicker}
           data-testid="custom-change-product"
           disabled={productsLoading}
-          className="flex items-center text-xs font-semibold text-zinc-500 transition hover:text-zinc-900 disabled:opacity-50"
+          className="flex items-center gap-1 rounded-full bg-blue-600 px-3 py-1.5 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-50"
         >
-          {productsLoading ? "Memuat..." : "Ganti Produk"} <ChevronRight className="h-3.5 w-3.5" />
+          {productsLoading ? "Memuat..." : "Ganti Produk"} <ChevronRight className="h-4 w-4" />
         </button>
       </div>
 
