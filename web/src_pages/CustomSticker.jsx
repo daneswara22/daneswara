@@ -13,7 +13,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Upload, Trash2, LayoutGrid, RefreshCw } from "lucide-react";
+import { Upload, Trash2, LayoutGrid, RefreshCw, Send } from "lucide-react";
+import api from "@/lib/api";
+import { STICKER_MATERIALS, stickerUnitPrice, stickerTotalPrice } from "@/lib/stickerPricing";
+
+const rp = (n) => `Rp ${Number(n || 0).toLocaleString("id-ID")}`;
 
 const SHEET_W = 28; // cm
 const SHEET_H = 43; // cm
@@ -137,9 +141,50 @@ export default function CustomSticker() {
     return m;
   }, [uploadLayout.placed]);
 
+  // --- Form pesan sticker ---------------------------------------------------
+  const [material, setMaterial] = useState("BONTAX");
+  const [sheets, setSheets] = useState(1);
+  const [custName, setCustName] = useState("");
+  const [custPhone, setCustPhone] = useState("");
+  const [note, setNote] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const sheetQty = Math.max(0, Math.floor(Number(sheets) || 0));
+  const unitPrice = stickerUnitPrice(material, sheetQty);
+  const totalPrice = stickerTotalPrice(material, sheetQty);
+
   const isTemplate = mode === "template";
   const layout = isTemplate ? templateLayout : uploadLayout;
+  const layoutCount = layout.placed.length;
   const uploadHeight = (img) => +(toNum(widthCm) * (img.h > 0 ? img.h / img.w : 1)).toFixed(2);
+
+  const submitOrder = async () => {
+    if (!custName.trim() || !custPhone.trim()) return toast.error("Nama & nomor WhatsApp wajib diisi");
+    if (sheetQty < 1) return toast.error("Jumlah lembar minimal 1");
+    setSaving(true);
+    try {
+      const { data } = await api.post("/sticker-orders", {
+        customer_name: custName.trim(),
+        customer_phone: custPhone.trim(),
+        material,
+        sheets: sheetQty,
+        note: note.trim(),
+        layout: {
+          mode,
+          template: isTemplate ? template : "upload",
+          width_cm: isTemplate ? tSize.w : toNum(widthCm),
+          height_cm: isTemplate ? tSize.h : null,
+          per_sheet: layoutCount,
+        },
+      });
+      toast.success(`Pesanan ${data.order_code} tersimpan`);
+      setCustName(""); setCustPhone(""); setNote(""); setSheets(1);
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || "Gagal menyimpan pesanan");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="-m-4 space-y-6 bg-zinc-100 p-4 dark:bg-zinc-900 sm:-m-6 sm:p-6" data-testid="custom-sticker-page">
@@ -292,6 +337,64 @@ export default function CustomSticker() {
               </div>
             </div>
           )}
+
+          {/* SECTION 3: Pesan sticker */}
+          <div className="space-y-3 rounded-lg border border-border bg-card p-4" data-testid="sticker-order-form">
+            <div>
+              <h2 className="font-display text-base font-semibold">Pesan Sticker</h2>
+              <p className="text-xs text-muted-foreground">Harga per lembar {SHEET_W} × {SHEET_H} cm, termasuk print + cut setengah putus. Beli ≥ 6 lembar potong Rp 2.000/lembar.</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              {STICKER_MATERIALS.map((m) => (
+                <button
+                  key={m.value}
+                  onClick={() => setMaterial(m.value)}
+                  data-testid={`sticker-material-${m.value}`}
+                  className={`rounded-md border px-2 py-2 text-xs font-semibold transition ${
+                    material === m.value ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {m.label}
+                  <span className="block text-[10px] font-normal">{rp(m.price)}/lembar</span>
+                </button>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Jumlah Lembar</Label>
+                <Input value={sheets} onChange={(e) => setSheets(e.target.value)} inputMode="numeric" data-testid="sticker-sheets" />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Nama Pelanggan</Label>
+                <Input value={custName} onChange={(e) => setCustName(e.target.value)} data-testid="sticker-customer-name" />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Nomor WhatsApp</Label>
+              <Input value={custPhone} onChange={(e) => setCustPhone(e.target.value)} inputMode="tel" data-testid="sticker-customer-phone" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Catatan (opsional)</Label>
+              <Input value={note} onChange={(e) => setNote(e.target.value)} data-testid="sticker-note" />
+            </div>
+
+            <div className="rounded-md bg-secondary p-3 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Harga / lembar</span>
+                <span className="font-semibold" data-testid="sticker-unit-price">{rp(unitPrice)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Total ({sheetQty} lembar)</span>
+                <span className="font-bold" data-testid="sticker-total-price">{rp(totalPrice)}</span>
+              </div>
+            </div>
+
+            <Button className="w-full gap-2" onClick={submitOrder} disabled={saving} data-testid="sticker-submit-order">
+              <Send className="h-4 w-4" /> {saving ? "Menyimpan..." : "Pesan Sekarang"}
+            </Button>
+          </div>
         </div>
 
         {/* Kanvas lembar cetak */}

@@ -45,6 +45,7 @@ const NAV = [
         icon: Sticker,
         children: [
           { to: "/app/custom-sticker", label: "Custom Sticker", icon: Sticker, roles: ["Owner", "Manager", "Kasir"] },
+          { to: "/app/pesanan-sticker", label: "Pesanan Sticker", icon: ClipboardList, roles: ["Owner", "Manager", "Kasir"] },
         ],
       },
     ],

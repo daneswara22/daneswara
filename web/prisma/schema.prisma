@@ -108,26 +108,26 @@ model custom_mockups {
 }
 
 model custom_tee_orders {
-  id             String    @id @db.VarChar(36)
-  tenant_id      String    @db.VarChar(36)
-  order_code     String    @db.VarChar(40)
-  status         String    @db.VarChar(20)
-  customer_name  String    @db.VarChar(160)
-  customer_phone String    @db.VarChar(40)
-  customer_email String?   @db.VarChar(160)
-  product_key    String    @db.VarChar(80)
-  product_title  String    @db.VarChar(200)
-  size           String    @db.VarChar(120)
-  size_items_json String?  @db.Text
-  qty            Int       @default(1)
-  color_name     String    @db.VarChar(60)
-  color_hex      String    @db.VarChar(9)
-  objects_count  Int       @default(0)
-  design_json    String    @db.LongText
-  note           String?   @db.Text
-  submitted_at   DateTime? @db.DateTime(0)
-  created_at     DateTime  @db.DateTime(0)
-  updated_at     DateTime  @db.DateTime(0)
+  id              String    @id @db.VarChar(36)
+  tenant_id       String    @db.VarChar(36)
+  order_code      String    @db.VarChar(40)
+  status          String    @db.VarChar(20)
+  customer_name   String    @db.VarChar(160)
+  customer_phone  String    @db.VarChar(40)
+  customer_email  String?   @db.VarChar(160)
+  product_key     String    @db.VarChar(80)
+  product_title   String    @db.VarChar(200)
+  size            String    @db.VarChar(120)
+  size_items_json String?   @db.Text
+  qty             Int       @default(1)
+  color_name      String    @db.VarChar(60)
+  color_hex       String    @db.VarChar(9)
+  objects_count   Int       @default(0)
+  design_json     String    @db.LongText
+  note            String?   @db.Text
+  submitted_at    DateTime? @db.DateTime(0)
+  created_at      DateTime  @db.DateTime(0)
+  updated_at      DateTime  @db.DateTime(0)
 
   // Asal pesanan: null/'manual' = desainer web sendiri, 'shopee' = hasil sinkron
   // marketplace. `source_order_id` menunjuk ke orders.id supaya alur produksi
@@ -164,30 +164,30 @@ model custom_fonts {
 }
 
 model custom_products {
-  id               String   @id @db.VarChar(36)
-  tenant_id        String   @db.VarChar(36)
-  product_key      String   @db.VarChar(80)
-  title            String   @db.VarChar(200)
-  description      String   @db.Text
-  size_guide_url   String?  @db.Text
-  sizes_json       String   @db.Text
-  specs_json       String   @db.Text
+  id             String    @id @db.VarChar(36)
+  tenant_id      String    @db.VarChar(36)
+  product_key    String    @db.VarChar(80)
+  title          String    @db.VarChar(200)
+  description    String    @db.Text
+  size_guide_url String?   @db.Text
+  sizes_json     String    @db.Text
+  specs_json     String    @db.Text
   // --- Info jenis produk (dikelola dari /app/jenis-produk) -------------------
-  subtitle         String?  @db.VarChar(200)
-  price            Int      @default(0)
-  supplier         String?  @db.VarChar(200)
-  size_region      String?  @db.VarChar(120)
-  model            String?  @db.VarChar(200)
-  material         String?  @db.VarChar(200)
-  thumbnail_url    String?  @db.Text
-  category         String?  @db.VarChar(120)
-  deleted_at       DateTime? @db.DateTime(0)
-  is_active        Boolean  @default(true)
-  sort_order       Int      @default(0)
-  created_at       DateTime @db.DateTime(0)
-  updated_at       DateTime @db.DateTime(0)
+  subtitle       String?   @db.VarChar(200)
+  price          Int       @default(0)
+  supplier       String?   @db.VarChar(200)
+  size_region    String?   @db.VarChar(120)
+  model          String?   @db.VarChar(200)
+  material       String?   @db.VarChar(200)
+  thumbnail_url  String?   @db.Text
+  category       String?   @db.VarChar(120)
+  deleted_at     DateTime? @db.DateTime(0)
+  is_active      Boolean   @default(true)
+  sort_order     Int       @default(0)
+  created_at     DateTime  @db.DateTime(0)
+  updated_at     DateTime  @db.DateTime(0)
 
-  colors custom_product_colors[]
+  colors     custom_product_colors[]
   size_chart custom_product_sizes[]
 
   @@unique([tenant_id, product_key], map: "uq_custom_products_slot")
@@ -618,14 +618,36 @@ model channel_sync_logs {
 
 /// Dedupe push notification marketplace (Shopee bisa mengirim ulang event).
 model channel_webhook_events {
-  id               String   @id @db.VarChar(36)
-  sales_channel_id String?  @db.VarChar(36)
-  event_key        String   @unique @db.VarChar(160)
-  event_code       String?  @db.VarChar(20)
-  external_shop_id String?  @db.VarChar(40)
-  payload          String?  @db.LongText
+  id               String    @id @db.VarChar(36)
+  sales_channel_id String?   @db.VarChar(36)
+  event_key        String    @unique @db.VarChar(160)
+  event_code       String?   @db.VarChar(20)
+  external_shop_id String?   @db.VarChar(40)
+  payload          String?   @db.LongText
   processed_at     DateTime? @db.DateTime(0)
-  created_at       DateTime @db.DateTime(0)
+  created_at       DateTime  @db.DateTime(0)
 
   @@index([created_at], map: "ix_channel_webhook_events_created_at")
+}
+
+/// Pesanan Custom Sticker (merchandise). Harga per lembar: BONTAX 15.000,
+/// VINYL 25.000; pembelian >= 6 lembar dapat potongan 2.000 per lembar.
+model sticker_orders {
+  id             String   @id @db.VarChar(36)
+  tenant_id      String   @db.VarChar(36)
+  order_code     String   @db.VarChar(40)
+  status         String   @db.VarChar(20)
+  customer_name  String   @db.VarChar(160)
+  customer_phone String   @db.VarChar(40)
+  material       String   @db.VarChar(30)
+  sheets         Int      @default(1)
+  unit_price     Decimal  @db.Decimal(12, 2)
+  total_price    Decimal  @db.Decimal(12, 2)
+  layout_json    String?  @db.Text
+  note           String?  @db.Text
+  created_at     DateTime @db.DateTime(0)
+  updated_at     DateTime @db.DateTime(0)
+
+  @@index([tenant_id], map: "ix_sticker_orders_tenant_id")
+  @@index([tenant_id, status], map: "ix_sticker_orders_status")
 }
