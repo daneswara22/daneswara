@@ -102,7 +102,7 @@ export default function CustomSticker() {
       w,
       h: +(w * (img.h > 0 ? img.h / img.w : 1)).toFixed(3),
     }));
-    setUploadLayout(packSheet(sizes, { repeat: false }));
+    setUploadLayout(packSheet(sizes, { repeat: true }));
   }, [images, widthCm]);
 
   useEffect(() => { arrangeUpload(); }, [arrangeUpload]);
@@ -129,6 +129,13 @@ export default function CustomSticker() {
   };
 
   const removeImage = (id) => setImages((prev) => prev.filter((i) => i.id !== id));
+
+  // Jumlah salinan per gambar (satu desain diulang otomatis).
+  const copies = useMemo(() => {
+    const m = {};
+    uploadLayout.placed.forEach((p) => { m[p.id] = (m[p.id] || 0) + 1; });
+    return m;
+  }, [uploadLayout.placed]);
 
   const isTemplate = mode === "template";
   const layout = isTemplate ? templateLayout : uploadLayout;
@@ -273,7 +280,7 @@ export default function CustomSticker() {
                         <p className="truncate text-xs font-semibold">{img.name}</p>
                         <p className="text-[11px] text-muted-foreground">
                           {toNum(widthCm).toFixed(2)} × {uploadHeight(img).toFixed(2)} cm ·{" "}
-                          {notFit ? <span className="font-semibold text-red-600">Tidak Muat</span> : "Muat"}
+                          {notFit ? <span className="font-semibold text-red-600">Tidak Muat</span> : `${copies[img.id] || 0} pcs`}
                         </p>
                       </div>
                       <button onClick={() => removeImage(img.id)} className="text-muted-foreground hover:text-red-600" data-testid={`sticker-remove-${img.id}`}>
