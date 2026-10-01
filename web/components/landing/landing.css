@@ -103,6 +103,35 @@
 /* Landing scrollbars keep the ink look */
 .dp-landing ::-webkit-scrollbar-thumb { background: #171717; border-radius: 9999px; }
 
+/* ---------------------------------------------------------------------------
+   Identitas MOBILE: biru. Hanya aktif di bawah breakpoint md (768px), jadi
+   tampilan tablet/desktop tetap memakai palet lama tanpa perubahan.
+   --------------------------------------------------------------------------- */
+@media (max-width: 767px) {
+  .dp-landing {
+    --primary: 221 83% 45%;            /* #1d4ed8 biru utama */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 214 95% 93%;          /* biru muda */
+    --secondary-foreground: 222 47% 18%;
+    --background: 210 40% 98%;         /* putih kebiruan */
+    --foreground: 222 47% 15%;         /* navy gelap */
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 214 95% 93%;
+    --accent-foreground: 222 47% 18%;
+    --border: 214 32% 91%;
+    --input: 214 32% 85%;
+    --ring: 221 83% 45%;
+  }
+  .dp-landing ::selection { background: #1d4ed8; color: #fff; }
+  .dp-landing ::-webkit-scrollbar-thumb { background: #1d4ed8; }
+  /* Mobile: bayangan dan animasi dibuat seminimal mungkin. */
+  .dp-landing .shadow-stamp,
+  .dp-landing .shadow-stamp-lg,
+  .dp-landing .shadow-stamp-red { box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08); }
+  .dp-landing .lift { transition: none; }
+}
+
 /* Toasts fired from landing pages */
 .dp-toaster [data-sonner-toast] {
   border: 1.5px solid hsl(0 0% 89%) !important;
