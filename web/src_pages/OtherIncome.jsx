@@ -155,7 +155,7 @@ export default function OtherIncome() {
         <div className="flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-md bg-emerald-500/10 text-emerald-600"><HandCoins className="h-5 w-5" /></div>
           <div>
-            <p className="text-xs uppercase tracking-widest text-muted-foreground">Total Pendapatan Lain-lain ({list.length} catatan)</p>
+            <p className="text-xs uppercase tracking-widest text-muted-foreground">Total Pendapatan Lain-lain ({filtered.length} catatan)</p>
             <p className="font-display text-2xl font-bold text-emerald-600" data-testid="other-income-total">{rupiah(total)}</p>
           </div>
         </div>
@@ -174,7 +174,7 @@ export default function OtherIncome() {
             </tr>
           </thead>
           <tbody>
-            {list.map((e) => (
+            {filtered.map((e) => (
               <tr key={e.id} className="border-t border-border" data-testid={`other-income-${e.id}`}>
                 <td className="px-4 py-3 whitespace-nowrap">{e.date}</td>
                 <td className="px-4 py-3"><span className="rounded-full bg-secondary px-2 py-0.5 text-xs font-medium">{e.category}</span></td>
