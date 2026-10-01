@@ -155,7 +155,7 @@ export default function Expenses() {
         <div className="flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-md bg-destructive/10 text-destructive"><Wallet className="h-5 w-5" /></div>
           <div>
-            <p className="text-xs uppercase tracking-widest text-muted-foreground">Total Pengeluaran ({list.length} catatan)</p>
+            <p className="text-xs uppercase tracking-widest text-muted-foreground">Total Pengeluaran ({filtered.length} catatan)</p>
             <p className="font-display text-2xl font-bold" data-testid="expense-total">{rupiah(total)}</p>
           </div>
         </div>
@@ -174,7 +174,7 @@ export default function Expenses() {
             </tr>
           </thead>
           <tbody>
-            {list.map((e) => (
+            {filtered.map((e) => (
               <tr key={e.id} className="border-t border-border" data-testid={`expense-${e.id}`}>
                 <td className="px-4 py-3 whitespace-nowrap">{e.date}</td>
                 <td className="px-4 py-3"><span className="rounded-full bg-secondary px-2 py-0.5 text-xs font-medium">{e.category}</span></td>
