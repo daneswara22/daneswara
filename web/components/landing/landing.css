@@ -130,6 +130,8 @@
   .dp-landing .shadow-stamp-lg,
   .dp-landing .shadow-stamp-red { box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08); }
   .dp-landing .lift { transition: none; }
+  /* Live Chat dipindah ke header (kiri ikon keranjang), bubble apung disembunyikan. */
+  body.dp-has-mobile-bar [data-testid='chat-widget-button'] { display: none; }
 }
 
 /* Toasts fired from landing pages */

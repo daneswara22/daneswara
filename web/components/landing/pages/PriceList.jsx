@@ -16,6 +16,7 @@ import { Link } from "react-router-dom";
 import { ArrowLeft, ShoppingBag, Check, Shirt, Loader2, ImageOff, X, Ruler } from "lucide-react";
 import { useLang } from "@/components/landing/i18n/LangContext";
 import { SubPageBar } from "@/components/landing/components/SubPageBar";
+import { PRINT_OPTIONS, DOUBLE_PRINT_MOCKUPS, DOUBLE_PRINT_DISCOUNT } from "@/lib/printOptions";
 
 const PAGE_SIZE = 9;
 
@@ -23,20 +24,10 @@ const PAGE_SIZE = 9;
    logo di menu Pengaturan */
 const FALLBACK_LOGO = "/assets/daneswara-logo.webp";
 
-const PRINTS = [
-  { id: "logo", label: "Logo", price: 10000, mockup: "/assets/mockups/logo-front.webp" },
-  { id: "a5", label: "A5", price: 15000, mockup: "/assets/mockups/a5.webp" },
-  { id: "a4", label: "A4", price: 25000, mockup: "/assets/mockups/a4.webp" },
-  { id: "a3", label: "A3", price: 30000, mockup: "/assets/mockups/a3.webp" },
-];
-const DOUBLE = {
-  "logo+logo": "/assets/mockups/logo-logo.webp", "a5+logo": "/assets/mockups/logo-a5.webp",
-  "a4+logo": "/assets/mockups/logo-a4.webp", "a3+logo": "/assets/mockups/logo-a3.webp",
-  "a5+a5": "/assets/mockups/a5-a5.webp", "a4+a5": "/assets/mockups/a5-a4.webp",
-  "a3+a5": "/assets/mockups/a5-a3.webp", "a4+a4": "/assets/mockups/a4-a4.webp",
-  "a3+a4": "/assets/mockups/a4-a3.webp", "a3+a3": "/assets/mockups/a3-a3.webp",
-};
-const DISCOUNT = 5000;
+/* Sumber tunggal opsi printing + mockup + harga, dipakai bersama katalog mobile. */
+const PRINTS = PRINT_OPTIONS;
+const DOUBLE = DOUBLE_PRINT_MOCKUPS;
+const DISCOUNT = DOUBLE_PRINT_DISCOUNT;
 const key = (a, b) => [a.id, b.id].sort().join("+");
 const Rp = (n) => "Rp " + Number(n || 0).toLocaleString("id-ID");
 const PAIRS = (() => { const o=[]; for (let i=0;i<PRINTS.length;i++) for (let j=i;j<PRINTS.length;j++) o.push([PRINTS[i],PRINTS[j]]); return o.sort((a,b)=>a[0].price+a[1].price-(b[0].price+b[1].price)); })();
