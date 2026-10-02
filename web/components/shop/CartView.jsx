@@ -48,61 +48,73 @@ export default function CartView() {
 
       <div className="space-y-2 px-3 pt-2">
         {items.map((i) => (
-          <div key={i.id} className="flex gap-3 rounded-xl border border-slate-200 bg-white p-3" data-testid={`cart-item-${i.slug}`}>
-            <input
-              type="checkbox"
-              checked={!!i.selected}
-              onChange={(e) => updateItem(i.id, { selected: e.target.checked })}
-              data-testid={`cart-check-${i.slug}`}
-              className="mt-1 h-[18px] w-[18px] shrink-0 accent-blue-700"
-              aria-label={`Pilih ${i.name}`}
-            />
-            <img src={i.design || i.thumb} alt={i.name} className="h-20 w-20 shrink-0 rounded-lg bg-slate-100 object-cover" />
-            <div className="min-w-0 flex-1">
-              <div className="line-clamp-2 text-[13px] font-medium leading-snug text-slate-900">{i.name}</div>
-              {optionText(i.options) && (
-                <div className="mt-1 inline-block rounded-md bg-slate-100 px-2 py-0.5 text-[11px] text-slate-600">{optionText(i.options)}</div>
-              )}
-              {i.designName && <div className="mt-1 truncate text-[11px] text-slate-400">Desain: {i.designName}</div>}
-              <div className="mt-2 flex items-center justify-between">
-                <span className="text-[15px] font-bold text-blue-700">{rupiah(i.unitPrice * i.qty)}</span>
-                <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => setQty(i, i.qty - 1)}
-                    data-testid={`cart-minus-${i.slug}`}
-                    className="flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 text-slate-700"
-                    aria-label="Kurangi"
-                  >
-                    <Minus size={13} />
-                  </button>
-                  <span className="min-w-[26px] text-center text-[13px] font-semibold text-slate-900">{i.qty}</span>
-                  <button
-                    type="button"
-                    onClick={() => setQty(i, i.qty + 1)}
-                    data-testid={`cart-plus-${i.slug}`}
-                    className="flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 text-slate-700"
-                    aria-label="Tambah"
-                  >
-                    <Plus size={13} />
-                  </button>
-                  <Link
-                    href={`/belanja/${i.slug}`}
-                    data-testid={`cart-edit-${i.slug}`}
-                    className="ml-1 px-1 text-[12px] font-medium text-blue-700"
-                  >
-                    Ubah
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={() => removeItem(i.id)}
-                    data-testid={`cart-remove-${i.slug}`}
-                    className="p-1 text-red-600"
-                    aria-label="Hapus"
-                  >
-                    <Trash2 size={15} />
-                  </button>
-                </div>
+          <div key={i.id} className="rounded-xl border border-slate-200 bg-white p-3" data-testid={`cart-item-${i.slug}`}>
+            {/* Baris atas: thumbnail & info tetap di kiri */}
+            <div className="flex gap-3">
+              <input
+                type="checkbox"
+                checked={!!i.selected}
+                onChange={(e) => updateItem(i.id, { selected: e.target.checked })}
+                data-testid={`cart-check-${i.slug}`}
+                className="mt-1 h-[18px] w-[18px] shrink-0 accent-blue-700"
+                aria-label={`Pilih ${i.name}`}
+              />
+              <img src={i.design || i.thumb} alt={i.name} className="h-[72px] w-[72px] shrink-0 rounded-lg bg-slate-100 object-cover" />
+              <div className="min-w-0 flex-1">
+                <div className="line-clamp-2 text-[13px] font-medium leading-snug text-slate-900">{i.name}</div>
+                {optionText(i.options) && (
+                  <div className="mt-1 inline-block max-w-full truncate rounded-md bg-slate-100 px-2 py-0.5 text-[11px] text-slate-600">
+                    {optionText(i.options)}
+                  </div>
+                )}
+                {i.designName && <div className="mt-1 truncate text-[11px] text-slate-400">Desain: {i.designName}</div>}
+                <div className="mt-1.5 text-[15px] font-bold text-blue-700">{rupiah(i.unitPrice * i.qty)}</div>
+              </div>
+            </div>
+
+            {/* Baris kontrol: satu baris penuh, tersebar rata, aman di layar sempit */}
+            <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-slate-100 pt-2.5">
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setQty(i, i.qty - 1)}
+                  data-testid={`cart-minus-${i.slug}`}
+                  className="flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 text-slate-700"
+                  aria-label="Kurangi"
+                >
+                  <Minus size={14} />
+                </button>
+                <span className="min-w-[30px] text-center text-[13px] font-semibold text-slate-900">{i.qty}</span>
+                <button
+                  type="button"
+                  onClick={() => setQty(i, i.qty + 1)}
+                  data-testid={`cart-plus-${i.slug}`}
+                  className="flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 text-slate-700"
+                  aria-label="Tambah"
+                >
+                  <Plus size={14} />
+                </button>
+              </div>
+              <span className="truncate text-[11px] text-slate-400">
+                {rupiah(i.unitPrice)} / {i.unitLabel || 'pcs'}
+              </span>
+              <div className="flex items-center gap-1">
+                <Link
+                  href={`/belanja/${i.slug}`}
+                  data-testid={`cart-edit-${i.slug}`}
+                  className="rounded-md px-2 py-1.5 text-[12px] font-medium text-blue-700"
+                >
+                  Ubah
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => removeItem(i.id)}
+                  data-testid={`cart-remove-${i.slug}`}
+                  className="rounded-md p-1.5 text-red-600"
+                  aria-label="Hapus"
+                >
+                  <Trash2 size={16} />
+                </button>
               </div>
             </div>
           </div>

@@ -2,13 +2,10 @@ import { Link } from "react-router-dom";
 import { ArrowLeft, Printer } from "lucide-react";
 import { useLang } from "@/components/landing/i18n/LangContext";
 import { SubPageBar } from "@/components/landing/components/SubPageBar";
+import { PRINT_OPTIONS } from "@/lib/printOptions";
 
-const PRINTS = [
-  { id: "a3", label: "A3", base: 30000 },
-  { id: "a4", label: "A4", base: 25000 },
-  { id: "a5", label: "A5", base: 15000 },
-  { id: "logo", label: "Logo", base: 10000 },
-];
+/* Memakai sumber tunggal lib/printOptions.ts, diurutkan dari harga tertinggi. */
+const PRINTS = [...PRINT_OPTIONS].sort((a, b) => b.price - a.price).map((p) => ({ ...p, base: p.price }));
 const ADD_ON = 5000;
 
 const formatRp = (n) => "Rp " + n.toLocaleString("id-ID");
@@ -54,7 +51,7 @@ export default function PriceListPrintOnly() {
 
           <div className="mt-6 grid grid-cols-2 lg:grid-cols-4 gap-4">
             {PRINTS.map((p) => {
-              const mockup = { a3: "/assets/mockups/a3.webp", a4: "/assets/mockups/a4.webp", a5: "/assets/mockups/a5.webp", logo: "/assets/mockups/logo-front.webp" }[p.id];
+              const mockup = p.mockup;
               const params = new URLSearchParams({
                 shirt: isID ? "Sablon Saja (bawa kaos sendiri)" : "Screen Print Only (BYO shirt)",
                 shirtId: "byo", package: p.label, packageId: `only-${p.id}`, price: String(p.base + ADD_ON),

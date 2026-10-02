@@ -5,6 +5,7 @@ import { Search, Phone, Images, ListOrdered } from 'lucide-react';
 import { rupiah } from '@/lib/api';
 import { useShopCatalog, startingPrice } from '@/lib/shopCatalog';
 import MobileBottomNav from '@/components/shop/MobileBottomNav';
+import MobileHeaderActions from '@/components/shop/MobileHeaderActions';
 
 const SHORTCUTS = [
   { href: '/galeri', label: 'Galeri', icon: Images },
@@ -20,10 +21,11 @@ export default function MobileShopHome({ showHero = true }) {
       <div className="bg-blue-700 px-4 pb-5 pt-4 text-white">
         <div className="flex items-center gap-2">
           <img src="/assets/daneswara-logo.webp" alt="Daneswara Print" className="h-7 w-7 rounded-md bg-white object-contain p-0.5" />
-          <div className="leading-tight">
+          <div className="min-w-0 flex-1 leading-tight">
             <div className="text-[15px] font-semibold">Daneswara Print</div>
             <div className="text-[11px] text-blue-100">Kaos, Stiker &amp; Banner Custom</div>
           </div>
+          <MobileHeaderActions tone="light" />
         </div>
         {showHero && (
           <Link

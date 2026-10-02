@@ -13,6 +13,7 @@ import {
   STICKER_BULK_MIN,
   STICKER_BULK_DISCOUNT,
 } from '@/lib/stickerPricing';
+import { PRINT_OPTIONS_WITH_PLAIN } from '@/lib/printOptions';
 
 const PRINTING_CATEGORY = 'printing';
 const FALLBACK_THUMB = '/assets/mockups/logo-a4.webp';
@@ -22,15 +23,16 @@ const STICKER_THUMB: Record<string, string> = {
 };
 
 /**
- * Dipakai kalau admin belum membuat jenis produk ber-category 'printing'.
- * Begitu baris tersebut ada di database, nilai ini otomatis tidak dipakai.
+ * Opsi printing bawaan = data yang sama dengan halaman /price-list
+ * (lib/printOptions.ts), termasuk mockup dan harganya. Tidak ada angka yang
+ * diduplikasi di sini. Kalau admin membuat jenis produk ber-category
+ * 'printing', daftar dari database yang dipakai.
  */
-const DEFAULT_PRINTS = [
-  { v: 'Logo Printing', add: 25000 },
-  { v: 'Logo + A4', add: 40000 },
-  { v: 'Logo + A3', add: 50000 },
-  { v: 'Full Print', add: 65000 },
-];
+const DEFAULT_PRINTS = PRINT_OPTIONS_WITH_PLAIN.map((o) => ({
+  v: o.label,
+  add: o.price,
+  thumb: o.mockup,
+}));
 
 export interface ShopProduct {
   slug: string;
@@ -48,7 +50,7 @@ export interface ShopProduct {
   productKey?: string;
   productTitle?: string;
   href?: string;
-  prints?: { v: string; add: number }[];
+  prints?: { v: string; add: number; thumb?: string }[];
   sizes?: { v: string; add: number }[];
   colors?: { v: string; hex: string }[];
   bulkMin?: number;
@@ -62,7 +64,11 @@ export async function buildShopCatalog(): Promise<ShopProduct[]> {
     (p: any) => String(p.category || '').trim().toLowerCase() === PRINTING_CATEGORY,
   );
   const prints = printingRows.length
-    ? printingRows.map((p: any) => ({ v: p.title, add: Number(p.price) || 0 }))
+    ? printingRows.map((p: any) => ({
+        v: p.title,
+        add: Number(p.price) || 0,
+        thumb: p.thumbnail_url || (p.colors || []).find((c: any) => c.thumb_url)?.thumb_url || '',
+      }))
     : DEFAULT_PRINTS;
 
   const tees: ShopProduct[] = items
