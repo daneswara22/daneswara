@@ -13,7 +13,11 @@ import {
   STICKER_BULK_MIN,
   STICKER_BULK_DISCOUNT,
 } from '@/lib/stickerPricing';
-import { PRINT_OPTIONS_WITH_PLAIN } from '@/lib/printOptions';
+import {
+  PRINT_OPTIONS_WITH_PLAIN,
+  DOUBLE_PRINT_MOCKUPS,
+  DOUBLE_PRINT_DISCOUNT,
+} from '@/lib/printOptions';
 
 const PRINTING_CATEGORY = 'printing';
 const FALLBACK_THUMB = '/assets/mockups/logo-a4.webp';
@@ -29,6 +33,7 @@ const STICKER_THUMB: Record<string, string> = {
  * 'printing', daftar dari database yang dipakai.
  */
 const DEFAULT_PRINTS = PRINT_OPTIONS_WITH_PLAIN.map((o) => ({
+  id: o.id,
   v: o.label,
   add: o.price,
   thumb: o.mockup,
@@ -50,7 +55,11 @@ export interface ShopProduct {
   productKey?: string;
   productTitle?: string;
   href?: string;
-  prints?: { v: string; add: number; thumb?: string }[];
+  prints?: { id: string; v: string; add: number; thumb?: string }[];
+  /** Diskon kalau pelanggan mencetak depan + belakang sekaligus. */
+  doubleDiscount?: number;
+  /** Mockup kombinasi dua sisi, kunci dari pairKey(idDepan, idBelakang). */
+  pairMockups?: Record<string, string>;
   sizes?: { v: string; add: number }[];
   colors?: { v: string; hex: string }[];
   bulkMin?: number;
@@ -65,6 +74,7 @@ export async function buildShopCatalog(): Promise<ShopProduct[]> {
   );
   const prints = printingRows.length
     ? printingRows.map((p: any) => ({
+        id: p.product_key,
         v: p.title,
         add: Number(p.price) || 0,
         thumb: p.thumbnail_url || (p.colors || []).find((c: any) => c.thumb_url)?.thumb_url || '',
@@ -93,6 +103,8 @@ export async function buildShopCatalog(): Promise<ShopProduct[]> {
         productKey: p.product_key,
         productTitle: p.title,
         prints,
+        doubleDiscount: DOUBLE_PRINT_DISCOUNT,
+        pairMockups: DOUBLE_PRINT_MOCKUPS,
         sizes: (p.size_chart || []).map((s: any) => ({ v: s.label, add: 0 })),
         colors: colors.length ? colors : undefined,
       };

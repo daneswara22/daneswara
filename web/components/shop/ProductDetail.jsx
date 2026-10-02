@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { Minus, Plus, Upload, X } from 'lucide-react';
 import { rupiah } from '@/lib/api';
-import { unitPrice } from '@/lib/shopCatalog';
+import { unitPrice, printBreakdown, pairMockup, PRINT_SIDES, DOUBLE_SIDE } from '@/lib/shopCatalog';
 import { addToCart } from '@/lib/shopCart';
 import MobileTopBar from '@/components/shop/MobileTopBar';
 
@@ -15,7 +15,9 @@ export default function ProductDetail({ product }) {
   const router = useRouter();
   const fileRef = useRef(null);
   const [imgIdx, setImgIdx] = useState(0);
+  const [side, setSide] = useState('Depan');
   const [print, setPrint] = useState(product.prints?.[0]?.v || '');
+  const [print2, setPrint2] = useState(product.prints?.[1]?.v || product.prints?.[0]?.v || '');
   const [size, setSize] = useState(product.sizes?.[0]?.v || '');
   const [color, setColor] = useState(product.colors?.[0]?.v || '');
   const [qty, setQty] = useState(1);
@@ -24,7 +26,21 @@ export default function ProductDetail({ product }) {
   const [designName, setDesignName] = useState('');
 
   const gallery = product.gallery?.length ? product.gallery : [product.thumb];
-  const options = useMemo(() => ({ print, size, color }), [print, size, color]);
+  const twoSided = side === DOUBLE_SIDE;
+  const options = useMemo(
+    () => ({
+      ...(product.prints?.length ? { side } : {}),
+      print,
+      ...(twoSided ? { print2 } : {}),
+      size,
+      color,
+    }),
+    [product.prints, side, print, print2, twoSided, size, color],
+  );
+  const breakdown = printBreakdown(product, options);
+  // Dua sisi: tampilkan mockup kombinasi yang sudah ada di /price-list.
+  const comboMockup = pairMockup(product, options);
+  const mainImage = comboMockup || gallery[imgIdx] || product.thumb;
   const unit = unitPrice(product, options, qty);
   const total = unit * qty;
   const unitLabel = product.unitLabel || 'pcs';
@@ -62,11 +78,8 @@ export default function ProductDetail({ product }) {
     note: note.trim(),
     design,
     designName,
-    options: {
-      ...(print ? { print } : {}),
-      ...(size ? { size } : {}),
-      ...(color ? { color } : {}),
-    },
+    // Ikut membawa sisi printing & opsi sisi belakang supaya tersimpan di pesanan.
+    options,
   });
 
   const onAdd = () => {
@@ -90,7 +103,7 @@ export default function ProductDetail({ product }) {
 
       {/* Galeri */}
       <div className="bg-white">
-        <img src={gallery[imgIdx]} alt={product.name} className="aspect-square w-full bg-slate-100 object-cover" />
+        <img src={mainImage} alt={product.name} className="aspect-square w-full bg-slate-100 object-cover" />
         {gallery.length > 1 && (
           <div className="flex gap-2 overflow-x-auto px-3 py-2.5">
             {gallery.map((g, i) => (
@@ -108,46 +121,64 @@ export default function ProductDetail({ product }) {
         )}
       </div>
 
-      {/* Opsi printing bergambar: data & harga sama dengan /price-list */}
+      {/* Opsi printing bergambar: data, mockup, dan harga sama dengan /price-list */}
       {product.prints?.length > 0 && (
         <section className="mt-2 bg-white py-3" data-testid="print-thumb-row">
-          <div className="px-4 pb-2 text-[12px] font-semibold text-slate-900">Pilih Jenis Printing</div>
-          <div className="flex gap-2 overflow-x-auto px-4 pb-1">
-            {product.prints.map((o, i) => {
-              const on = print === o.v;
-              return (
-                <button
-                  type="button"
-                  key={o.v}
-                  onClick={() => setPrint(o.v)}
-                  data-testid={`print-thumb-${o.v}`}
-                  aria-pressed={on}
-                  className={`relative w-[82px] shrink-0 overflow-hidden rounded-xl border-2 bg-white text-left ${
-                    on ? 'border-blue-700' : 'border-slate-200'
-                  }`}
-                >
-                  <span
-                    className={`absolute left-1 top-1 z-10 flex h-[18px] w-[18px] items-center justify-center rounded-full text-[10px] font-bold ${
-                      on ? 'bg-blue-700 text-white' : 'bg-slate-900/70 text-white'
-                    }`}
-                  >
-                    {i + 1}
-                  </span>
-                  <img
-                    src={o.thumb || product.thumb}
-                    alt={o.v}
-                    loading="lazy"
-                    className="aspect-square w-full bg-slate-100 object-contain"
-                  />
-                  <span className={`block truncate px-1.5 pt-1 text-[11px] font-medium ${on ? 'text-blue-800' : 'text-slate-700'}`}>
-                    {o.v}
-                  </span>
-                  <span className={`block px-1.5 pb-1.5 text-[10px] ${on ? 'text-blue-700' : 'text-slate-500'}`}>
-                    {o.add > 0 ? `+${rupiah(o.add)}` : 'Tanpa biaya'}
-                  </span>
-                </button>
-              );
-            })}
+          {/* Sisi yang dicetak */}
+          <div className="px-4 pb-2 text-[12px] font-semibold text-slate-900">Sisi Printing</div>
+          <div className="flex gap-2 overflow-x-auto px-4 pb-3">
+            {PRINT_SIDES.map((sv) => (
+              <button
+                type="button"
+                key={sv}
+                onClick={() => setSide(sv)}
+                data-testid={`opt-side-${sv}`}
+                aria-pressed={side === sv}
+                className={`shrink-0 rounded-lg border px-3 py-2 text-[12px] font-medium ${
+                  side === sv ? 'border-blue-700 bg-blue-50 text-blue-800' : 'border-slate-200 bg-white text-slate-700'
+                }`}
+              >
+                {sv}
+              </button>
+            ))}
+          </div>
+
+          <PrintPicker
+            label={twoSided ? 'Printing Sisi Depan' : `Printing ${side}`}
+            prints={product.prints}
+            value={print}
+            onChange={setPrint}
+            testPrefix="print-thumb"
+            fallbackThumb={product.thumb}
+          />
+
+          {twoSided && (
+            <PrintPicker
+              label="Printing Sisi Belakang"
+              prints={product.prints}
+              value={print2}
+              onChange={setPrint2}
+              testPrefix="print-thumb-back"
+              fallbackThumb={product.thumb}
+            />
+          )}
+
+          {/* Rincian biaya printing */}
+          <div className="mx-4 mt-3 rounded-xl bg-slate-50 p-3 text-[12px]" data-testid="print-breakdown">
+            <Row label={twoSided ? `Depan: ${print}` : `${side}: ${print}`} value={rupiah(breakdown.front?.add || 0)} />
+            {twoSided && <Row label={`Belakang: ${print2}`} value={rupiah(breakdown.back?.add || 0)} />}
+            {breakdown.discount > 0 && (
+              <Row
+                label="Diskon dua sisi"
+                value={`-${rupiah(breakdown.discount)}`}
+                tone="text-green-700"
+                testId="print-discount"
+              />
+            )}
+            <div className="mt-1.5 flex items-center justify-between border-t border-slate-200 pt-1.5 font-semibold text-slate-900">
+              <span>Biaya printing</span>
+              <span data-testid="print-total">{rupiah(breakdown.add)}</span>
+            </div>
           </div>
         </section>
       )}
@@ -296,6 +327,62 @@ export default function ProductDetail({ product }) {
             Beli Sekarang
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+/** Satu baris rincian harga. */
+function Row({ label, value, tone = 'text-slate-600', testId }) {
+  return (
+    <div className={`flex items-center justify-between ${tone}`} data-testid={testId}>
+      <span className="mr-2 min-w-0 truncate">{label}</span>
+      <span className="shrink-0 font-medium">{value}</span>
+    </div>
+  );
+}
+
+/** Baris kartu thumbnail opsi printing yang bisa di-scroll horizontal. */
+function PrintPicker({ label, prints, value, onChange, testPrefix, fallbackThumb }) {
+  return (
+    <div>
+      <div className="px-4 pb-2 text-[12px] font-semibold text-slate-900">{label}</div>
+      <div className="flex gap-2 overflow-x-auto px-4 pb-1">
+        {prints.map((o, i) => {
+          const on = value === o.v;
+          return (
+            <button
+              type="button"
+              key={o.v}
+              onClick={() => onChange(o.v)}
+              data-testid={`${testPrefix}-${o.v}`}
+              aria-pressed={on}
+              className={`relative w-[82px] shrink-0 overflow-hidden rounded-xl border-2 bg-white text-left ${
+                on ? 'border-blue-700' : 'border-slate-200'
+              }`}
+            >
+              <span
+                className={`absolute left-1 top-1 z-10 flex h-[18px] w-[18px] items-center justify-center rounded-full text-[10px] font-bold ${
+                  on ? 'bg-blue-700 text-white' : 'bg-slate-900/70 text-white'
+                }`}
+              >
+                {i + 1}
+              </span>
+              <img
+                src={o.thumb || fallbackThumb}
+                alt={o.v}
+                loading="lazy"
+                className="aspect-square w-full bg-slate-100 object-contain"
+              />
+              <span className={`block truncate px-1.5 pt-1 text-[11px] font-medium ${on ? 'text-blue-800' : 'text-slate-700'}`}>
+                {o.v}
+              </span>
+              <span className={`block px-1.5 pb-1.5 text-[10px] ${on ? 'text-blue-700' : 'text-slate-500'}`}>
+                {o.add > 0 ? `+${rupiah(o.add)}` : 'Tanpa biaya'}
+              </span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );

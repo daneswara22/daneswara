@@ -49,3 +49,10 @@ export const DOUBLE_PRINT_MOCKUPS: Record<string, string> = {
 
 /** Diskon kalau mengambil dua sisi sekaligus. */
 export const DOUBLE_PRINT_DISCOUNT = 5000;
+
+/** Kunci mockup kombinasi dua sisi; urutan id tidak berpengaruh. */
+export const pairKey = (a: string, b: string) => [a, b].sort().join('+');
+
+/** Pilihan sisi yang dicetak. */
+export const PRINT_SIDES = ['Depan', 'Belakang', 'Depan + Belakang'] as const;
+export const DOUBLE_SIDE = 'Depan + Belakang';
