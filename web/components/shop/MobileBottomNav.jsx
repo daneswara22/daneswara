@@ -30,7 +30,7 @@ export default function MobileBottomNav() {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-40 border-t border-slate-200 bg-white"
+      className="fixed bottom-0 left-0 right-0 z-40 border-t border-slate-200 bg-white md:left-1/2 md:right-auto md:w-full md:max-w-2xl md:-translate-x-1/2"
       data-testid="mobile-bottom-nav"
     >
       <div className="mx-auto grid max-w-md grid-cols-4">

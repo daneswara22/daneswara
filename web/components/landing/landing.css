@@ -100,6 +100,13 @@
 .dp-landing a.dp-frame,
 .dp-landing span.dp-frame { border-radius: 0 !important; }
 
+/* Kartu pilihan bergambar (thumbnail printing & galeri di detail produk):
+   sudut tumpul wajar, bukan pil. Tanpa ini aturan border-2 di atas
+   membulatkannya jadi oval sehingga label ikut terpotong. */
+.dp-landing .dp-soft,
+.dp-landing button.dp-soft,
+.dp-landing a.dp-soft { border-radius: 0.75rem !important; }
+
 /* Landing scrollbars keep the ink look */
 .dp-landing ::-webkit-scrollbar-thumb { background: #171717; border-radius: 9999px; }
 
