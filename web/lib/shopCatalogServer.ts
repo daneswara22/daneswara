@@ -8,6 +8,7 @@
  *                            yang sama dipakai server saat memproses pesanan
  */
 import { listProductTypes } from '@/lib/productTypeQueries';
+import { prisma } from '@/lib/db';
 import {
   STICKER_MATERIALS,
   STICKER_BULK_MIN,
@@ -69,6 +70,20 @@ export interface ShopProduct {
 export async function buildShopCatalog(): Promise<ShopProduct[]> {
   const { items } = await listProductTypes({ page: 1, limit: 50, activeOnly: true });
 
+  /**
+   * Mockup per produk yang dihasilkan dari desainer (tabel custom_mockups).
+   * Dipakai sebagai cadangan kalau Foto Produk pada menu Jenis Produk belum
+   * diunggah, supaya tiap produk tidak jatuh ke satu gambar cadangan yang sama.
+   */
+  const mockupRows = await prisma.custom_mockups.findMany({
+    orderBy: [{ sort_order: 'asc' }],
+    select: { product_key: true, image_url: true },
+  });
+  const mockupByKey = new Map<string, string>();
+  for (const m of mockupRows) {
+    if (m.image_url && !mockupByKey.has(m.product_key)) mockupByKey.set(m.product_key, m.image_url);
+  }
+
   const printingRows = items.filter(
     (p: any) => String(p.category || '').trim().toLowerCase() === PRINTING_CATEGORY,
   );
@@ -87,8 +102,10 @@ export async function buildShopCatalog(): Promise<ShopProduct[]> {
       const colors = (p.colors || [])
         .filter((c: any) => c.is_active)
         .map((c: any) => ({ v: c.name, hex: c.hex }));
+      // Prioritas: Foto Produk -> mockup produk -> thumbnail warna -> cadangan
       const colorThumb = (p.colors || []).find((c: any) => c.thumb_url)?.thumb_url || '';
-      const thumb = p.thumbnail_url || colorThumb || FALLBACK_THUMB;
+      const thumb =
+        p.thumbnail_url || mockupByKey.get(p.product_key) || colorThumb || FALLBACK_THUMB;
       return {
         slug: p.product_key,
         kind: 'tee' as const,
