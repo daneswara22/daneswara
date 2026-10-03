@@ -122,7 +122,7 @@ export default function CartView() {
       </div>
 
       {items.length > 0 && (
-        <div className="fixed bottom-[57px] left-0 right-0 z-50 border-t border-slate-200 bg-white px-3 py-2.5" data-testid="cart-action-bar">
+        <div className="fixed bottom-[57px] left-0 right-0 z-50 border-t border-slate-200 bg-white px-3 py-2.5 md:left-1/2 md:right-auto md:w-full md:max-w-2xl md:-translate-x-1/2" data-testid="cart-action-bar">
           <div className="flex items-center gap-3">
             <label className="flex shrink-0 items-center gap-2 text-[12px] font-medium text-slate-700">
               <input

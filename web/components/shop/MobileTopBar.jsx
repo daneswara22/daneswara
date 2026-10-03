@@ -4,11 +4,12 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import MobileHeaderActions from '@/components/shop/MobileHeaderActions';
 
-export default function MobileTopBar({ title, back = true, cart = true }) {
+export default function MobileTopBar({ title, back = true, cart = true, maxWidth = 'md:max-w-2xl' }) {
   const router = useRouter();
 
   return (
-    <header className="sticky top-0 z-30 flex items-center gap-2 border-b border-slate-200 bg-white px-3 py-3" data-testid="mobile-topbar">
+    <header className="sticky top-0 z-30 border-b border-slate-200 bg-white" data-testid="mobile-topbar">
+      <div className={`flex items-center gap-2 px-3 py-3 md:mx-auto md:w-full md:px-6 ${maxWidth}`}>
       {back && (
         <button
           type="button"
@@ -21,7 +22,8 @@ export default function MobileTopBar({ title, back = true, cart = true }) {
         </button>
       )}
       <h1 className="flex-1 truncate text-[15px] font-semibold text-slate-900">{title}</h1>
-      <MobileHeaderActions tone="dark" showCart={cart} />
+        <MobileHeaderActions tone="dark" showCart={cart} />
+      </div>
     </header>
   );
 }

@@ -98,11 +98,13 @@ export default function ProductDetail({ product }) {
     }`;
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-32" data-testid={`product-detail-${product.slug}`}>
-      <MobileTopBar title={product.name} />
+    <div className="min-h-screen bg-slate-50 pb-32 md:pb-12" data-testid={`product-detail-${product.slug}`}>
+      <MobileTopBar title={product.name} maxWidth="md:max-w-xl lg:max-w-5xl" />
 
-      {/* Galeri */}
-      <div className="bg-white">
+      {/* Tablet: satu kolom terpusat. Desktop (lg+): dua kolom, galeri menetap di kiri. */}
+      <div className="md:mx-auto md:max-w-xl md:px-6 md:py-6 lg:grid lg:max-w-5xl lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)] lg:items-start lg:gap-6">
+        {/* Galeri */}
+        <div className="bg-white lg:sticky lg:top-[88px] md:overflow-hidden md:rounded-2xl md:border md:border-slate-200">
         <img src={mainImage} alt={product.name} className="aspect-square w-full bg-slate-100 object-cover" />
         {gallery.length > 1 && (
           <div className="flex gap-2 overflow-x-auto px-3 py-2.5">
@@ -112,18 +114,21 @@ export default function ProductDetail({ product }) {
                 key={g}
                 onClick={() => setImgIdx(i)}
                 data-testid={`gallery-thumb-${i}`}
-                className={`h-14 w-14 shrink-0 overflow-hidden rounded-lg border-2 ${i === imgIdx ? 'border-blue-700' : 'border-slate-200'}`}
+                className={`dp-soft h-14 w-14 shrink-0 overflow-hidden rounded-lg border-2 ${i === imgIdx ? 'border-blue-700' : 'border-slate-200'}`}
               >
                 <img src={g} alt="" className="h-full w-full object-cover" />
               </button>
             ))}
           </div>
         )}
-      </div>
+        </div>
+
+        {/* Kolom kanan: informasi, pilihan, dan aksi */}
+        <div className="md:space-y-4 lg:min-w-0">
 
       {/* Opsi printing bergambar: data, mockup, dan harga sama dengan /price-list */}
       {product.prints?.length > 0 && (
-        <section className="mt-2 bg-white py-3" data-testid="print-thumb-row">
+        <section className="mt-2 bg-white py-3 md:mt-0 md:rounded-2xl md:border md:border-slate-200" data-testid="print-thumb-row">
           {/* Sisi yang dicetak */}
           <div className="px-4 pb-2 text-[12px] font-semibold text-slate-900">Sisi Printing</div>
           <div className="flex gap-2 overflow-x-auto px-4 pb-3">
@@ -184,7 +189,7 @@ export default function ProductDetail({ product }) {
       )}
 
       {/* Harga + nama */}
-      <section className="mt-2 bg-white px-4 py-4">
+      <section className="mt-2 bg-white px-4 py-4 md:mt-0 md:rounded-2xl md:border md:border-slate-200">
         <div className="text-[24px] font-bold leading-none text-blue-700" data-testid="detail-price">{rupiah(unit)}</div>
         <div className="mt-1 text-[11px] text-slate-500">per {unitLabel}</div>
         <h2 className="mt-2 text-[15px] font-semibold leading-snug text-slate-900">{product.name}</h2>
@@ -193,7 +198,7 @@ export default function ProductDetail({ product }) {
       </section>
 
       {/* Pilihan */}
-      <section className="mt-2 space-y-5 bg-white px-4 py-4">
+      <section className="mt-2 space-y-5 bg-white px-4 py-4 md:mt-0 md:rounded-2xl md:border md:border-slate-200">
         {product.sizes && (
           <div>
             <div className="mb-2 text-[12px] font-semibold text-slate-900">Ukuran</div>
@@ -303,8 +308,11 @@ export default function ProductDetail({ product }) {
         </div>
       </section>
 
-      {/* Aksi sticky */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-slate-200 bg-white px-3 py-2.5" data-testid="detail-action-bar">
+      {/* Aksi: menempel di bawah pada mobile, menyatu dengan kolom kanan pada md+ */}
+      <div
+        className="fixed bottom-0 left-0 right-0 z-50 border-t border-slate-200 bg-white px-3 py-2.5 md:static md:z-auto md:rounded-2xl md:border md:px-4 md:py-4"
+        data-testid="detail-action-bar"
+      >
         <div className="mb-2 flex items-baseline justify-between">
           <span className="text-[11px] text-slate-500">Total {qty} {unitLabel}</span>
           <span className="text-[16px] font-bold text-blue-700" data-testid="detail-total">{rupiah(total)}</span>
@@ -326,6 +334,8 @@ export default function ProductDetail({ product }) {
           >
             Beli Sekarang
           </button>
+        </div>
+      </div>
         </div>
       </div>
     </div>
@@ -357,7 +367,7 @@ function PrintPicker({ label, prints, value, onChange, testPrefix, fallbackThumb
               onClick={() => onChange(o.v)}
               data-testid={`${testPrefix}-${o.v}`}
               aria-pressed={on}
-              className={`relative w-[82px] shrink-0 overflow-hidden rounded-xl border-2 bg-white text-left ${
+              className={`dp-soft relative w-[86px] shrink-0 overflow-hidden rounded-xl border-2 bg-white text-left ${
                 on ? 'border-blue-700' : 'border-slate-200'
               }`}
             >
@@ -374,10 +384,11 @@ function PrintPicker({ label, prints, value, onChange, testPrefix, fallbackThumb
                 loading="lazy"
                 className="aspect-square w-full bg-slate-100 object-contain"
               />
-              <span className={`block truncate px-1.5 pt-1 text-[11px] font-medium ${on ? 'text-blue-800' : 'text-slate-700'}`}>
+              {/* Dua baris: label panjang seperti "Tanpa Printing" tetap terbaca utuh */}
+              <span className={`block px-2 pt-1.5 text-[11px] font-medium leading-snug line-clamp-2 h-[3em] ${on ? 'text-blue-800' : 'text-slate-700'}`}>
                 {o.v}
               </span>
-              <span className={`block px-1.5 pb-1.5 text-[10px] ${on ? 'text-blue-700' : 'text-slate-500'}`}>
+              <span className={`block truncate px-2 pb-2 text-[10px] ${on ? 'text-blue-700' : 'text-slate-500'}`}>
                 {o.add > 0 ? `+${rupiah(o.add)}` : 'Tanpa biaya'}
               </span>
             </button>

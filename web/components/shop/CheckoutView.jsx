@@ -181,7 +181,7 @@ export default function CheckoutView() {
         melalui WhatsApp — sama seperti alur pesanan Custom Sticker.
       </p>
 
-      <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-slate-200 bg-white px-3 py-2.5" data-testid="checkout-action-bar">
+      <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-slate-200 bg-white px-3 py-2.5 md:left-1/2 md:right-auto md:w-full md:max-w-2xl md:-translate-x-1/2" data-testid="checkout-action-bar">
         <div className="mb-2 flex items-baseline justify-between">
           <span className="text-[11px] text-slate-500">Total estimasi</span>
           <span className="text-[16px] font-bold text-blue-700" data-testid="checkout-total">{rupiah(total)}</span>

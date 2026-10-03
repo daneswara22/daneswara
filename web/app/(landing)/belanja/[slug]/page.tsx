@@ -18,7 +18,7 @@ export default function Page() {
   }, [product]);
 
   return (
-    <div className="mx-auto w-full max-w-md">
+    <div className="mx-auto w-full max-w-md md:max-w-none">
       {loading && (
         <div className="min-h-screen bg-slate-50" data-testid="detail-loading">
           <MobileTopBar title="Memuat produk…" />
