@@ -653,3 +653,72 @@ model sticker_orders {
   @@index([tenant_id], map: "ix_sticker_orders_tenant_id")
   @@index([tenant_id, status], map: "ix_sticker_orders_status")
 }
+
+/// Mobile Platform Management (CMS storefront HP). Tabel baru & terpisah dari
+/// sistem yang sudah ada supaya tidak mengubah perilaku POS/landing existing.
+model mobile_cms_products {
+  id              String    @id @db.VarChar(36)
+  tenant_id       String    @db.VarChar(36)
+  name            String    @db.VarChar(200)
+  slug            String    @db.VarChar(200)
+  category_id     String?   @db.VarChar(36)
+  description     String?   @db.Text
+  sku             String?   @db.VarChar(100)
+  price           Float     @default(0) @db.Float
+  cost            Float     @default(0) @db.Float
+  compare_price   Float     @default(0) @db.Float
+  discount        Float     @default(0) @db.Float
+  status          String    @default("draft") @db.VarChar(20)
+  is_featured     Boolean   @default(false)
+  variants        String?   @db.Text
+  images          String?   @db.Text
+  main_image      String?   @db.Text
+  thumbnail_image String?   @db.Text
+  banner_image    String?   @db.Text
+  sort_order      Int       @default(0)
+  deleted_at      DateTime? @db.DateTime(0)
+  created_at      DateTime  @db.DateTime(0)
+  updated_at      DateTime  @db.DateTime(0)
+
+  @@index([tenant_id], map: "ix_mobile_cms_products_tenant_id")
+  @@index([tenant_id, sort_order], map: "ix_mobile_cms_products_sort")
+  @@index([tenant_id, status], map: "ix_mobile_cms_products_status")
+}
+
+model mobile_cms_categories {
+  id         String    @id @db.VarChar(36)
+  tenant_id  String    @db.VarChar(36)
+  name       String    @db.VarChar(160)
+  image      String?   @db.Text
+  sort_order Int       @default(0)
+  is_active  Boolean   @default(true)
+  deleted_at DateTime? @db.DateTime(0)
+  created_at DateTime  @db.DateTime(0)
+  updated_at DateTime  @db.DateTime(0)
+
+  @@index([tenant_id], map: "ix_mobile_cms_categories_tenant_id")
+  @@index([tenant_id, sort_order], map: "ix_mobile_cms_categories_sort")
+}
+
+model mobile_cms_media {
+  id         String   @id @db.VarChar(36)
+  tenant_id  String   @db.VarChar(36)
+  url        String   @db.Text
+  label      String   @default("") @db.VarChar(200)
+  width      Int      @default(0)
+  height     Int      @default(0)
+  sort_order Int      @default(0)
+  created_at DateTime @db.DateTime(0)
+
+  @@index([tenant_id], map: "ix_mobile_cms_media_tenant_id")
+  @@index([tenant_id, sort_order], map: "ix_mobile_cms_media_sort")
+}
+
+model mobile_cms_layout {
+  tenant_id    String    @id @db.VarChar(36)
+  sections     String?   @db.Text
+  settings     String?   @db.Text
+  published    String?   @db.LongText
+  published_at DateTime? @db.DateTime(0)
+  updated_at   DateTime  @db.DateTime(0)
+}

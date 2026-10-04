@@ -13,7 +13,7 @@ import {
   LayoutDashboard, Package, Tags, Warehouse, BarChart3, Users as UsersIcon,
   Settings as SettingsIcon, ShoppingCart, Sun, Moon, LogOut, Menu, X, Store,
   UserCircle, Truck, ClipboardList, ShoppingBag, KeyRound, Wallet, DownloadCloud, HandCoins, ReceiptText, Images, Shirt, Palette, Sticker,
-  MessagesSquare, ChevronRight, ChevronDown,
+  MessagesSquare, ChevronRight, ChevronDown, Smartphone,
 } from "lucide-react";
 import { playChatBeep, notifyBrowser } from "@/lib/chatNotify";
 
@@ -48,6 +48,7 @@ const NAV = [
           { to: "/app/pesanan-sticker", label: "Pesanan Sticker", icon: ClipboardList, roles: ["Owner", "Manager", "Kasir"] },
         ],
       },
+      { to: "/app/mobile-platform", label: "Mobile Platform Management", icon: Smartphone, roles: ["Owner", "Manager"] },
     ],
   },
   // Menu utama yang punya submenu. Pola ini bisa dipakai ulang: cukup tambah
