@@ -8,11 +8,6 @@ import { useLang } from "@/components/landing/i18n/LangContext";
  */
 export const Hero = ({ onQuoteClick, onGalleryClick }) => {
   const { t } = useLang();
-  const stats = {
-    shirts_printed: 12480,
-    happy_clients: 320,
-    years_in_print: 9,
-  };
 
   return (
     <section
@@ -65,22 +60,6 @@ export const Hero = ({ onQuoteClick, onGalleryClick }) => {
             </button>
           </div>
 
-          <div className="mt-12 grid max-w-md grid-cols-3 gap-5 sm:gap-8">
-            {[
-              { v: stats.shirts_printed?.toLocaleString?.("en-US") ?? "12,480", l: t("hero_stat_shirts") },
-              { v: `${stats.happy_clients}+`, l: t("hero_stat_clients") },
-              { v: stats.years_in_print, l: t("hero_stat_years") },
-            ].map((s, i) => (
-              <div key={i} data-testid={`hero-stat-${i}`}>
-                <div className="font-display text-3xl font-extrabold leading-none tracking-[-0.02em] text-foreground sm:text-[2.1rem]">
-                  {s.v}
-                </div>
-                <div className="mt-2 text-[10px] uppercase leading-snug tracking-[0.18em] text-muted-foreground">
-                  {s.l}
-                </div>
-              </div>
-            ))}
-          </div>
         </div>
 
         {/* ---------- Kanan: ilustrasi editor, klik -> /custom ---------- */}

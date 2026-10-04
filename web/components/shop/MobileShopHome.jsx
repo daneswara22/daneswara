@@ -1,11 +1,13 @@
 'use client';
 /** Katalog produk gaya marketplace untuk mobile (beranda + tab Produk). */
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Search, Phone, Images, ListOrdered } from 'lucide-react';
-import { rupiah } from '@/lib/api';
+import api, { rupiah } from '@/lib/api';
 import { useShopCatalog, startingPrice } from '@/lib/shopCatalog';
 import MobileBottomNav from '@/components/shop/MobileBottomNav';
 import MobileHeaderActions from '@/components/shop/MobileHeaderActions';
+import CmsStorefront from '@/components/shop/CmsStorefront';
 
 const SHORTCUTS = [
   { href: '/galeri', label: 'Galeri', icon: Images },
@@ -13,8 +15,55 @@ const SHORTCUTS = [
   { href: 'https://wa.me/6285888102930', label: 'Hubungi CS', icon: Phone },
 ];
 
+/**
+ * Snapshot CMS (Sales Channel > Mobile Platform Management).
+ * Selama admin belum menyalakan & mem-publish storefront CMS, hook ini balas
+ * null dan halaman tetap memakai tampilan lama tanpa perubahan apa pun.
+ */
+function useCmsStorefront() {
+  const [snap, setSnap] = useState(null);
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    api
+      .get('/public/mobile-storefront')
+      .then(({ data }) => alive && setSnap(data?.enabled ? data : null))
+      .catch(() => alive && setSnap(null))
+      .finally(() => alive && setReady(true));
+    return () => {
+      alive = false;
+    };
+  }, []);
+  return { snap, ready };
+}
+
 export default function MobileShopHome({ showHero = true }) {
   const { items, loading, error } = useShopCatalog();
+  const { snap, ready } = useCmsStorefront();
+
+  // Tunggu jawaban snapshot supaya tidak berkedip dari tampilan lama ke CMS.
+  if (!ready) {
+    return (
+      <div className="min-h-screen bg-slate-50 pb-24" data-testid="mobile-shop-home">
+        <div className="h-24 animate-pulse bg-blue-700" />
+        <div className="grid grid-cols-2 gap-2.5 p-3">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="aspect-square animate-pulse rounded-xl bg-slate-100" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (snap) {
+    return (
+      <div className="min-h-screen bg-slate-50 pb-24" data-testid="mobile-shop-home">
+        <CmsStorefront data={snap}>
+          <MobileBottomNav />
+        </CmsStorefront>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 pb-24" data-testid="mobile-shop-home">

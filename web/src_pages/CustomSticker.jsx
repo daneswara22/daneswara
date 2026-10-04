@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Upload, Trash2, LayoutGrid, RefreshCw, Send } from "lucide-react";
+import { Upload, Trash2, LayoutGrid, RefreshCw, Send, ArrowLeft } from "lucide-react";
 import api from "@/lib/api";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { STICKER_MATERIALS, stickerUnitPrice, stickerTotalPrice } from "@/lib/stickerPricing";
@@ -259,6 +259,13 @@ export default function CustomSticker({ publicMode = false }) {
     <>
     <div className="-m-4 space-y-6 bg-zinc-100 p-4 dark:bg-zinc-900 sm:-m-6 sm:p-6" data-testid="custom-sticker-page">
       <div>
+        <a
+          href={publicMode ? "/" : "/app"}
+          data-testid="sticker-back-home"
+          className="mb-3 inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground transition hover:bg-secondary"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" /> Kembali ke Home
+        </a>
         <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Sales Channel · Pesanan Merchandise</p>
         <h1 className="font-display text-3xl font-bold tracking-tight">Custom Sticker</h1>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -266,7 +273,7 @@ export default function CustomSticker({ publicMode = false }) {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[340px_1fr]">
+      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[340px_1fr]">
         <div className="space-y-4">
           {/* Pilih alur kerja */}
           <div className="grid grid-cols-2 gap-2 rounded-lg border border-border bg-card p-2">
@@ -290,7 +297,7 @@ export default function CustomSticker({ publicMode = false }) {
           {isTemplate && (
             <div className="space-y-3 rounded-lg border border-border bg-card p-4" data-testid="sticker-template-section">
               <div>
-                <h2 className="font-display text-base font-semibold">Template Sticker / Estimasi</h2>
+                <h2 className="font-display text-base font-semibold">Input Ukuran Lebar stiker (Tinggi Menyesuaikan)</h2>
                 <p className="text-xs text-muted-foreground">Hitung perkiraan jumlah sticker tanpa perlu mengunggah gambar.</p>
               </div>
 
@@ -408,10 +415,13 @@ export default function CustomSticker({ publicMode = false }) {
             </div>
           )}
 
-          {/* SECTION 3: Pesan sticker */}
-          <div className="space-y-3 rounded-lg border border-border bg-card p-4" data-testid="sticker-order-form">
+          {/* SECTION 3 dipindah ke bawah simulasi (lihat order-3) */}
+        </div>
+
+        {/* SECTION 3: Pilih jenis stiker */}
+        <div className="order-3 space-y-3 self-start rounded-lg border border-border bg-card p-4" data-testid="sticker-order-form">
             <div>
-              <h2 className="font-display text-base font-semibold">Pesan Sticker</h2>
+              <h2 className="font-display text-base font-semibold">Pilih Jenis Stiker</h2>
               <p className="text-xs text-muted-foreground">Harga per lembar {SHEET_W} × {SHEET_H} cm, termasuk print + cut setengah putus. Beli ≥ 6 lembar potong Rp 2.000/lembar.</p>
             </div>
 
@@ -464,11 +474,10 @@ export default function CustomSticker({ publicMode = false }) {
             <Button className="w-full gap-2" onClick={openSummary} data-testid="sticker-submit-order">
               <Send className="h-4 w-4" /> Pesan Sekarang
             </Button>
-          </div>
         </div>
 
         {/* Kanvas lembar cetak */}
-        <div className="rounded-lg border border-border bg-card p-4">
+        <div className="order-2 self-start rounded-lg border border-border bg-card p-4">
           <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
             <span>{isTemplate ? "Simulasi estimasi" : "Sticker hasil unggahan"}</span>
             <span>{layout.placed.length} sticker</span>
