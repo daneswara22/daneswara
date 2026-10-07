@@ -1,5 +1,8 @@
 // Thermal (Bluetooth BLE / ESC-POS) + Desktop (HTML iframe) printing utilities.
 import { canvasSafeUrl } from "@/lib/media";
+// Template invoice Desktop/PC (A6) — sama dengan yang dipakai share gambar.
+// Terpisah agar struk lama untuk HP/tablet tidak ikut berubah.
+import { buildDesktopInvoiceHtml, isDesktopPrintDevice } from "@/lib/invoiceTemplate";
 
 let btDevice = null;
 let btChar = null;
@@ -408,8 +411,10 @@ async function buildEscPos(r, settings) {
   return new Uint8Array(out);
 }
 
-// Desktop / HTML print via hidden iframe (works on all devices).
-export function printDesktop(r, settings) {
+// Struk HTML lama (thermal 58/80 mm). DIPAKAI APA ADANYA untuk HP, tablet, dan
+// perangkat non-desktop — jangan diubah, Desktop/PC punya templatenya sendiri
+// di lib/printInvoiceA6.js.
+function buildLegacyReceiptHtml(r, settings) {
   const logo = canvasSafeUrl(settings.logo) || `${window.location.origin}/logo.png`;
   const line = (l, rr) => `<div class="row"><span>${l}</span><span>${rr}</span></div>`;
   const items = (r.items || [])
@@ -459,6 +464,28 @@ export function printDesktop(r, settings) {
   ${r.note ? `<p class="sub">Catatan: ${r.note}</p>` : ""}
   <p class="center">${settings.receipt_footer || "Terima kasih telah berbelanja!"}</p>
 </body></html>`;
+  return html;
+}
+
+/**
+ * Cetak HTML lewat hidden iframe.
+ *
+ * Pemilihan template:
+ *   - Desktop/PC          -> invoice A6 Portrait 105x148 mm (lib/printInvoiceA6.js)
+ *   - HP / tablet / lain  -> struk lama, tanpa perubahan sama sekali
+ *
+ * Data transaksi, perhitungan, dan nominal tidak diubah di kedua jalur; hanya
+ * susunan HTML + print CSS-nya yang berbeda.
+ */
+export function printDesktop(r, settings) {
+  const pc = isDesktopPrintDevice();
+  const html = pc
+    ? buildDesktopInvoiceHtml(r, settings, {
+        rp,
+        paymentStatus,
+        logo: canvasSafeUrl(settings.logo) || `${window.location.origin}/logo.png`,
+      })
+    : buildLegacyReceiptHtml(r, settings);
   const iframe = getPrintFrame();
   const doc = iframe.contentWindow.document;
   doc.open(); doc.write(html); doc.close();
@@ -467,7 +494,7 @@ export function printDesktop(r, settings) {
   let fired = false;
   const once = () => { if (fired) return; fired = true; fire(); };
   iframe.onload = once;
-  const logoImg = doc.querySelector("img.logo");
+  const logoImg = doc.querySelector("img");
   if (!logoImg || logoImg.complete) once();
   else { logoImg.onload = once; logoImg.onerror = once; setTimeout(once, 400); }
 }
