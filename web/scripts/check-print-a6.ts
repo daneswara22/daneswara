@@ -78,7 +78,16 @@ ok(shareBody.includes('class="t">Rp26.000'), 'Total item di kolom TOTAL');
 
 console.log('\n--- 4. Pembayaran + ringkasan + status ---');
 ok(shareBody.includes('PEMBAYARAN :'), 'Box PEMBAYARAN');
-ok(shareBody.includes('6115123**231**') && shareBody.includes('0556010290545**02'), 'Rekening BCA & BRI');
+ok(
+  shareBody.includes('6115123231') && shareBody.includes('055601029054502'),
+  'Nomor rekening BCA & BRI terbaru (tanpa sensor)',
+);
+ok(!shareBody.includes('**'), 'Tidak ada sisa angka tersensor');
+ok(
+  shareBody.includes('/assets/banks/bca.webp') && shareBody.includes('/assets/banks/bri.webp'),
+  'Logo bank BCA & BRI dipakai sesuai nama bank',
+);
+ok(/onerror="[^"]*<i>BCA<\/i>/.test(shareBody), 'Ada fallback teks bila logo bank gagal dimuat');
 ok(shareBody.includes('Made Surya Darma'), 'Rekening An');
 ok(/flex: 0 0 45mm/.test(INVOICE_CSS), 'Box pembayaran compact (45mm), tidak terlalu besar');
 ok(shareBody.includes('JUMLAH ITEM') && shareBody.includes('>2<'), 'JUMLAH ITEM');
@@ -156,6 +165,14 @@ console.log('\n--- 7. Kesetaraan CSS cetak vs gambar ---');
   ok2(/border-collapse: separate/.test(imgCss), 'border-collapse: separate (garis tabel tidak bergeser)');
   ok2(!/border-collapse: collapse/.test(imgCss), 'Tidak ada border-collapse: collapse');
   ok2(/\.ihead-logo img \{[^}]*height:/.test(imgCss), 'Tinggi logo eksplisit (bukan max-height)');
+
+  // Tiga perbaikan kerapian yang dilaporkan pada hasil share gambar.
+  ok2(/\.iitems td \{[^}]*vertical-align: middle/.test(imgCss), 'Baris pesanan rata tengah vertikal');
+  ok2(/\.isum tr\.prelast td \{ padding-bottom/.test(imgCss), 'Baris sebelum TOTAL diberi jarak dari garis');
+  ok2(shareBody.includes('class="prelast"'), 'Baris DEPOSIT (DP) ditandai prelast');
+  ok2(/\.iquote \{[^}]*align-items: center/.test(imgCss), 'Ikon "i" rata tengah terhadap teks');
+  ok2(!/\.iquote \.ic \{[^}]*font-style: italic/.test(imgCss), 'Glyph "i" tidak italic agar pas di tengah bulatan');
+  ok2(/\.ibank \.bn img \{[^}]*height:/.test(imgCss), 'Tinggi logo bank dipatok eksplisit');
   ok2(!/max-height:/.test(imgCss), 'Tidak ada deklarasi max-height (logo tidak kebesaran)');
 
   if (f2) {

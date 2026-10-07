@@ -29,8 +29,8 @@ const BRAND = {
   phone: '+62 858 8810 2930',
   website: 'www.daneswara.com',
   banks: [
-    { name: 'BCA', no: '6115123**231**' },
-    { name: 'BRI', no: '0556010290545**02' },
+    { name: 'BCA', no: '6115123231', logo: '/assets/banks/bca.webp' },
+    { name: 'BRI', no: '055601029054502', logo: '/assets/banks/bri.webp' },
   ],
   holder: 'Made Surya Darma',
 };
@@ -154,7 +154,7 @@ export function buildInvoiceCss(mode = 'print') {
 .dnsw-inv .iitems th.u, .dnsw-inv .iitems td.u { width: ${m(20)}; text-align: right; }
 .dnsw-inv .iitems th.q, .dnsw-inv .iitems td.q { width: ${m(9)}; text-align: center; }
 .dnsw-inv .iitems th.t, .dnsw-inv .iitems td.t { width: ${m(21)}; text-align: right; }
-.dnsw-inv .iitems td { padding: ${m(1.1)} ${m(1.2)}; vertical-align: top; }
+.dnsw-inv .iitems td { padding: ${m(1.3)} ${m(1.2)}; vertical-align: middle; }
 .dnsw-inv .iitems td.u, .dnsw-inv .iitems td.t { white-space: nowrap; }
 .dnsw-inv .iitems tbody tr:last-child td { border-bottom: ${p(1.1)} solid #000; }
 .dnsw-inv .iitems .nm { display: block; font-weight: 700; }
@@ -170,7 +170,14 @@ export function buildInvoiceCss(mode = 'print') {
 }
 .dnsw-inv .ibank .bt { font-size: ${p(7)}; font-weight: 800; }
 .dnsw-inv .ibank .br { display: flex; align-items: baseline; gap: ${m(1.5)}; margin-top: ${m(1)}; }
-.dnsw-inv .ibank .bn { flex: 0 0 ${m(9)}; font-size: ${p(7.4)}; font-weight: 800; font-style: italic; }
+.dnsw-inv .ibank .br { align-items: center; }
+/* Kolom logo bank berlebar tetap supaya nomor rekening tetap sejajar. */
+.dnsw-inv .ibank .bn {
+  flex: 0 0 ${m(11)}; display: flex; align-items: center;
+  font-size: ${p(7.4)}; font-weight: 800;
+}
+.dnsw-inv .ibank .bn img { display: block; height: ${m(3.2)}; width: auto; }
+.dnsw-inv .ibank .bn i { font-style: italic; }
 .dnsw-inv .ibank .bv { font-size: ${p(7)}; word-break: break-all; }
 .dnsw-inv .ibank .bd { border-top: ${p(0.6)} solid #000; margin: ${m(1.3)} 0 ${m(1)}; }
 .dnsw-inv .ibank .bh { font-size: ${p(6.6)}; }
@@ -178,10 +185,11 @@ export function buildInvoiceCss(mode = 'print') {
 
 .dnsw-inv .isum { flex: 1 1 auto; }
 .dnsw-inv .isum td { padding: ${m(0.5)} 0; font-size: ${p(7.2)}; border: 0; }
+.dnsw-inv .isum tr.prelast td { padding-bottom: ${m(1.4)}; }
 .dnsw-inv .isum td.l { text-align: left; white-space: nowrap; }
 .dnsw-inv .isum td.v { text-align: right; white-space: nowrap; }
 .dnsw-inv .isum tr.grand td {
-  border-top: ${p(1.1)} solid #000; padding-top: ${m(1.1)}; font-weight: 800;
+  border-top: ${p(1.1)} solid #000; padding-top: ${m(1.4)}; font-weight: 800;
   font-size: ${p(10.5)};
 }
 
@@ -195,14 +203,14 @@ export function buildInvoiceCss(mode = 'print') {
 .dnsw-inv .inote { margin-top: ${m(1.8)}; font-size: ${p(6.8)}; }
 .dnsw-inv .inote b { font-weight: 700; }
 .dnsw-inv .iquote {
-  display: flex; align-items: flex-start; gap: ${m(1.5)}; margin-top: ${m(1.8)};
+  display: flex; align-items: center; gap: ${m(1.5)}; margin-top: ${m(1.8)};
   background: #f2f2f2; border-radius: ${m(1.2)}; padding: ${m(1.4)} ${m(1.6)};
   font-size: ${p(6.2)}; line-height: 1.3;
 }
 .dnsw-inv .iquote .ic {
   flex: 0 0 auto; width: ${m(3.4)}; height: ${m(3.4)}; border-radius: 50%;
   background: #000; color: #fff; font-size: ${p(5.6)}; font-weight: 800;
-  text-align: center; line-height: ${m(3.4)}; font-style: italic;
+  text-align: center; line-height: ${m(3.4)};
 }
 .dnsw-inv .iquote b { font-weight: 700; }
 
@@ -242,6 +250,10 @@ export function buildInvoiceBody(r = {}, settings = {}, helpers = {}) {
     helpers.rp || ((n) => 'Rp' + Number(n || 0).toLocaleString('id-ID', { maximumFractionDigits: 0 }));
   const statusOf = helpers.paymentStatus || (() => '');
   const logo = helpers.logo || '';
+
+  // Aset lokal dipanggil dengan URL absolut supaya tetap termuat di dalam
+  // iframe cetak (about:blank) maupun saat dirender html2canvas.
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
 
   const address = settings.address || BRAND.address;
   const phone = settings.phone || BRAND.phone;
@@ -285,14 +297,27 @@ export function buildInvoiceBody(r = {}, settings = {}, helpers = {}) {
   sum.push(['DEPOSIT (DP)', rp(r.deposit_amount || 0), false]);
   sum.push(['TOTAL', rp(r.total), true]);
   const sumRows = sum
-    .map(
-      ([l, v, g]) =>
-        `<tr class="${g ? 'grand' : ''}"><td class="l">${l}</td><td class="v">${v}</td></tr>`,
-    )
+    .map(([l, v, g], i) => {
+      // Baris tepat sebelum TOTAL diberi jarak bawah agar teksnya tidak
+      // menyentuh garis pemisah di atas TOTAL.
+      const cls = [g ? 'grand' : '', i === sum.length - 2 ? 'prelast' : ''].filter(Boolean).join(' ');
+      return `<tr class="${cls}"><td class="l">${l}</td><td class="v">${v}</td></tr>`;
+    })
     .join('');
 
+  // Logo bank dipakai menggantikan teks. Bila berkasnya gagal dimuat, teks nama
+  // bank tetap muncul sebagai pengganti supaya nomor rekening tidak kehilangan
+  // keterangan.
   const bankRows = BRAND.banks
-    .map((b) => `<div class="br"><span class="bn">${esc(b.name)}</span><span class="bv">${esc(b.no)}</span></div>`)
+    .map(
+      (b) => `<div class="br">
+        <span class="bn">
+          <img src="${esc(origin + b.logo)}" alt="${esc(b.name)}" crossorigin="anonymous"
+               onerror="this.insertAdjacentHTML('afterend','<i>${esc(b.name)}</i>');this.remove()"/>
+        </span>
+        <span class="bv">${esc(b.no)}</span>
+      </div>`,
+    )
     .join('');
 
   return `<div class="dnsw-inv">

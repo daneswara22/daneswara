@@ -494,9 +494,17 @@ export function printDesktop(r, settings) {
   let fired = false;
   const once = () => { if (fired) return; fired = true; fire(); };
   iframe.onload = once;
-  const logoImg = doc.querySelector("img");
-  if (!logoImg || logoImg.complete) once();
-  else { logoImg.onload = once; logoImg.onerror = once; setTimeout(once, 400); }
+  // Tunggu seluruh gambar (logo toko + logo bank) siap, tapi jangan sampai
+  // menahan dialog cetak bila ada yang lambat/gagal.
+  const imgs = Array.from(doc.querySelectorAll("img"));
+  const pending = imgs.filter((im) => !im.complete);
+  if (!pending.length) once();
+  else {
+    let left = pending.length;
+    const step = () => { if (--left <= 0) once(); };
+    pending.forEach((im) => { im.onload = step; im.onerror = step; });
+    setTimeout(once, 600);
+  }
 }
 
 // Main entry: prints according to selected mode. Falls back to desktop on error.
