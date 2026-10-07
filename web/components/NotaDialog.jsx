@@ -20,7 +20,9 @@ export function ShareNotaImageButton({ nota, settings = {}, className = "w-full 
     if (!cardRef.current) return;
     setBusy(true);
     try {
-      const blob = await captureToBlob(cardRef.current, { backgroundColor: "#15171c" });
+      // Invoice berlatar putih. Kartu sudah digambar 2x (IMAGE_UNIT_SCALE),
+      // jadi scale 1.5 sudah menghasilkan gambar ~1200px yang tajam.
+      const blob = await captureToBlob(cardRef.current, { backgroundColor: "#ffffff", scale: 1.5 });
       const fname = `nota-${nota.invoice || nota.order_number || "struk"}.png`;
       const res = await shareOrDownload(blob, fname, { title: "Nota Transaksi", text: `Nota ${nota.invoice || nota.order_number || ""}` });
       if (res === "downloaded") toast.success("Gambar nota diunduh — tinggal lampirkan di WhatsApp");

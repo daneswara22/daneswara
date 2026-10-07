@@ -70,7 +70,9 @@ export function DraftPreviewDialog({ order, onClose, settings = {} }) {
     if (!cardRef.current) return;
     setBusy(true);
     try {
-      const blob = await captureToBlob(cardRef.current, { backgroundColor: "#15171c" });
+      // Invoice berlatar putih. Kartu sudah digambar 2x (IMAGE_UNIT_SCALE),
+      // jadi scale 1.5 sudah menghasilkan gambar ~1200px yang tajam.
+      const blob = await captureToBlob(cardRef.current, { backgroundColor: "#ffffff", scale: 1.5 });
       const fname = `penawaran-${order.order_number || "draft"}.png`;
       const res = await shareOrDownload(blob, fname, { title: "Penawaran Pesanan", text: `Penawaran ${order.order_number || ""}` });
       if (res === "downloaded") toast.success("Gambar penawaran diunduh — tinggal lampirkan di WhatsApp");
