@@ -15,6 +15,21 @@ Single-container Next.js 15 App with standalone output. Coolify deploys via **Do
 
 2. **Environment Variables** (Coolify -> Environment tab):
 
+   > **Build Variable vs runtime.** Di Coolify setiap variabel punya centang
+   > **"Build Variable?"**. Kalau dicentang, Coolify menyisipkan `ARG NAMA=nilai`
+   > ke Dockerfile hasil generate-nya, sehingga **nilainya ikut tersimpan di
+   > history image dan tercetak polos di log deployment**. Jadi:
+   >
+   > - **Centang hanya** `NEXT_PUBLIC_POS_URL` dan `NEXT_PUBLIC_WA_NUMBER`.
+   >   Keduanya memang harus ada saat `next build` karena nilainya ditanam ke
+   >   bundel browser (`components/landing/components/Footer.jsx` dan
+   >   `src_pages/CustomTees.jsx`).
+   > - **Jangan dicentang** untuk `DATABASE_URL`, `JWT_SECRET`, `OWNER_PASSWORD`,
+   >   dan semua `R2_*`. Semuanya hanya dibaca saat aplikasi berjalan, jadi cukup
+   >   sebagai runtime env. Kalau sebelumnya sudah pernah dicentang, matikan
+   >   centangnya lalu **putar ulang (rotate) kunci R2 dan `JWT_SECRET`**, karena
+   >   nilai lamanya sudah ada di log deployment.
+
    Required:
    ```env
    DATABASE_URL=mysql://mariadb:<password>@b0vbpdmzlvngrbnqqzfvse5j:3306/default
@@ -48,6 +63,47 @@ Single-container Next.js 15 App with standalone output. Coolify deploys via **Do
 
 5. **Health Check**
    - Configured in Dockerfile (`GET /api/health` every 30s)
+
+## Build di server RAM 4 GB
+
+Gejala yang pernah terjadi (deploy 7 Okt 2026, commit `523b1a7`): log berhenti
+mendadak di `Collecting build traces ...` **tanpa satu pun baris error**, setelah
+`next build` berjalan 2325 detik (39 menit). Build yang sama dari commit yang sama
+selesai dalam ~50 detik di mesin lain. Jadi penyebabnya bukan kode, tapi
+**tekanan memori**: puncak pemakaian `next build` terukur ~2,0 GB, sementara server
+4 GB yang sudah dipakai MariaDB dan Coolify hanya menyisakan ~2,6 GB. Build masuk
+swap, melambat belasan kali, lalu mati di langkah yang paling rakus memori.
+
+Yang sudah dipasang di repo untuk meredakan ini:
+
+- `web/next.config.js` -> `experimental.webpackMemoryOptimizations: true`
+  (opsi resmi Next.js untuk menurunkan puncak heap webpack; hasil build identik).
+- `Dockerfile` -> `ENV NODE_OPTIONS=--max-old-space-size=2048` di stage builder,
+  supaya V8 melakukan GC lebih awal daripada membengkak ke swap.
+- `Dockerfile` -> `RUN --mount=type=cache,target=/app/.next/cache yarn build`.
+  Cache compiler Next.js bertahan antar deploy, jadi deploy berikutnya tidak
+  mengompilasi dari nol. Terukur **50,3 detik -> 31,5 detik (-37%)** di mesin
+  cepat; di server yang terbatas selisihnya biasanya lebih besar karena tahap
+  compile adalah ~70% dari total waktu build. Butuh BuildKit (sudah aktif di
+  server, lihat baris pertama log deployment).
+- `Dockerfile` -> `yarn prisma generate` menggantikan `npx prisma generate`
+  (`npx` menembak registry npm dulu; di log langkah itu sendiri makan ~20 detik).
+
+Kalau masih berat, urutan langkah berikutnya:
+
+1. Naikkan **build timeout** di Coolify (Settings resource) supaya deploy pertama
+   yang masih dingin tidak dipotong di tengah jalan.
+2. Hentikan sementara container lain yang berat saat deploy, atau deploy di jam
+   sepi, supaya sisa RAM lebih lega.
+3. Pindahkan proses build ke luar server: build image di GitHub Actions, push ke
+   registry, lalu Coolify cuma menarik image siap pakai. Ini menghilangkan beban
+   build dari server sepenuhnya.
+4. Tambah RAM. Dari angka di atas, 8 GB membuat build berjalan tanpa swap sama
+   sekali.
+
+Yang **tidak** dilakukan, supaya perilaku aplikasi tidak berubah: jumlah halaman
+yang di-prerender (95 halaman) dibiarkan apa adanya, minifikasi tetap aktif, dan
+tidak ada rute yang dipaksa jadi dinamis.
 
 ## Database
 - MariaDB is deployed as a separate Coolify resource; already contains 18 tables + seed data.

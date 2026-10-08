@@ -1,5 +1,12 @@
+# syntax=docker/dockerfile:1
 # Multi-stage Dockerfile for Next.js 15 fullstack (Coolify deploy)
 # ------------------------------------------------------------------
+# PENTING soal variabel: hanya NEXT_PUBLIC_POS_URL dan NEXT_PUBLIC_WA_NUMBER yang
+# perlu tersedia saat build (nilainya ikut ditanam oleh `next build`). Semua yang
+# rahasia - DATABASE_URL, JWT_SECRET, OWNER_PASSWORD, R2_* - adalah variabel
+# RUNTIME saja. Jangan aktifkan "Build Variable?" untuk variabel-variabel itu di
+# Coolify: build arg tersimpan di history image dan tercetak polos di log
+# deployment. Detailnya ada di DEPLOY.md.
 FROM node:20-alpine AS deps
 RUN apk add --no-cache libc6-compat openssl
 WORKDIR /app
@@ -17,9 +24,16 @@ COPY web/ ./
 COPY backend/data ./data
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
-# Generate Prisma client with correct binary target for Alpine
-RUN npx prisma generate
-RUN yarn build
+# Server build (Coolify) hanya punya RAM 4 GB. Batasi heap proses build utama
+# supaya V8 melakukan GC lebih awal, bukan membengkak lalu mendorong server ke
+# swap - swap thrashing itu yang membuat build sebelumnya makan 27 menit.
+ENV NODE_OPTIONS=--max-old-space-size=2048
+# Pakai Prisma CLI yang sudah terpasang & terpaku versinya, bukan `npx` (npx
+# menembak registry npm dulu; di log deploy langkah ini sendiri makan ~20 detik).
+RUN yarn prisma generate
+# Simpan cache compiler Next.js di cache mount BuildKit supaya deploy berikutnya
+# tidak mengompilasi semuanya dari nol. Isi cache tidak masuk ke image.
+RUN --mount=type=cache,target=/app/.next/cache yarn build
 
 # --- runner ---
 FROM node:20-alpine AS runner

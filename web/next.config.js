@@ -7,6 +7,11 @@ const nextConfig = {
   typescript: { ignoreBuildErrors: true },
   experimental: {
     serverActions: { bodySizeLimit: '25mb' },
+    // Build di server kecil (RAM 4 GB, ~2,6 GB bebas): tekan puncak heap webpack.
+    // Tiap langkah compile jadi sedikit lebih lama, tapi server berhenti masuk swap -
+    // itu yang membuat build di Coolify makan 27 menit, bukan ~1,5 menit.
+    // Opsi resmi Next.js, tidak mengubah hasil build sama sekali.
+    webpackMemoryOptimizations: true,
   },
   images: {
     unoptimized: true,
