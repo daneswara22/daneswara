@@ -33,6 +33,12 @@ const BRAND = {
     { name: 'BRI', no: '055601029054502', logo: '/assets/banks/bri.webp' },
   ],
   holder: 'Made Surya Darma',
+  /**
+   * QRIS statis milik toko. Berkasnya dibuat ulang dari payload EMVCo asli
+   * (merchant DANESWARA HO, acquirer BCA, Denpasar 80117, mata uang IDR)
+   * supaya modulnya tajam saat dicetak kecil. 41 modul + quiet zone 4 modul.
+   */
+  qris: { image: '/assets/qris/daneswara-qris.png', label: 'QRIS' },
 };
 
 const QUOTE_NOTE =
@@ -59,6 +65,23 @@ const FIT_SAFETY_MM = 2;
 
 /** Tinggi satu baris teks dalam mm. */
 const lineMm = (sizePt, lineHeight = 1.3) => sizePt * lineHeight * MM_PER_PT;
+
+/**
+ * Tinggi logo = dari batas atas tulisan "INVOICE" sampai batas bawah baris
+ * telepon/website, jadi logo persis sejajar dengan blok teks di sebelahnya.
+ * Dihitung dari nilai font yang sama dengan `.ihead`, bukan angka tetap, supaya
+ * ikut menyesuaikan kalau ukuran fontnya diubah.
+ */
+const HEAD_LOGO_HEIGHT_MM = 17 * 0.92 * MM_PER_PT + 1 + lineMm(7.6) + lineMm(6.6, 1.28) * 2;
+
+/**
+ * Sisi QRIS di kotak pembayaran. 14mm membuat area modulnya ~11,7mm untuk 41
+ * modul (~0,29mm per modul), masih nyaman dipindai tapi tidak mendominasi
+ * kotak pembayaran yang lebarnya 45mm.
+ */
+const QRIS_SIZE_MM = 14;
+/** Ukuran teks label "QRIS" di samping kode. */
+const QRIS_CAPTION_PT = 5.2;
 
 /**
  * Perkiraan jumlah baris setelah teks membungkus.
@@ -94,14 +117,14 @@ const EMPTY_ROW_HEIGHT_MM = itemRowHeightMm(1, 0);
  * tetap satu lembar A6 dan tidak ada blok yang terpotong.
  */
 function countFillerRows({ itemRows, hasCashier, docNo, customerName, note, summaryRowCount, address }) {
-  // Header: kolom teks di kiri vs logo 13mm di kanan.
+  // Header: kolom teks di kiri, logo rata kanan dengan tinggi yang sama.
   const headTextMm =
     17 * 0.92 * MM_PER_PT +
     1 +
     lineMm(7.6) +
     lineMm(6.6, 1.28) * wrapLines(address, 6.6, 70) +
     lineMm(6.6, 1.28);
-  const headMm = Math.max(headTextMm, 13);
+  const headMm = Math.max(headTextMm, HEAD_LOGO_HEIGHT_MM);
 
   const ruleMm = 1.8 + 1.1 * MM_PER_PT + 2;
 
@@ -122,13 +145,17 @@ function countFillerRows({ itemRows, hasCashier, docNo, customerName, note, summ
   const tableChromeMm = 2.4 + 1.1 * MM_PER_PT * 2 + 1 * 2 + lineMm(6.8) + 1.1 * MM_PER_PT;
 
   // Pembayaran: kotak rekening vs tabel ringkasan, diambil yang lebih tinggi.
+  // Baris terakhir kotak rekening setinggi QRIS, atau dua baris nama rekening
+  // kalau namanya panjang - diambil yang lebih besar. Label "QRIS" berada di
+  // samping kodenya, jadi tidak menambah tinggi.
+  const bankFootMm = Math.max(lineMm(6.6) * 2, QRIS_SIZE_MM);
   const bankMm =
     0.8 * MM_PER_PT * 2 +
     1.5 * 2 +
     lineMm(7) +
     BRAND.banks.length * (1 + Math.max(3.2, lineMm(7))) +
     (1.3 + 0.6 * MM_PER_PT + 1) +
-    lineMm(6.6);
+    bankFootMm;
   const sumNormalMm = 0.5 * 2 + lineMm(7.2);
   const sumGrandMm = 1.1 * MM_PER_PT + 1.4 + 0.5 + lineMm(10.5);
   const sumMm = (summaryRowCount - 1) * sumNormalMm + 0.9 + sumGrandMm;
@@ -142,7 +169,8 @@ function countFillerRows({ itemRows, hasCashier, docNo, customerName, note, summ
     lineMm(6.2) * wrapLines(QUOTE_NOTE.replace(/<[^>]*>/g, ''), 6.2, QUOTE_TEXT_WIDTH_MM);
   const quoteMm = 1.8 + 1.4 * 2 + Math.max(3.4, quoteTextMm);
 
-  const footMm = 3 + lineMm(13) + 0.4 + lineMm(6.8) + lineMm(6.4) * 2;
+  // Penutup kini hanya satu baris ucapan terima kasih.
+  const footMm = 3 + lineMm(7.2);
 
   const itemsMm = itemRows.reduce((s, h) => s + h, 0);
 
@@ -233,21 +261,23 @@ export function buildInvoiceCss(mode = 'print') {
    html2canvas menggabung garis yang bersebelahan dan menggesernya. */
 .dnsw-inv table { width: 100%; border-collapse: separate; border-spacing: 0; }
 
-/* ---- Header: INVOICE besar di kiri, logo berdekatan di kanannya ---- */
-.dnsw-inv .ihead { display: flex; align-items: flex-start; gap: ${m(2.5)}; }
-.dnsw-inv .ihead-l { flex: 0 1 auto; min-width: 0; }
+/* ---- Header: INVOICE besar di kiri, logo rata kanan ---- */
+.dnsw-inv .ihead { display: flex; align-items: flex-start; justify-content: space-between; gap: ${m(2.5)}; }
+.dnsw-inv .ihead-l { flex: 1 1 auto; min-width: 0; }
 .dnsw-inv .ihead h1 {
   font-size: ${p(17)}; font-weight: 800; letter-spacing: ${p(-0.6)}; line-height: 0.92;
 }
 .dnsw-inv .ihead .biz { margin-top: ${m(1)}; font-size: ${p(7.6)}; font-weight: 700; }
 .dnsw-inv .ihead .ct { font-size: ${p(6.6)}; line-height: 1.28; }
 .dnsw-inv .ihead .ct b { font-weight: 700; }
-.dnsw-inv .ihead-logo { flex: 0 0 auto; }
+.dnsw-inv .ihead-logo { flex: 0 0 auto; margin-left: auto; }
 /* Tinggi logo dipatok eksplisit (bukan max-height) karena html2canvas
    mengabaikan max-height + object-fit dan logo jadi kebesaran.
-   Logo usaha yang sudah ada, hanya di-mirror horizontal. */
+   Nilainya = tinggi blok teks di sebelah kiri, dari batas atas "INVOICE"
+   sampai batas bawah baris website. Logo usaha yang sudah ada, hanya
+   di-mirror horizontal. */
 .dnsw-inv .ihead-logo img {
-  display: block; height: ${m(13)}; width: auto; object-fit: contain;
+  display: block; height: ${m(HEAD_LOGO_HEIGHT_MM)}; width: auto; object-fit: contain;
   transform: scaleX(-1);
 }
 .dnsw-inv .rule { border-top: ${p(1.1)} solid #000; margin: ${m(1.8)} 0 ${m(2)}; }
@@ -298,6 +328,21 @@ export function buildInvoiceCss(mode = 'print') {
 .dnsw-inv .ibank .bd { border-top: ${p(0.6)} solid #000; margin: ${m(1.3)} 0 ${m(1)}; }
 .dnsw-inv .ibank .bh { font-size: ${p(6.6)}; }
 .dnsw-inv .ibank .bh b { font-weight: 700; }
+/* Baris bawah kotak pembayaran: nama rekening di kiri, QRIS kecil di kanan.
+   Sengaja dibuat tidak mencolok - tanpa bingkai, label kecil abu-abu di samping
+   kodenya (bukan di bawah, supaya tidak menambah tinggi halaman), dan
+   diletakkan di sudut supaya tidak bersaing dengan nomor rekening. */
+.dnsw-inv .ibank .bfoot {
+  display: flex; align-items: center; justify-content: space-between; gap: ${m(1.5)};
+}
+.dnsw-inv .ibank .bfoot .bh { flex: 1 1 auto; min-width: 0; }
+.dnsw-inv .ibank .bqr { flex: 0 0 auto; display: flex; align-items: center; gap: ${m(1)}; }
+.dnsw-inv .ibank .bqr img {
+  display: block; height: ${m(QRIS_SIZE_MM)}; width: ${m(QRIS_SIZE_MM)};
+}
+.dnsw-inv .ibank .bqr span {
+  font-size: ${p(QRIS_CAPTION_PT)}; font-weight: 700; letter-spacing: ${p(0.3)}; color: #555;
+}
 
 .dnsw-inv .isum { flex: 1 1 auto; }
 .dnsw-inv .isum td { padding: ${m(0.5)} 0; font-size: ${p(7.2)}; border: 0; }
@@ -330,14 +375,12 @@ export function buildInvoiceCss(mode = 'print') {
 }
 .dnsw-inv .iquote b { font-weight: 700; }
 
-/* ---- Footer ---- */
-.dnsw-inv .ifoot {
+/* ---- Penutup: hanya satu baris ucapan terima kasih ---- */
+.dnsw-inv .ithanks {
   margin-top: ${m(3)}; text-align: center;
+  font-size: ${p(7.2)}; font-weight: 700;
   page-break-inside: avoid; break-inside: avoid;
 }
-.dnsw-inv .ifoot .tk { font-size: ${p(13)}; font-weight: 800; letter-spacing: ${p(0.6)}; }
-.dnsw-inv .ifoot .fs { font-size: ${p(6.8)}; margin-top: ${m(0.4)}; }
-.dnsw-inv .ifoot .fc { font-size: ${p(6.4)}; }
 `;
 }
 
@@ -500,7 +543,14 @@ export function buildInvoiceBody(r = {}, settings = {}, helpers = {}) {
       <div class="bt">PEMBAYARAN :</div>
       ${bankRows}
       <div class="bd"></div>
-      <div class="bh">Rekening An: <b>${esc(BRAND.holder)}</b></div>
+      <div class="bfoot">
+        <div class="bh">Rekening An: <b>${esc(BRAND.holder)}</b></div>
+        <div class="bqr">
+          <span>${esc(BRAND.qris.label)}</span>
+          <img src="${esc(origin + BRAND.qris.image)}" alt="QRIS" crossorigin="anonymous"
+               onerror="this.parentNode.style.display='none'"/>
+        </div>
+      </div>
     </div>
     <table class="isum">${sumRows}</table>
   </div>
@@ -511,12 +561,7 @@ export function buildInvoiceBody(r = {}, settings = {}, helpers = {}) {
 
   <div class="iquote"><span class="ic">i</span><span>${QUOTE_NOTE}</span></div>
 
-  <div class="ifoot">
-    <div class="tk">TERIMA KASIH</div>
-    <div class="fs">${esc(settings.receipt_footer || 'Terima kasih telah berbelanja!')}</div>
-    <div class="fc">${esc(address)}</div>
-    <div class="fc">${esc(phone)} | ${esc(BRAND.website)}</div>
-  </div>
+  <div class="ithanks">${esc(settings.receipt_footer || 'Terima kasih telah berbelanja!')}</div>
 </div>`;
 }
 
