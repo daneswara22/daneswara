@@ -38,6 +38,122 @@ const BRAND = {
 const QUOTE_NOTE =
   'Pesanan akan mulai diproses/dikerjakan setelah <b>pembayaran penuh (payment) atau deposit</b> diterima dan dikonfirmasi.';
 
+/* ------------------------------------------------------------------ */
+/* Anggaran tinggi halaman untuk baris kosong tabel order              */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Tabel order diisi baris kosong supaya invoice tidak menggantung saat ordernya
+ * sedikit. Jumlahnya DINAMIS: dihitung dari sisa ruang vertikal A6 setelah
+ * semua blok lain (header, info pelanggan, tanggal/invoice, baris order,
+ * pembayaran, ringkasan, status, catatan, catatan penawaran, footer) diukur.
+ *
+ * Semua angka di bawah diturunkan dari nilai yang dipakai `buildInvoiceCss()`
+ * di atas. Kalau CSS-nya diubah, konstanta di sini ikut disesuaikan.
+ */
+const MM_PER_PT = 0.3527777778;
+/** A6 portrait 148mm dikurangi margin cetak @page 5mm atas + bawah. */
+const PAGE_CONTENT_HEIGHT_MM = 138;
+/** Sisa ruang yang sengaja tidak dipakai, bantalan untuk pembulatan browser. */
+const FIT_SAFETY_MM = 2;
+
+/** Tinggi satu baris teks dalam mm. */
+const lineMm = (sizePt, lineHeight = 1.3) => sizePt * lineHeight * MM_PER_PT;
+
+/**
+ * Perkiraan jumlah baris setelah teks membungkus.
+ * Lebar karakter rata-rata Arial diambil sedikit lebih lebar dari aslinya,
+ * supaya hasilnya cenderung melebihkan tinggi — lebih aman daripada kurang.
+ */
+function wrapLines(text, sizePt, widthMm, bold = false) {
+  const len = String(text == null ? '' : text).length;
+  if (!len) return 1;
+  const charMm = sizePt * (bold ? 0.58 : 0.54) * MM_PER_PT;
+  return Math.max(1, Math.ceil((len * charMm) / widthMm));
+}
+
+/** Lebar kolom KETERANGAN = lebar isi - kolom harga/jml/total, dikurangi padding. */
+const DESC_COL_WIDTH_MM = INVOICE_CONTENT_WIDTH_MM - 20 - 9 - 21 - 1.2 * 2;
+/** Dua kolom .iinfo berbagi lebar isi dengan gap 3mm. */
+const INFO_COL_WIDTH_MM = (INVOICE_CONTENT_WIDTH_MM - 3) / 2;
+/** Lebar teks .iquote = lebar isi - padding kiri/kanan - ikon - gap. */
+const QUOTE_TEXT_WIDTH_MM = INVOICE_CONTENT_WIDTH_MM - 1.6 * 2 - 3.4 - 1.5;
+
+/** Tinggi satu baris order, termasuk baris catatan/diskon di bawah namanya. */
+function itemRowHeightMm(nameLines, subLines) {
+  return 1.3 * 2 + lineMm(7.2) * nameLines + (subLines ? lineMm(6.4) * subLines : 0);
+}
+
+/** Tinggi baris kosong = tinggi baris order satu baris, agar tabel terlihat natural. */
+const EMPTY_ROW_HEIGHT_MM = itemRowHeightMm(1, 0);
+
+/**
+ * Hitung berapa baris kosong yang masih muat di bawah baris order terakhir.
+ *
+ * Mengembalikan 0 kalau ordernya sudah memenuhi area tabel, sehingga invoice
+ * tetap satu lembar A6 dan tidak ada blok yang terpotong.
+ */
+function countFillerRows({ itemRows, hasCashier, docNo, customerName, note, summaryRowCount, address }) {
+  // Header: kolom teks di kiri vs logo 13mm di kanan.
+  const headTextMm =
+    17 * 0.92 * MM_PER_PT +
+    1 +
+    lineMm(7.6) +
+    lineMm(6.6, 1.28) * wrapLines(address, 6.6, 70) +
+    lineMm(6.6, 1.28);
+  const headMm = Math.max(headTextMm, 13);
+
+  const ruleMm = 1.8 + 1.1 * MM_PER_PT + 2;
+
+  // Info transaksi: tinggi kolom yang paling panjang.
+  const infoLeftMm =
+    lineMm(6.8) +
+    lineMm(7.2) * wrapLines(customerName, 7.2, INFO_COL_WIDTH_MM) +
+    (hasCashier ? 1.3 + lineMm(6.8) + lineMm(7.2) : 0);
+  const infoRightMm =
+    lineMm(6.8) +
+    lineMm(7.2) * 2 +
+    1.3 +
+    lineMm(6.8) +
+    lineMm(7.2) * wrapLines(docNo, 7.2, INFO_COL_WIDTH_MM);
+  const infoMm = Math.max(infoLeftMm, infoRightMm);
+
+  // Tabel: margin atas + kepala tabel + garis penutup di baris terakhir.
+  const tableChromeMm = 2.4 + 1.1 * MM_PER_PT * 2 + 1 * 2 + lineMm(6.8) + 1.1 * MM_PER_PT;
+
+  // Pembayaran: kotak rekening vs tabel ringkasan, diambil yang lebih tinggi.
+  const bankMm =
+    0.8 * MM_PER_PT * 2 +
+    1.5 * 2 +
+    lineMm(7) +
+    BRAND.banks.length * (1 + Math.max(3.2, lineMm(7))) +
+    (1.3 + 0.6 * MM_PER_PT + 1) +
+    lineMm(6.6);
+  const sumNormalMm = 0.5 * 2 + lineMm(7.2);
+  const sumGrandMm = 1.1 * MM_PER_PT + 1.4 + 0.5 + lineMm(10.5);
+  const sumMm = (summaryRowCount - 1) * sumNormalMm + 0.9 + sumGrandMm;
+  const payMm = 2.4 + Math.max(bankMm, sumMm);
+
+  const statMm = 2.4 + 1 * MM_PER_PT * 2 + 1.3 * 2 + lineMm(8.2);
+
+  const noteMm = note ? 1.8 + lineMm(6.8) * wrapLines(note, 6.8, INVOICE_CONTENT_WIDTH_MM) : 0;
+
+  const quoteTextMm =
+    lineMm(6.2) * wrapLines(QUOTE_NOTE.replace(/<[^>]*>/g, ''), 6.2, QUOTE_TEXT_WIDTH_MM);
+  const quoteMm = 1.8 + 1.4 * 2 + Math.max(3.4, quoteTextMm);
+
+  const footMm = 3 + lineMm(13) + 0.4 + lineMm(6.8) + lineMm(6.4) * 2;
+
+  const itemsMm = itemRows.reduce((s, h) => s + h, 0);
+
+  const usedMm =
+    headMm + ruleMm + infoMm + tableChromeMm + itemsMm + payMm + statMm + noteMm + quoteMm + footMm;
+
+  const freeMm = PAGE_CONTENT_HEIGHT_MM - usedMm - FIT_SAFETY_MM;
+  if (freeMm < EMPTY_ROW_HEIGHT_MM) return 0;
+  return Math.floor(freeMm / EMPTY_ROW_HEIGHT_MM);
+}
+
 export const esc = (v) =>
   String(v == null ? '' : v)
     .replace(/&/g, '&amp;')
@@ -271,6 +387,8 @@ export function buildInvoiceBody(r = {}, settings = {}, helpers = {}) {
   const items = r.items || [];
 
   // Baris produk: nama di baris utama, catatan per item tepat di bawahnya.
+  // Tinggi tiap baris ikut dicatat, dipakai menghitung sisa ruang halaman.
+  const itemRowHeights = [];
   const rows = items
     .map((i) => {
       const qty = Number(i.qty) || 0;
@@ -279,6 +397,13 @@ export function buildInvoiceBody(r = {}, settings = {}, helpers = {}) {
       const sub = [];
       if (i.note) sub.push(esc(i.note));
       if (disc > 0) sub.push(`Diskon ${rp(disc * qty)}`);
+      const subText = sub.join(' - ');
+      itemRowHeights.push(
+        itemRowHeightMm(
+          wrapLines(i.name, 7.2, DESC_COL_WIDTH_MM, true),
+          subText ? wrapLines(subText, 6.4, DESC_COL_WIDTH_MM) : 0,
+        ),
+      );
       return `<tr>
         <td><span class="nm">${esc(i.name)}</span>${sub.length ? `<span class="nt">${sub.join(' &middot; ')}</span>` : ''}</td>
         <td class="u">${rp(price)}</td>
@@ -304,6 +429,22 @@ export function buildInvoiceBody(r = {}, settings = {}, helpers = {}) {
       return `<tr class="${cls}"><td class="l">${l}</td><td class="v">${v}</td></tr>`;
     })
     .join('');
+
+  // Baris kosong dinamis: mengisi sisa ruang A6 di bawah baris order terakhir,
+  // supaya tabel tidak menggantung saat ordernya sedikit. Bila order sudah
+  // memenuhi area tabel, hasilnya 0 dan tidak ada baris tambahan.
+  const fillerCount = countFillerRows({
+    itemRows: itemRowHeights,
+    hasCashier: Boolean(r.cashier),
+    docNo,
+    customerName: r.customer_name || 'Pelanggan',
+    note: r.note,
+    summaryRowCount: sum.length,
+    address,
+  });
+  const fillerRows = '<tr><td><span class="nm">&nbsp;</span></td><td class="u"></td><td class="q"></td><td class="t"></td></tr>'.repeat(
+    fillerCount,
+  );
 
   // Logo bank dipakai menggantikan teks. Bila berkasnya gagal dimuat, teks nama
   // bank tetap muncul sebagai pengganti supaya nomor rekening tidak kehilangan
@@ -351,7 +492,7 @@ export function buildInvoiceBody(r = {}, settings = {}, helpers = {}) {
 
   <table class="iitems">
     <thead><tr><th>KETERANGAN</th><th class="u">HARGA / UNIT</th><th class="q">JML</th><th class="t">TOTAL</th></tr></thead>
-    <tbody>${rows}</tbody>
+    <tbody>${rows}${fillerRows}</tbody>
   </table>
 
   <div class="ipay">
