@@ -1,11 +1,33 @@
+import crypto from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { newId } from '@/lib/http';
 import { decryptSecret } from '@/lib/crypto';
-import { webhookSignature, webhookUrl } from '@/lib/channels/shopee/client';
+import { SHOPEE_WEBHOOK_PATH, webhookSignature, webhookUrl } from '@/lib/channels/shopee/client';
 import { runShopeeSync } from '@/lib/channels/shopee/sync';
 
 export const dynamic = 'force-dynamic';
+
+/**
+ * Perbandingan tanda tangan tanpa membocorkan waktu eksekusi. Header
+ * Authorization dari Shopee berisi HMAC hex, jadi huruf besar/kecil
+ * dinormalkan dulu sebelum dibandingkan byte per byte.
+ */
+function sameSignature(received: string, expected: string): boolean {
+  const a = Buffer.from(String(received).trim().toLowerCase(), 'utf8');
+  const b = Buffer.from(String(expected).trim().toLowerCase(), 'utf8');
+  if (a.length !== b.length || b.length === 0) return false;
+  return crypto.timingSafeEqual(a, b);
+}
+
+/**
+ * GET /api/channels/shopee/webhook — hanya penanda bahwa endpoint hidup,
+ * dipakai saat memverifikasi URL di Shopee Console. Tidak membaca kredensial
+ * dan tidak mengembalikan data apa pun selain path-nya.
+ */
+export async function GET() {
+  return NextResponse.json({ ok: true, endpoint: SHOPEE_WEBHOOK_PATH, method: 'POST' });
+}
 
 /**
  * POST /api/channels/shopee/webhook — Order Status Update Push (code 3).
@@ -34,7 +56,7 @@ export async function POST(req: NextRequest) {
   const auth = req.headers.get('authorization') || '';
   const callbackUrl = webhookUrl(new URL(req.url).origin);
   const expected = webhookSignature(partnerKey, callbackUrl, raw);
-  if (auth.toLowerCase() !== expected.toLowerCase()) {
+  if (!sameSignature(auth, expected)) {
     return new NextResponse(null, { status: 401 });
   }
 

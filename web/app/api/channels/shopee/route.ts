@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { requireRoles, logActivity } from '@/lib/auth';
 import { handle, readBody } from '@/lib/handler';
 import { channelPublicView, clearTokens, ensureChannel, getCreds, savePartnerCreds, updateChannel } from '@/lib/channels/store';
-import { redirectUri, webhookUrl } from '@/lib/channels/shopee/client';
+import { redirectUri, shopeeEnvironment, webhookUrl } from '@/lib/channels/shopee/client';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,6 +22,9 @@ export const GET = handle(async (req: NextRequest) => {
   const origin = new URL(req.url).origin;
   return {
     ...channelPublicView(ch, creds),
+    // Environment efektif (bisa ditimpa SHOPEE_ENVIRONMENT di server) supaya
+    // yang tampil di UI sama dengan yang benar-benar dipakai saat memanggil API.
+    environment: shopeeEnvironment(ch.environment),
     redirect_uri: redirectUri(origin),
     webhook_url: webhookUrl(origin),
   };

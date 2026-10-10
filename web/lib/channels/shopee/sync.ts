@@ -13,6 +13,7 @@ import {
   getOrderDetail,
   getOrderList,
   refreshAccessToken,
+  shopeeEnvironment,
 } from './client';
 import { legacyStatus, mapPaymentStatus, mapShippingStatus, mapShopeeStatus } from './status';
 import { upsertChannelProduct } from './mapping';
@@ -45,7 +46,7 @@ export async function shopeeContext(tenantId: string) {
   const cfg: ShopeeConfig = {
     partnerId: creds.partnerId,
     partnerKey: creds.partnerKey,
-    environment: (channel.environment === 'live' ? 'live' : 'sandbox'),
+    environment: shopeeEnvironment(channel.environment),
   };
   if (!channel.external_shop_id || !creds.accessToken) {
     throw new ShopeeError('Toko Shopee belum terhubung. Klik "Hubungkan Akun Shopee".', 'not_connected', 400);
