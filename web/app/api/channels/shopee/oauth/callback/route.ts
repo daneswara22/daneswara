@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { ensureChannel, getCreds, saveTokens, updateChannel } from '@/lib/channels/store';
-import { exchangeCodeForToken, getShopInfo } from '@/lib/channels/shopee/client';
+import { exchangeCodeForToken, getShopInfo, callbackBase, shopeeEnvironment } from '@/lib/channels/shopee/client';
 
 export const dynamic = 'force-dynamic';
 
 function back(req: NextRequest, params: Record<string, string>) {
-  const url = new URL('/app/sales-channels', req.url);
+  // Base publik, bukan req.url: di belakang proxy req.url bisa berisi
+  // localhost/0.0.0.0 sehingga pengguna dibuang ke alamat yang tidak ada.
+  const url = new URL('/app/sales-channels', callbackBase(new URL(req.url).origin));
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
   return NextResponse.redirect(url);
 }
@@ -41,7 +43,7 @@ export async function GET(req: NextRequest) {
     const cfg = {
       partnerId: creds.partnerId,
       partnerKey: creds.partnerKey,
-      environment: (ch.environment === 'live' ? 'live' : 'sandbox') as 'live' | 'sandbox',
+      environment: shopeeEnvironment(ch.environment),
     };
     const tokens = await exchangeCodeForToken(cfg, code, shopId);
     await saveTokens(ch.id, tokens);

@@ -17,7 +17,20 @@ import crypto from 'node:crypto';
 import { prisma } from '../lib/db';
 import { newId } from '../lib/http';
 import { encryptSecret, decryptSecret } from '../lib/crypto';
-import { publicSignature, shopSignature, webhookSignature, ShopeeConfig } from '../lib/channels/shopee/client';
+import {
+  DEFAULT_PUBLIC_BASE_URL,
+  SHOPEE_CALLBACK_PATH,
+  SHOPEE_WEBHOOK_PATH,
+  ShopeeConfig,
+  callbackBase,
+  publicSignature,
+  redirectUri,
+  shopSignature,
+  shopeeEnvironment,
+  shopeeHosts,
+  webhookSignature,
+  webhookUrl,
+} from '../lib/channels/shopee/client';
 import { mapShopeeStatus, legacyStatus, mapPaymentStatus, mapShippingStatus } from '../lib/channels/shopee/status';
 import { upsertShopeeOrder } from '../lib/channels/shopee/sync';
 
@@ -108,6 +121,90 @@ async function main() {
   const wh = webhookSignature(cfg.partnerKey, url, raw);
   const expectedWh = crypto.createHmac('sha256', cfg.partnerKey).update(`${url}|${raw}`).digest('hex');
   check('Tanda tangan webhook (url|body)', wh === expectedWh, wh.slice(0, 12));
+
+  const whWrongKey = webhookSignature('partner-key-lain', url, raw);
+  const whWrongBody = webhookSignature(cfg.partnerKey, url, raw + ' ');
+  const whWrongUrl = webhookSignature(cfg.partnerKey, 'https://palsu.example/api/channels/shopee/webhook', raw);
+  check(
+    'Tanda tangan webhook ditolak bila key/body/url beda',
+    whWrongKey !== wh && whWrongBody !== wh && whWrongUrl !== wh,
+  );
+
+  // --- 1b. Pembentukan URL callback & pemisahan environment ----------------
+  const savedEnv = {
+    channel: process.env.CHANNEL_PUBLIC_BASE_URL,
+    publik: process.env.PUBLIC_BASE_URL,
+    pos: process.env.NEXT_PUBLIC_POS_URL,
+    shopee: process.env.SHOPEE_ENVIRONMENT,
+  };
+  const clearBaseEnv = () => {
+    delete process.env.CHANNEL_PUBLIC_BASE_URL;
+    delete process.env.PUBLIC_BASE_URL;
+    delete process.env.NEXT_PUBLIC_POS_URL;
+    delete process.env.SHOPEE_ENVIRONMENT;
+  };
+
+  clearBaseEnv();
+  // Host yang tidak bisa dijangkau Shopee harus dibuang, bukan ditampilkan.
+  const badOrigins = ['http://0.0.0.0:3000', 'http://localhost:3000', 'http://127.0.0.1:3000', 'http://10.1.2.3:3000'];
+  check(
+    'Origin 0.0.0.0 / localhost / IP privat tidak dipakai sebagai callback',
+    badOrigins.every((o) => callbackBase(o) === DEFAULT_PUBLIC_BASE_URL),
+    `fallback ${DEFAULT_PUBLIC_BASE_URL}`,
+  );
+  check(
+    'Tanpa env, redirect & webhook memakai domain produksi',
+    redirectUri('http://0.0.0.0:3000') === `${DEFAULT_PUBLIC_BASE_URL}${SHOPEE_CALLBACK_PATH}` &&
+      webhookUrl('http://0.0.0.0:3000') === `${DEFAULT_PUBLIC_BASE_URL}${SHOPEE_WEBHOOK_PATH}`,
+    redirectUri('http://0.0.0.0:3000'),
+  );
+
+  process.env.PUBLIC_BASE_URL = 'https://daneswara.com/';
+  check(
+    'PUBLIC_BASE_URL dipakai dan garis miring akhir dibuang',
+    redirectUri('http://0.0.0.0:3000') === 'https://daneswara.com/api/channels/shopee/oauth/callback',
+    redirectUri(''),
+  );
+
+  process.env.CHANNEL_PUBLIC_BASE_URL = 'http://pos.daneswara.com';
+  check(
+    'CHANNEL_PUBLIC_BASE_URL menang & http dinaikkan ke https',
+    callbackBase('https://daneswara.com') === 'https://pos.daneswara.com',
+    callbackBase(''),
+  );
+
+  clearBaseEnv();
+  check(
+    'Origin publik dipakai bila tidak ada env',
+    callbackBase('https://pos.daneswara.com') === 'https://pos.daneswara.com',
+  );
+  check(
+    'Redirect & webhook identik untuk otorisasi dan verifikasi tanda tangan',
+    redirectUri('https://daneswara.com') === `${callbackBase('https://daneswara.com')}${SHOPEE_CALLBACK_PATH}` &&
+      webhookUrl('https://daneswara.com') === `${callbackBase('https://daneswara.com')}${SHOPEE_WEBHOOK_PATH}`,
+  );
+
+  check(
+    'Environment mengikuti kanal bila server tidak menimpa',
+    shopeeEnvironment('sandbox') === 'sandbox' && shopeeEnvironment('live') === 'live',
+  );
+  process.env.SHOPEE_ENVIRONMENT = 'live';
+  const liveHosts = shopeeHosts(shopeeEnvironment('sandbox'));
+  process.env.SHOPEE_ENVIRONMENT = 'sandbox';
+  const sandboxHosts = shopeeHosts(shopeeEnvironment('live'));
+  delete process.env.SHOPEE_ENVIRONMENT;
+  check(
+    'SHOPEE_ENVIRONMENT di server bisa memindahkan sandbox <-> live',
+    liveHosts.api === 'https://partner.shopeemobile.com' && sandboxHosts.api.includes('sandbox'),
+    `${liveHosts.api} | ${sandboxHosts.api}`,
+  );
+
+  // Pulihkan env semula supaya bagian uji berikutnya tidak terpengaruh.
+  clearBaseEnv();
+  if (savedEnv.channel) process.env.CHANNEL_PUBLIC_BASE_URL = savedEnv.channel;
+  if (savedEnv.publik) process.env.PUBLIC_BASE_URL = savedEnv.publik;
+  if (savedEnv.pos) process.env.NEXT_PUBLIC_POS_URL = savedEnv.pos;
+  if (savedEnv.shopee) process.env.SHOPEE_ENVIRONMENT = savedEnv.shopee;
 
   // --- 2. Pemetaan status --------------------------------------------------
   const statusOk =

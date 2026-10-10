@@ -30,21 +30,87 @@ export function shopeeHosts(environment: string) {
   };
 }
 
+/** Basis URL publik produksi, dipakai bila tidak ada env yang menimpanya. */
+export const DEFAULT_PUBLIC_BASE_URL = 'https://daneswara.com';
+
+export const SHOPEE_CALLBACK_PATH = '/api/channels/shopee/oauth/callback';
+export const SHOPEE_WEBHOOK_PATH = '/api/channels/shopee/webhook';
+
+/**
+ * Host yang TIDAK boleh dipakai sebagai URL callback/webhook: Shopee harus bisa
+ * menjangkaunya dari internet. `0.0.0.0` dan `localhost` sering muncul karena
+ * server mengikat ke semua antarmuka atau ada proxy di depannya, dan kalau ikut
+ * terpakai, otorisasi gagal serta tanda tangan webhook tidak pernah cocok.
+ */
+function isUnreachableHost(hostname: string): boolean {
+  const h = hostname.toLowerCase().replace(/^\[|\]$/g, '');
+  if (h === 'localhost' || h.endsWith('.localhost') || h.endsWith('.local') || h === '::1' || h === '::') return true;
+  if (h === '0.0.0.0' || h.startsWith('127.')) return true;
+  if (h.startsWith('10.') || h.startsWith('192.168.')) return true;
+  if (/^172\.(1[6-9]|2\d|3[01])\./.test(h)) return true;
+  if (!h.includes('.') && h !== '::1') return true; // nama service internal, mis. "web"
+  return false;
+}
+
+/**
+ * Normalisasi kandidat base URL. Mengembalikan '' bila kosong, bukan http(s),
+ * atau host-nya tidak bisa dijangkau Shopee. Host publik dipaksa https karena
+ * Shopee Console menolak redirect/webhook non-TLS.
+ */
+function normalizeBase(candidate?: string | null): string {
+  const raw = String(candidate || '').trim();
+  if (!raw) return '';
+  try {
+    const u = new URL(raw);
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return '';
+    if (isUnreachableHost(u.hostname)) return '';
+    return `https://${u.host}${u.pathname.replace(/\/$/, '')}`;
+  } catch {
+    return '';
+  }
+}
+
 /**
  * Basis URL publik untuk redirect & webhook. Harus SAMA PERSIS dengan yang
- * didaftarkan di Shopee Console (tanda tangan webhook memakai URL ini).
- * Set CHANNEL_PUBLIC_BASE_URL di produksi (mis. https://pos.daneswara.com).
+ * didaftarkan di Shopee Console, karena tanda tangan webhook ikut memakainya.
+ *
+ * Urutan sumber: CHANNEL_PUBLIC_BASE_URL (khusus kanal penjualan) -> PUBLIC_BASE_URL
+ * -> NEXT_PUBLIC_POS_URL -> origin permintaan (hanya kalau sudah publik) ->
+ * DEFAULT_PUBLIC_BASE_URL. Origin yang menunjuk 0.0.0.0/localhost/IP privat
+ * sengaja dibuang supaya tidak pernah tampil ke pengguna.
  */
-export function callbackBase(origin: string): string {
-  return String(process.env.CHANNEL_PUBLIC_BASE_URL || origin || '').replace(/\/$/, '');
+export function callbackBase(origin?: string): string {
+  const candidates = [
+    process.env.CHANNEL_PUBLIC_BASE_URL,
+    process.env.PUBLIC_BASE_URL,
+    process.env.NEXT_PUBLIC_POS_URL,
+    origin,
+  ];
+  for (const c of candidates) {
+    const base = normalizeBase(c);
+    if (base) return base;
+  }
+  return DEFAULT_PUBLIC_BASE_URL;
 }
 
-export function redirectUri(origin: string): string {
-  return `${callbackBase(origin)}/api/channels/shopee/oauth/callback`;
+export function redirectUri(origin?: string): string {
+  return `${callbackBase(origin)}${SHOPEE_CALLBACK_PATH}`;
 }
 
-export function webhookUrl(origin: string): string {
-  return `${callbackBase(origin)}/api/channels/shopee/webhook`;
+export function webhookUrl(origin?: string): string {
+  return `${callbackBase(origin)}${SHOPEE_WEBHOOK_PATH}`;
+}
+
+/**
+ * Environment efektif. Nilai per-kanal dari database tetap jadi acuan, tapi
+ * server bisa menimpanya lewat SHOPEE_ENVIRONMENT (`sandbox` / `live`) sehingga
+ * perpindahan sandbox <-> produksi cukup ganti konfigurasi, tanpa ubah data.
+ */
+export function shopeeEnvironment(channelEnvironment?: string | null): 'sandbox' | 'live' {
+  const override = String(process.env.SHOPEE_ENVIRONMENT || '').trim().toLowerCase();
+  if (override === 'live' || override === 'production') return 'live';
+  if (override === 'sandbox' || override === 'test') return 'sandbox';
+  return String(channelEnvironment) === 'live' ? 'live' : 'sandbox';
 }
 
 function sign(cfg: ShopeeConfig, base: string): string {
