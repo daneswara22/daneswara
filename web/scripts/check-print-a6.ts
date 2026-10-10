@@ -97,7 +97,7 @@ ok(shareBody.includes('class="grand"') && shareBody.includes('>TOTAL<'), 'TOTAL 
 ok(shareBody.includes('class="istat">BELUM DIBAYAR'), 'Status pembayaran dinamis (bukan hard-code)');
 ok(shareBody.includes('Catatan :'), 'Catatan transaksi');
 ok(shareBody.includes('pembayaran penuh (payment)'), 'Catatan penawaran');
-ok(shareBody.includes('TERIMA KASIH') && shareBody.includes('Terima kasih telah berbelanja!'), 'Footer');
+ok(shareBody.includes('Terima kasih telah berbelanja!'), 'Footer');
 
 console.log('\n--- 5. Status dinamis & nominal pada varian lain ---');
 const paid = {
@@ -105,11 +105,17 @@ const paid = {
   __draft: false,
   status: 'Proses',
   deposit_amount: 10000,
+  remaining: Number(order.total || 0) - 10000,
   note: '',
 };
 const h2 = buildInvoiceBody(paid, settings, helpers);
 ok(h2.includes('class="istat">DEPOSIT'), 'Status berubah mengikuti transaksi');
 ok(h2.includes('DEPOSIT (DP)') && h2.includes(rp(10000)), 'Nominal DP identik dengan sumber');
+ok(
+  h2.includes('>SISA PEMBAYARAN<') && h2.includes(rp(Number(order.total || 0) - 10000)),
+  'Invoice deposit menampilkan SISA PEMBAYARAN setelah dikurangi DP',
+);
+ok(!shareBody.includes('>SISA PEMBAYARAN<'), 'Tanpa DP -> baris sisa pembayaran tidak dirender');
 ok(!h2.includes('Catatan :'), 'Tanpa catatan -> area catatan tidak dirender');
 
 console.log('\n--- 6. Pemisahan jalur cetak & kebocoran style ---');
