@@ -353,6 +353,10 @@ export function buildInvoiceCss(mode = 'print') {
   border-top: ${p(1.1)} solid #000; padding-top: ${m(1.4)}; font-weight: 800;
   font-size: ${p(10.5)};
 }
+/* Sisa pembayaran setelah dikurangi DP: hanya tampil pada invoice deposit. */
+.dnsw-inv .isum tr.due td {
+  padding-top: ${m(1)}; font-weight: 800; font-size: ${p(8.2)};
+}
 
 /* ---- Status pembayaran (dinamis) ---- */
 .dnsw-inv .istat {
@@ -462,13 +466,26 @@ export function buildInvoiceBody(r = {}, settings = {}, helpers = {}) {
   const sum = [['JUMLAH ITEM', String(jumlahItem), false], ['SUB TOTAL', rp(r.subtotal), false]];
   if (r.discount) sum.push(['DISKON', '-' + rp(r.discount), false]);
   if (r.tax) sum.push([`PAJAK (${esc(r.tax_rate)}%)`, rp(r.tax), false]);
-  sum.push(['DEPOSIT (DP)', rp(r.deposit_amount || 0), false]);
+  const depositAmount = Number(r.deposit_amount) || 0;
+  sum.push(['DEPOSIT (DP)', rp(depositAmount), false]);
   sum.push(['TOTAL', rp(r.total), true]);
+  // Invoice deposit: tampilkan sisa pembayaran supaya pelanggan tahu nominal
+  // pelunasan. Angkanya memakai `remaining` dari transaksi; bila field itu
+  // belum ada (data lama), dipakai TOTAL dikurangi DP sebagai penggantinya.
+  if (depositAmount > 0) {
+    const remaining = Number.isFinite(Number(r.remaining))
+      ? Math.max(0, Number(r.remaining))
+      : Math.max(0, (Number(r.total) || 0) - depositAmount);
+    sum.push(['SISA PEMBAYARAN', rp(remaining), false, 'due']);
+  }
+  const grandIdx = sum.findIndex(([, , g]) => g);
   const sumRows = sum
-    .map(([l, v, g], i) => {
+    .map(([l, v, g, extra], i) => {
       // Baris tepat sebelum TOTAL diberi jarak bawah agar teksnya tidak
       // menyentuh garis pemisah di atas TOTAL.
-      const cls = [g ? 'grand' : '', i === sum.length - 2 ? 'prelast' : ''].filter(Boolean).join(' ');
+      const cls = [g ? 'grand' : '', i === grandIdx - 1 ? 'prelast' : '', extra || '']
+        .filter(Boolean)
+        .join(' ');
       return `<tr class="${cls}"><td class="l">${l}</td><td class="v">${v}</td></tr>`;
     })
     .join('');
