@@ -10,6 +10,8 @@ export const maxDuration = 300;
 const schema = z.object({
   days: z.number().int().min(1).max(120).optional(),
   order_sns: z.array(z.string().trim().min(1)).max(50).optional(),
+  // Opsional; bila tidak dikirim tetap memakai perilaku lama (update_time).
+  time_range_field: z.enum(['create_time', 'update_time']).optional(),
 });
 
 /** POST /api/channels/shopee/sync — Sync Now / Retry Sync. */
@@ -21,12 +23,13 @@ export const POST = handle(async (req: NextRequest) => {
     syncType: 'manual',
     days: body.days || 7,
     orderSns: body.order_sns,
+    timeRangeField: body.time_range_field,
   });
   await logActivity(
     user.tenant_id,
     user,
     'Sinkron Shopee',
-    `${result.status} — cek ${result.orders_checked}, baru ${result.orders_created}, update ${result.orders_updated}`,
+    `${result.status}/${result.api_status} — cek ${result.orders_checked}, baru ${result.orders_created}, update ${result.orders_updated}, tanpa ubah ${result.orders_skipped}, detail hilang ${result.orders_detail_missing}, gagal simpan ${result.orders_failed}`,
   );
   return result;
 });

@@ -25,6 +25,14 @@ const SYNC_RANGES = [
   { value: "90", label: "90 hari terakhir" },
 ];
 
+// Shopee hanya menerima dua nilai ini untuk time_range_field. update_time
+// dipakai untuk sinkron perubahan (default), create_time untuk menarik pesanan
+// lama yang statusnya tidak pernah berubah.
+const SYNC_FIELDS = [
+  { value: "update_time", label: "Tanggal diperbarui" },
+  { value: "create_time", label: "Tanggal dibuat" },
+];
+
 const fmtTime = (iso) => (iso ? new Date(iso).toLocaleString("id-ID") : "—");
 
 function StatusPill({ status }) {
@@ -72,6 +80,7 @@ export default function SalesChannels() {
   const [partnerKey, setPartnerKey] = useState("");
   const [environment, setEnvironment] = useState("sandbox");
   const [days, setDays] = useState("7");
+  const [timeField, setTimeField] = useState("update_time");
   const [mapRows, setMapRows] = useState([]);
   const [unmapped, setUnmapped] = useState(0);
   const [logs, setLogs] = useState([]);
@@ -185,12 +194,29 @@ export default function SalesChannels() {
   const syncNow = async () => {
     setBusy("sync");
     try {
-      const { data } = await api.post("/channels/shopee/sync", { days: Number(days) });
-      if (data.status === "failed") toast.error(`Sinkron gagal: ${data.message}`);
-      else {
+      const { data } = await api.post("/channels/shopee/sync", {
+        days: Number(days),
+        time_range_field: timeField,
+      });
+      if (data.api_status === "ok_empty") {
         toast.success(
-          `Sinkron ${data.status} — dicek ${data.orders_checked}, baru ${data.orders_created}, diperbarui ${data.orders_updated}`,
+          `Shopee menjawab normal, tapi tidak ada pesanan pada rentang ini (${data.diagnostics?.pages ?? 0} halaman API diperiksa)`,
         );
+      } else {
+        // Angka inti selalu ditampilkan; kegagalan parsial disebut apa adanya.
+        const core = `dicek ${data.orders_checked}, baru ${data.orders_created}, diperbarui ${data.orders_updated}, tanpa perubahan ${data.orders_skipped}`;
+        const problems = [
+          data.orders_detail_missing ? `detail hilang ${data.orders_detail_missing}` : "",
+          data.orders_failed ? `gagal simpan ${data.orders_failed}` : "",
+          data.diagnostics?.failed_windows?.length ? `${data.diagnostics.failed_windows.length} jendela gagal` : "",
+          data.diagnostics?.failed_detail_batches?.length
+            ? `${data.diagnostics.failed_detail_batches.length} batch gagal`
+            : "",
+        ].filter(Boolean);
+        const text = `Sinkron ${data.status} — ${core}${problems.length ? ` | ${problems.join(", ")}` : ""}`;
+        if (data.status === "failed") toast.error(text);
+        else if (data.status === "partial") toast.warning(text);
+        else toast.success(text);
       }
       await Promise.all([loadChannel(), loadLogs(), loadMapping()]);
     } catch (e) {
@@ -421,6 +447,17 @@ export default function SalesChannels() {
                     </SelectContent>
                   </Select>
                 </div>
+                <div className="min-w-[180px] flex-1 space-y-1">
+                  <Label className="text-xs">Acuan tanggal</Label>
+                  <Select value={timeField} onValueChange={setTimeField}>
+                    <SelectTrigger data-testid="shopee-sync-field"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {SYNC_FIELDS.map((f) => (
+                        <SelectItem key={f.value} value={f.value} data-testid={`shopee-sync-field-${f.value}`}>{f.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 <Button onClick={syncNow} disabled={busy === "sync"} className="gap-2" data-testid="shopee-sync-button">
                   <RefreshCw className={`h-4 w-4 ${busy === "sync" ? "animate-spin" : ""}`} /> Sinkron Sekarang
                 </Button>
@@ -526,9 +563,10 @@ export default function SalesChannels() {
                     <th className="p-3">Dicek</th>
                     <th className="p-3">Baru</th>
                     <th className="p-3">Update</th>
-                    <th className="p-3">Skip</th>
+                    <th className="p-3" title="Detail diterima tapi Shopee tidak mengirim perubahan apa pun">Tanpa Ubah</th>
                     <th className="p-3">Error</th>
                     <th className="p-3">Status</th>
+                    <th className="p-3">API</th>
                     <th className="p-3">Keterangan</th>
                   </tr>
                 </thead>
@@ -548,6 +586,18 @@ export default function SalesChannels() {
                             : l.status === "partial" ? "bg-amber-500/15 text-amber-600"
                               : "bg-red-500/15 text-red-600"
                         }`}>{l.status}</span>
+                      </td>
+                      <td className="p-3">
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
+                            l.api_status === "ok" ? "bg-emerald-500/15 text-emerald-600"
+                              : l.api_status === "ok_empty" ? "bg-slate-500/15 text-slate-600"
+                                : "bg-red-500/15 text-red-600"
+                          }`}
+                          title={l.api_status === "ok_empty" ? "Shopee menjawab normal, daftar pesanan kosong" : ""}
+                        >
+                          {l.api_status || "—"}
+                        </span>
                       </td>
                       <td className="max-w-[320px] p-3 text-xs text-muted-foreground">
                         <span className="break-words">{l.message}</span>

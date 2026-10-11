@@ -280,54 +280,144 @@ export const ORDER_DETAIL_FIELDS = [
 ].join(',');
 
 /**
- * Daftar order pada satu jendela waktu (maks 15 hari per dokumentasi Shopee),
- * paginasi memakai cursor. order_status sengaja tidak dikirim = semua status.
+ * Batas resmi Shopee Open Platform V2 (dokumentasi v2.order.get_order_list &
+ * v2.order.get_order_detail):
+ *   - jarak time_from..time_to maksimal 15 hari
+ *   - page_size get_order_list 1..100
+ *   - order_sn_list get_order_detail 1..50 per permintaan
  */
-export async function getOrderList(
+export const SHOPEE_MAX_WINDOW_SECONDS = 15 * 24 * 3600;
+export const SHOPEE_LIST_PAGE_SIZE_MAX = 100;
+export const SHOPEE_DETAIL_BATCH_MAX = 50;
+export const SHOPEE_TIME_RANGE_FIELDS = ['create_time', 'update_time'] as const;
+export type ShopeeTimeRangeField = (typeof SHOPEE_TIME_RANGE_FIELDS)[number];
+
+export interface OrderListOutcome {
+  /** Baris mentah yang dikirim Shopee, sebelum penyaringan apa pun. */
+  raw: any[];
+  /** order_sn yang valid (sudah dibuang yang kosong). */
+  orderSns: string[];
+  /** Baris yang dibuang karena tidak punya order_sn -> jangan hilang diam-diam. */
+  droppedRows: number;
+  /** Jumlah halaman cursor yang benar-benar dipanggil. */
+  pages: number;
+  /** request_id Shopee per halaman, berguna saat melapor ke Shopee. */
+  requestIds: string[];
+}
+
+/**
+ * Daftar order pada satu jendela waktu (maks 15 hari per dokumentasi Shopee),
+ * paginasi memakai cursor opaque (`response.next_cursor`), berhenti saat
+ * `response.more === false`. order_status sengaja tidak dikirim = semua status.
+ *
+ * Mengembalikan rincian pemanggilan (baris mentah, jumlah halaman, request_id)
+ * supaya "API membalas kosong" bisa dibedakan dari "data tidak terambil".
+ */
+export async function getOrderListOutcome(
   cfg: ShopeeConfig,
   accessToken: string,
   shopId: string,
-  opts: { timeFrom: number; timeTo: number; timeRangeField?: 'create_time' | 'update_time'; pageSize?: number },
-): Promise<any[]> {
+  opts: { timeFrom: number; timeTo: number; timeRangeField?: ShopeeTimeRangeField; pageSize?: number },
+): Promise<OrderListOutcome> {
+  const field: ShopeeTimeRangeField = opts.timeRangeField || 'update_time';
+  if (!SHOPEE_TIME_RANGE_FIELDS.includes(field)) {
+    throw new ShopeeError(`time_range_field tidak sah: ${field}`, 'invalid_time_range_field', 400);
+  }
   const span = opts.timeTo - opts.timeFrom;
-  if (span > 15 * 24 * 3600) throw new ShopeeError('Jendela waktu melebihi 15 hari', 'invalid_window', 400);
-  const out: any[] = [];
+  if (span <= 0) throw new ShopeeError('time_from harus lebih awal dari time_to', 'invalid_window', 400);
+  if (span > SHOPEE_MAX_WINDOW_SECONDS) {
+    throw new ShopeeError('Jendela waktu melebihi 15 hari', 'invalid_window', 400);
+  }
+  const pageSize = Math.min(SHOPEE_LIST_PAGE_SIZE_MAX, Math.max(1, Number(opts.pageSize) || SHOPEE_LIST_PAGE_SIZE_MAX));
+
+  const raw: any[] = [];
+  const requestIds: string[] = [];
+  let pages = 0;
   let cursor = '';
   for (let guard = 0; guard < 100; guard += 1) {
     const j: any = await shopGet(cfg, '/api/v2/order/get_order_list', accessToken, shopId, {
-      time_range_field: opts.timeRangeField || 'update_time',
+      time_range_field: field,
       time_from: opts.timeFrom,
       time_to: opts.timeTo,
-      page_size: opts.pageSize || 100,
+      page_size: pageSize,
       cursor,
       response_optional_fields: 'order_status',
       request_order_status_pending: true,
     });
-    const list = j?.response?.order_list || [];
-    out.push(...list);
+    pages += 1;
+    if (j?.request_id) requestIds.push(String(j.request_id));
+    raw.push(...(j?.response?.order_list || []));
     if (!j?.response?.more) break;
-    cursor = j?.response?.next_cursor || '';
-    if (!cursor) break;
+    const next = String(j?.response?.next_cursor || '');
+    // more=true tapi tanpa cursor = respons tidak bisa dilanjutkan. Jangan
+    // diam-diam berhenti seolah data sudah lengkap.
+    if (!next) throw new ShopeeError('Shopee mengirim more=true tanpa next_cursor', 'invalid_cursor', 502);
+    cursor = next;
   }
-  return out;
+
+  const orderSns = raw.map((o: any) => String(o?.order_sn || '')).filter(Boolean);
+  return { raw, orderSns, droppedRows: raw.length - orderSns.length, pages, requestIds };
 }
 
-/** Detail order, maksimal 50 order_sn per permintaan. */
+/** Bentuk ringkas lama: hanya baris mentah daftar order. */
+export async function getOrderList(
+  cfg: ShopeeConfig,
+  accessToken: string,
+  shopId: string,
+  opts: { timeFrom: number; timeTo: number; timeRangeField?: ShopeeTimeRangeField; pageSize?: number },
+): Promise<any[]> {
+  return (await getOrderListOutcome(cfg, accessToken, shopId, opts)).raw;
+}
+
+export interface OrderDetailOutcome {
+  orders: any[];
+  /** order_sn yang diminta tapi tidak dikembalikan Shopee. */
+  missing: string[];
+  /** Isi array `warning` dari Shopee (mis. sebagian batch gagal). */
+  warnings: string[];
+  batches: number;
+  requestIds: string[];
+}
+
+/**
+ * Detail order, maksimal 50 order_sn per permintaan. Respons 200 dengan `error`
+ * kosong TIDAK menjamin semua order_sn kembali, jadi yang diminta direkonsiliasi
+ * dengan yang diterima dan selisihnya dilaporkan sebagai `missing` (bukan
+ * dihitung sebagai "dilewati").
+ */
+export async function getOrderDetailOutcome(
+  cfg: ShopeeConfig,
+  accessToken: string,
+  shopId: string,
+  orderSns: string[],
+): Promise<OrderDetailOutcome> {
+  const orders: any[] = [];
+  const warnings: string[] = [];
+  const requestIds: string[] = [];
+  let batches = 0;
+  for (let i = 0; i < orderSns.length; i += SHOPEE_DETAIL_BATCH_MAX) {
+    const batch = orderSns.slice(i, i + SHOPEE_DETAIL_BATCH_MAX);
+    const j: any = await shopGet(cfg, '/api/v2/order/get_order_detail', accessToken, shopId, {
+      order_sn_list: batch.join(','),
+      response_optional_fields: ORDER_DETAIL_FIELDS,
+      request_order_status_pending: true,
+    });
+    batches += 1;
+    if (j?.request_id) requestIds.push(String(j.request_id));
+    if (Array.isArray(j?.warning)) warnings.push(...j.warning.map((w: any) => String(w)));
+    orders.push(...(j?.response?.order_list || []));
+  }
+  const returned = new Set(orders.map((o: any) => String(o?.order_sn || '')));
+  const missing = orderSns.filter((sn) => !returned.has(sn));
+  return { orders, missing, warnings, batches, requestIds };
+}
+
+/** Bentuk ringkas lama: hanya daftar detail order. */
 export async function getOrderDetail(
   cfg: ShopeeConfig,
   accessToken: string,
   shopId: string,
   orderSns: string[],
 ): Promise<any[]> {
-  const out: any[] = [];
-  for (let i = 0; i < orderSns.length; i += 50) {
-    const batch = orderSns.slice(i, i + 50);
-    const j: any = await shopGet(cfg, '/api/v2/order/get_order_detail', accessToken, shopId, {
-      order_sn_list: batch.join(','),
-      response_optional_fields: ORDER_DETAIL_FIELDS,
-      request_order_status_pending: true,
-    });
-    out.push(...(j?.response?.order_list || []));
-  }
-  return out;
+  return (await getOrderDetailOutcome(cfg, accessToken, shopId, orderSns)).orders;
 }
