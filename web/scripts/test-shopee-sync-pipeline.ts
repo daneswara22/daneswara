@@ -283,11 +283,12 @@ async function main() {
       `${created.status}/${created.api_status} baru=${created.orders_created}`,
     );
     check(
-      'Sinkron ulang menghitung update, bukan pesanan baru',
+      'Sinkron ulang tidak membuat pesanan baru (update atau tanpa perubahan)',
       await (async () => {
         mockFetch((u) => (isList(u) ? { body: listBody([{ order_sn: SN1 }]) } : { body: detailBody([SN1]) }));
         const again = await runShopeeSync({ tenantId, syncType: 'manual', days: 3 });
-        return again.orders_updated === 1 && again.orders_created === 0;
+        const rows = await prisma.orders.count({ where: { tenant_id: tenantId, external_order_id: SN1 } });
+        return again.orders_created === 0 && again.orders_updated + again.orders_skipped === 1 && rows === 1;
       })(),
     );
 
@@ -297,9 +298,12 @@ async function main() {
     );
     const missing = await runShopeeSync({ tenantId, syncType: 'manual', days: 3 });
     check(
-      'Detail gagal dihitung terpisah dari skip',
-      missing.orders_detail_missing === 1 && missing.orders_skipped === 0 && missing.status === 'partial',
-      `detail_hilang=${missing.orders_detail_missing}, skip=${missing.orders_skipped}, status=${missing.status}`,
+      'Detail gagal dihitung terpisah: hilang 1, pesanan lain tetap diproses',
+      missing.orders_detail_missing === 1 &&
+        missing.orders_created + missing.orders_updated + missing.orders_skipped === 1 &&
+        missing.orders_failed === 0 &&
+        missing.status === 'partial',
+      `detail_hilang=${missing.orders_detail_missing}, baru=${missing.orders_created}, update=${missing.orders_updated}, tanpa ubah=${missing.orders_skipped}, status=${missing.status}`,
     );
 
     // --- 10. runShopeeSync: error API ------------------------------------
@@ -323,8 +327,8 @@ async function main() {
       return Number(p.get('time_to')) - Number(p.get('time_from'));
     });
     check(
-      '30 hari dipecah jadi beberapa jendela, semuanya < 15 hari',
-      long.diagnostics.windows === 3 && spans.every((s) => s > 0 && s < SHOPEE_MAX_WINDOW_SECONDS),
+      '30 hari dipecah jadi beberapa jendela, semuanya <= 15 hari',
+      long.diagnostics.windows === 2 && spans.every((s) => s > 0 && s <= SHOPEE_MAX_WINDOW_SECONDS),
       `jendela=${long.diagnostics.windows}, span maks=${Math.max(...spans)}s`,
     );
     check(

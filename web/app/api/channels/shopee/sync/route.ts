@@ -29,7 +29,7 @@ export const POST = handle(async (req: NextRequest) => {
     user.tenant_id,
     user,
     'Sinkron Shopee',
-    `${result.status}/${result.api_status} — cek ${result.orders_checked}, baru ${result.orders_created}, update ${result.orders_updated}, detail hilang ${result.orders_detail_missing}`,
+    `${result.status}/${result.api_status} — cek ${result.orders_checked}, baru ${result.orders_created}, update ${result.orders_updated}, tanpa ubah ${result.orders_skipped}, detail hilang ${result.orders_detail_missing}, gagal simpan ${result.orders_failed}`,
   );
   return result;
 });

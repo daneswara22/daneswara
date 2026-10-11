@@ -12,6 +12,8 @@
     "test:core": "tsx scripts/test-core.ts",
     "test:shopee": "tsx scripts/test-shopee-sync.ts",
     "test:shopee-pipeline": "tsx scripts/test-shopee-sync-pipeline.ts",
+    "test:shopee-timerange": "tsx scripts/test-shopee-timerange.ts",
+    "test:shopee-resilience": "tsx scripts/test-shopee-resilience.ts",
     "test:palette": "tsx scripts/test-palette.ts"
   },
   "dependencies": {

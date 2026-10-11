@@ -198,16 +198,25 @@ export default function SalesChannels() {
         days: Number(days),
         time_range_field: timeField,
       });
-      if (data.status === "failed") toast.error(`Sinkron gagal: ${data.message}`);
-      else if (data.api_status === "ok_empty") {
+      if (data.api_status === "ok_empty") {
         toast.success(
           `Shopee menjawab normal, tapi tidak ada pesanan pada rentang ini (${data.diagnostics?.pages ?? 0} halaman API diperiksa)`,
         );
       } else {
-        const extra = data.orders_detail_missing ? `, detail gagal ${data.orders_detail_missing}` : "";
-        toast.success(
-          `Sinkron ${data.status} — dicek ${data.orders_checked}, baru ${data.orders_created}, diperbarui ${data.orders_updated}, dilewati ${data.orders_skipped}${extra}`,
-        );
+        // Angka inti selalu ditampilkan; kegagalan parsial disebut apa adanya.
+        const core = `dicek ${data.orders_checked}, baru ${data.orders_created}, diperbarui ${data.orders_updated}, tanpa perubahan ${data.orders_skipped}`;
+        const problems = [
+          data.orders_detail_missing ? `detail hilang ${data.orders_detail_missing}` : "",
+          data.orders_failed ? `gagal simpan ${data.orders_failed}` : "",
+          data.diagnostics?.failed_windows?.length ? `${data.diagnostics.failed_windows.length} jendela gagal` : "",
+          data.diagnostics?.failed_detail_batches?.length
+            ? `${data.diagnostics.failed_detail_batches.length} batch gagal`
+            : "",
+        ].filter(Boolean);
+        const text = `Sinkron ${data.status} — ${core}${problems.length ? ` | ${problems.join(", ")}` : ""}`;
+        if (data.status === "failed") toast.error(text);
+        else if (data.status === "partial") toast.warning(text);
+        else toast.success(text);
       }
       await Promise.all([loadChannel(), loadLogs(), loadMapping()]);
     } catch (e) {
@@ -554,7 +563,7 @@ export default function SalesChannels() {
                     <th className="p-3">Dicek</th>
                     <th className="p-3">Baru</th>
                     <th className="p-3">Update</th>
-                    <th className="p-3">Skip</th>
+                    <th className="p-3" title="Detail diterima tapi Shopee tidak mengirim perubahan apa pun">Tanpa Ubah</th>
                     <th className="p-3">Error</th>
                     <th className="p-3">Status</th>
                     <th className="p-3">API</th>
