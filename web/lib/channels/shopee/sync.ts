@@ -8,10 +8,12 @@ import { prisma } from '../../db';
 import { newId } from '../../http';
 import { getCreds, getChannel, saveTokens, updateChannel } from '../store';
 import {
+  SHOPEE_MAX_WINDOW_SECONDS,
   ShopeeConfig,
   ShopeeError,
-  getOrderDetail,
-  getOrderList,
+  ShopeeTimeRangeField,
+  getOrderDetailOutcome,
+  getOrderListOutcome,
   refreshAccessToken,
   shopeeEnvironment,
 } from './client';
@@ -24,16 +26,41 @@ export interface SyncCounters {
   orders_created: number;
   orders_updated: number;
   orders_skipped: number;
+  /** Order yang ada di daftar tapi detailnya tidak dikembalikan Shopee. */
+  orders_detail_missing: number;
   errors_count: number;
 }
 
 export interface SyncOutcome extends SyncCounters {
   status: 'success' | 'partial' | 'failed';
+  /**
+   * `ok` = API valid dan ada pesanan, `ok_empty` = API valid tapi daftar pesanan
+   * kosong (bukan kegagalan), selain itu kode error dari Shopee.
+   */
+  api_status: string;
   message: string;
   log_id: string;
+  /** Rincian pemanggilan API untuk penelusuran, tanpa rahasia apa pun. */
+  diagnostics: {
+    time_range_field: string;
+    time_from: number;
+    time_to: number;
+    days: number;
+    windows: number;
+    pages: number;
+    raw_orders: number;
+    unique_order_sns: number;
+    dropped_rows: number;
+    detail_batches: number;
+    warnings: string[];
+  };
 }
 
-const WINDOW = 15 * 24 * 3600; // batas Shopee per permintaan (detik)
+/**
+ * Langkah jendela waktu. Batas resmi Shopee 15 hari; dikurangi 1 detik supaya
+ * jarak yang dikirim selalu DI BAWAH batas, bukan tepat di batas.
+ */
+const WINDOW_STEP = SHOPEE_MAX_WINDOW_SECONDS - 1;
 
 /** Konfigurasi + access token yang pasti masih valid (auto refresh). */
 export async function shopeeContext(tenantId: string) {
@@ -265,6 +292,7 @@ export async function runShopeeSync(options: {
   syncType?: 'manual' | 'cron' | 'webhook' | 'backfill';
   days?: number;
   orderSns?: string[];
+  timeRangeField?: ShopeeTimeRangeField;
 }): Promise<SyncOutcome> {
   const tenantId = options.tenantId;
   const syncType = options.syncType || 'manual';
@@ -274,38 +302,75 @@ export async function runShopeeSync(options: {
     orders_created: 0,
     orders_updated: 0,
     orders_skipped: 0,
+    orders_detail_missing: 0,
     errors_count: 0,
   };
   const errors: string[] = [];
+  const warnings: string[] = [];
   let channelId = '';
   let apiStatus = 'ok';
+
+  // Default perilaku TIDAK berubah: 7 hari terakhir memakai update_time.
+  const days = Math.min(120, Math.max(1, Number(options.days) || 7));
+  const timeRangeField: ShopeeTimeRangeField = options.timeRangeField === 'create_time' ? 'create_time' : 'update_time';
+  const explicitSns = (options.orderSns || []).slice(); // salinan: jangan mutasi argumen pemanggil
+  const timeTo = Math.floor(Date.now() / 1000);
+  const timeFrom = timeTo - days * 24 * 3600;
+  const diagnostics: SyncOutcome['diagnostics'] = {
+    time_range_field: timeRangeField,
+    time_from: explicitSns.length ? 0 : timeFrom,
+    time_to: explicitSns.length ? 0 : timeTo,
+    days: explicitSns.length ? 0 : days,
+    windows: 0,
+    pages: 0,
+    raw_orders: 0,
+    unique_order_sns: 0,
+    dropped_rows: 0,
+    detail_batches: 0,
+    warnings: [],
+  };
 
   try {
     const known = await getChannel(tenantId, 'shopee');
     if (known) channelId = known.id;
     const ctx = await shopeeContext(tenantId);
     channelId = ctx.channel.id;
-    let orderSns = options.orderSns || [];
+
+    let orderSns = explicitSns;
     if (orderSns.length === 0) {
-      const days = Math.min(120, Math.max(1, Number(options.days) || 7));
-      const to = Math.floor(Date.now() / 1000);
-      const from = to - days * 24 * 3600;
-      for (let start = from; start < to; start += WINDOW) {
-        const end = Math.min(to, start + WINDOW - 1);
-        const list = await getOrderList(ctx.cfg, ctx.accessToken, ctx.shopId, {
+      const collected: string[] = [];
+      for (let start = timeFrom; start < timeTo; start += WINDOW_STEP) {
+        const end = Math.min(timeTo, start + WINDOW_STEP);
+        const listed = await getOrderListOutcome(ctx.cfg, ctx.accessToken, ctx.shopId, {
           timeFrom: start,
           timeTo: end,
-          timeRangeField: 'update_time',
+          timeRangeField,
         });
-        orderSns.push(...list.map((o: any) => String(o?.order_sn)).filter(Boolean));
+        diagnostics.windows += 1;
+        diagnostics.pages += listed.pages;
+        diagnostics.raw_orders += listed.raw.length;
+        diagnostics.dropped_rows += listed.droppedRows;
+        collected.push(...listed.orderSns);
       }
-      orderSns = Array.from(new Set(orderSns));
+      // Baris tanpa order_sn tidak boleh hilang diam-diam: hitung sebagai error
+      // supaya perubahan bentuk respons Shopee langsung terlihat di log.
+      if (diagnostics.dropped_rows > 0) {
+        counters.errors_count += diagnostics.dropped_rows;
+        errors.push(`${diagnostics.dropped_rows} baris daftar order tanpa order_sn`);
+      }
+      orderSns = Array.from(new Set(collected));
     }
+    diagnostics.unique_order_sns = orderSns.length;
     counters.orders_checked = orderSns.length;
 
     if (orderSns.length > 0) {
-      const details = await getOrderDetail(ctx.cfg, ctx.accessToken, ctx.shopId, orderSns);
-      for (const detail of details) {
+      const detailed = await getOrderDetailOutcome(ctx.cfg, ctx.accessToken, ctx.shopId, orderSns);
+      diagnostics.detail_batches = detailed.batches;
+      if (detailed.warnings.length) {
+        warnings.push(...detailed.warnings);
+        diagnostics.warnings = detailed.warnings.slice(0, 10);
+      }
+      for (const detail of detailed.orders) {
         try {
           const res = await upsertShopeeOrder(tenantId, ctx.channel, detail);
           if (res.action === 'created') counters.orders_created += 1;
@@ -316,8 +381,18 @@ export async function runShopeeSync(options: {
           errors.push(`${detail?.order_sn}: ${e?.message || e}`);
         }
       }
-      counters.orders_skipped += Math.max(0, orderSns.length - details.length);
+      // Detail yang tidak kembali dilaporkan terpisah, bukan ikut "dilewati".
+      counters.orders_detail_missing = detailed.missing.length;
+      if (detailed.missing.length) {
+        // Gagal mengambil detail adalah kegagalan nyata, jadi ikut dihitung
+        // sebagai error (status jadi partial/failed), bukan disembunyikan.
+        counters.errors_count += detailed.missing.length;
+        errors.push(`detail tidak kembali untuk ${detailed.missing.length} order (${detailed.missing.slice(0, 5).join(', ')})`);
+      }
     }
+
+    // API valid tapi tidak ada pesanan -> bedakan dari kegagalan.
+    if (counters.orders_checked === 0 && counters.errors_count === 0) apiStatus = 'ok_empty';
   } catch (e: any) {
     counters.errors_count += 1;
     apiStatus = e?.code || 'error';
@@ -331,7 +406,43 @@ export async function runShopeeSync(options: {
         ? 'partial'
         : 'failed';
   const finished = new Date();
-  const message = errors.length ? errors.slice(0, 5).join(' | ').slice(0, 2000) : 'OK';
+
+  // Ringkasan yang bisa dibaca manusia + angka mentah, TANPA partner key,
+  // access token, refresh token, atau URL bertanda tangan.
+  const scope = explicitSns.length
+    ? `order_sn eksplisit: ${explicitSns.length}`
+    : `${timeRangeField} ${new Date(timeFrom * 1000).toISOString()}..${new Date(timeTo * 1000).toISOString()} (${days} hari, ${diagnostics.windows} jendela, ${diagnostics.pages} halaman)`;
+  const summary = [
+    `${apiStatus}`,
+    scope,
+    `mentah ${diagnostics.raw_orders}`,
+    `unik ${diagnostics.unique_order_sns}`,
+    `tanpa order_sn ${diagnostics.dropped_rows}`,
+    `batch detail ${diagnostics.detail_batches}`,
+    `detail hilang ${counters.orders_detail_missing}`,
+  ].join(' | ');
+  const message = [
+    errors.length ? errors.slice(0, 5).join(' | ') : apiStatus === 'ok_empty' ? 'OK (tidak ada pesanan pada rentang ini)' : 'OK',
+    summary,
+    warnings.length ? `warning Shopee: ${warnings.slice(0, 3).join(' ; ')}` : '',
+  ]
+    .filter(Boolean)
+    .join(' || ')
+    .slice(0, 2000);
+
+  // Jejak server untuk penelusuran; sengaja tanpa kredensial apa pun.
+  console.info(
+    '[shopee-sync]',
+    JSON.stringify({
+      tenant_id: tenantId,
+      sync_type: syncType,
+      status,
+      api_status: apiStatus,
+      ...diagnostics,
+      ...counters,
+      duration_ms: finished.getTime() - started.getTime(),
+    }),
+  );
 
   const log = await prisma.channel_sync_logs.create({
     data: {
@@ -361,5 +472,5 @@ export async function runShopeeSync(options: {
     });
   }
 
-  return { ...counters, status, message, log_id: log.id };
+  return { ...counters, status, api_status: apiStatus, message, log_id: log.id, diagnostics };
 }
