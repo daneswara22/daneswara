@@ -97,8 +97,6 @@ function wrapLines(text, sizePt, widthMm, bold = false) {
 
 /** Lebar kolom KETERANGAN = lebar isi - kolom harga/jml/total, dikurangi padding. */
 const DESC_COL_WIDTH_MM = INVOICE_CONTENT_WIDTH_MM - 20 - 9 - 21 - 1.2 * 2;
-/** Dua kolom .iinfo berbagi lebar isi dengan gap 3mm. */
-const INFO_COL_WIDTH_MM = (INVOICE_CONTENT_WIDTH_MM - 3) / 2;
 /** Lebar teks .iquote = lebar isi - padding kiri/kanan - ikon - gap. */
 const QUOTE_TEXT_WIDTH_MM = INVOICE_CONTENT_WIDTH_MM - 1.6 * 2 - 3.4 - 1.5;
 
@@ -116,7 +114,7 @@ const EMPTY_ROW_HEIGHT_MM = itemRowHeightMm(1, 0);
  * Mengembalikan 0 kalau ordernya sudah memenuhi area tabel, sehingga invoice
  * tetap satu lembar A6 dan tidak ada blok yang terpotong.
  */
-function countFillerRows({ itemRows, hasCashier, docNo, customerName, note, summaryRowCount, address }) {
+function countFillerRows({ itemRows, customerName, tanggal, note, summaryRowCount, address }) {
   // Header: kolom teks di kiri, logo rata kanan dengan tinggi yang sama.
   const headTextMm =
     17 * 0.92 * MM_PER_PT +
@@ -126,23 +124,20 @@ function countFillerRows({ itemRows, hasCashier, docNo, customerName, note, summ
     lineMm(6.6, 1.28);
   const headMm = Math.max(headTextMm, HEAD_LOGO_HEIGHT_MM);
 
-  const ruleMm = 1.8 + 1.1 * MM_PER_PT + 2;
+  const ruleMm = 1.2 + 1.1 * MM_PER_PT + 1.4;
 
-  // Info transaksi: tinggi kolom yang paling panjang.
-  const infoLeftMm =
-    lineMm(6.8) +
-    lineMm(7.2) * wrapLines(customerName, 7.2, INFO_COL_WIDTH_MM) +
-    (hasCashier ? 1.3 + lineMm(6.8) + lineMm(7.2) : 0);
-  const infoRightMm =
-    lineMm(6.8) +
-    lineMm(7.2) * 2 +
-    1.3 +
-    lineMm(6.8) +
-    lineMm(7.2) * wrapLines(docNo, 7.2, INFO_COL_WIDTH_MM);
-  const infoMm = Math.max(infoLeftMm, infoRightMm);
+  // Info transaksi (satu baris: KEPADA | KASIR | TANGGAL). Tinggi = kolom tertinggi.
+  // Lebar kolom proporsional mengikuti rasio flex 1.1 : 0.8 : 1.3 dengan gap 2.5mm.
+  const infoInnerMm = INVOICE_CONTENT_WIDTH_MM - 2.5 * 2;
+  const wKepada = (infoInnerMm * 1.1) / 3.2;
+  const wTgl = (infoInnerMm * 1.3) / 3.2;
+  const infoKepadaMm = lineMm(6.8) + lineMm(7.2) * wrapLines(customerName, 7.2, wKepada);
+  const infoKasirMm = lineMm(6.8) + lineMm(7.2);
+  const infoTglMm = lineMm(6.8) + lineMm(7.2) * (wrapLines(tanggal, 7.2, wTgl) + 1);
+  const infoMm = Math.max(infoKepadaMm, infoKasirMm, infoTglMm);
 
   // Tabel: margin atas + kepala tabel + garis penutup di baris terakhir.
-  const tableChromeMm = 2.4 + 1.1 * MM_PER_PT * 2 + 1 * 2 + lineMm(6.8) + 1.1 * MM_PER_PT;
+  const tableChromeMm = 1.5 + 1.1 * MM_PER_PT * 2 + 1 * 2 + lineMm(6.8) + 1.1 * MM_PER_PT;
 
   // Pembayaran: kotak rekening vs tabel ringkasan, diambil yang lebih tinggi.
   // Baris terakhir kotak rekening setinggi QRIS, atau dua baris nama rekening
@@ -159,18 +154,18 @@ function countFillerRows({ itemRows, hasCashier, docNo, customerName, note, summ
   const sumNormalMm = 0.5 * 2 + lineMm(7.2);
   const sumGrandMm = 1.1 * MM_PER_PT + 1.4 + 0.5 + lineMm(10.5);
   const sumMm = (summaryRowCount - 1) * sumNormalMm + 0.9 + sumGrandMm;
-  const payMm = 2.4 + Math.max(bankMm, sumMm);
+  const payMm = 1.6 + Math.max(bankMm, sumMm);
 
-  const statMm = 2.4 + 1 * MM_PER_PT * 2 + 1.3 * 2 + lineMm(8.2);
+  const statMm = 1.6 + 1 * MM_PER_PT * 2 + 1.3 * 2 + lineMm(8.2);
 
-  const noteMm = note ? 1.8 + lineMm(6.8) * wrapLines(note, 6.8, INVOICE_CONTENT_WIDTH_MM) : 0;
+  const noteMm = note ? 1.2 + lineMm(6.8) * wrapLines(note, 6.8, INVOICE_CONTENT_WIDTH_MM) : 0;
 
   const quoteTextMm =
     lineMm(6.2) * wrapLines(QUOTE_NOTE.replace(/<[^>]*>/g, ''), 6.2, QUOTE_TEXT_WIDTH_MM);
-  const quoteMm = 1.8 + 1.4 * 2 + Math.max(3.4, quoteTextMm);
+  const quoteMm = 1.2 + 1.4 * 2 + Math.max(3.4, quoteTextMm);
 
   // Penutup kini hanya satu baris ucapan terima kasih.
-  const footMm = 3 + lineMm(7.2);
+  const footMm = 2 + lineMm(7.2);
 
   const itemsMm = itemRows.reduce((s, h) => s + h, 0);
 
@@ -270,6 +265,8 @@ export function buildInvoiceCss(mode = 'print') {
 .dnsw-inv .ihead .biz { margin-top: ${m(1)}; font-size: ${p(7.6)}; font-weight: 700; }
 .dnsw-inv .ihead .ct { font-size: ${p(6.6)}; line-height: 1.28; }
 .dnsw-inv .ihead .ct b { font-weight: 700; }
+.dnsw-inv .ihead .ctfoot { display: flex; align-items: baseline; justify-content: space-between; gap: ${m(2)}; }
+.dnsw-inv .ihead .ctfoot .invno { font-weight: 800; white-space: nowrap; }
 .dnsw-inv .ihead-logo { flex: 0 0 auto; margin-left: auto; }
 /* Tinggi logo dipatok eksplisit (bukan max-height) karena html2canvas
    mengabaikan max-height + object-fit dan logo jadi kebesaran.
@@ -280,22 +277,24 @@ export function buildInvoiceCss(mode = 'print') {
   display: block; height: ${m(HEAD_LOGO_HEIGHT_MM)}; width: auto; object-fit: contain;
   transform: scaleX(-1);
 }
-.dnsw-inv .rule { border-top: ${p(1.1)} solid #000; margin: ${m(1.8)} 0 ${m(2)}; }
+.dnsw-inv .rule { border-top: ${p(1.1)} solid #000; margin: ${m(1.2)} 0 ${m(1.4)}; }
 
-/* ---- Informasi transaksi: dua sisi ---- */
-.dnsw-inv .iinfo { display: flex; gap: ${m(3)}; }
-.dnsw-inv .iinfo .c { flex: 1 1 0; min-width: 0; }
-.dnsw-inv .iinfo .c.r { text-align: right; }
+/* ---- Informasi transaksi: satu baris KEPADA | KASIR | TANGGAL ---- */
+.dnsw-inv .iinfo { display: flex; gap: ${m(2.5)}; }
+.dnsw-inv .iinfo .c { min-width: 0; }
+.dnsw-inv .iinfo .c.kepada { flex: 1.1 1 0; }
+.dnsw-inv .iinfo .c.kasir { flex: 0.8 1 0; }
+.dnsw-inv .iinfo .c.tgl { flex: 1.3 1 0; }
 .dnsw-inv .lbl { font-size: ${p(6.8)}; font-weight: 800; letter-spacing: ${p(0.2)}; }
 .dnsw-inv .val { font-size: ${p(7.2)}; word-break: break-word; }
 .dnsw-inv .sp { margin-top: ${m(1.3)}; }
 
 /* ---- Tabel produk: KETERANGAN | HARGA / UNIT | JML | TOTAL ---- */
-.dnsw-inv .iitems { margin-top: ${m(2.4)}; }
+.dnsw-inv .iitems { margin-top: ${m(1.5)}; }
 .dnsw-inv .iitems th {
   font-size: ${p(6.8)}; font-weight: 800; letter-spacing: ${p(0.2)}; background: #f0f0f0;
   border-top: ${p(1.1)} solid #000; border-bottom: ${p(1.1)} solid #000;
-  padding: ${m(1)} ${m(1.2)}; text-align: left; vertical-align: bottom;
+  padding: ${m(1)} ${m(1.2)}; text-align: left; vertical-align: bottom; white-space: nowrap;
 }
 .dnsw-inv .iitems th.u, .dnsw-inv .iitems td.u { width: ${m(20)}; text-align: right; }
 .dnsw-inv .iitems th.q, .dnsw-inv .iitems td.q { width: ${m(9)}; text-align: center; }
@@ -309,7 +308,7 @@ export function buildInvoiceCss(mode = 'print') {
 .dnsw-inv .iitems thead { display: table-header-group; }
 
 /* ---- Pembayaran (kiri) + ringkasan (kanan) ---- */
-.dnsw-inv .ipay { display: flex; align-items: flex-start; gap: ${m(3)}; margin-top: ${m(2.4)}; }
+.dnsw-inv .ipay { display: flex; align-items: flex-start; gap: ${m(3)}; margin-top: ${m(1.6)}; }
 .dnsw-inv .ibank {
   flex: 0 0 ${m(45)}; border: ${p(0.8)} solid #000; border-radius: ${m(1.2)};
   padding: ${m(1.5)} ${m(1.8)};
@@ -360,15 +359,15 @@ export function buildInvoiceCss(mode = 'print') {
 
 /* ---- Status pembayaran (dinamis) ---- */
 .dnsw-inv .istat {
-  margin-top: ${m(2.4)}; border: ${p(1)} solid #000; padding: ${m(1.3)};
+  margin-top: ${m(1.6)}; border: ${p(1)} solid #000; padding: ${m(1.3)};
   text-align: center; font-size: ${p(8.2)}; font-weight: 800; letter-spacing: ${p(0.4)};
 }
 
 /* ---- Catatan transaksi + catatan penawaran ---- */
-.dnsw-inv .inote { margin-top: ${m(1.8)}; font-size: ${p(6.8)}; }
+.dnsw-inv .inote { margin-top: ${m(1.2)}; font-size: ${p(6.8)}; }
 .dnsw-inv .inote b { font-weight: 700; }
 .dnsw-inv .iquote {
-  display: flex; align-items: center; gap: ${m(1.5)}; margin-top: ${m(1.8)};
+  display: flex; align-items: center; gap: ${m(1.5)}; margin-top: ${m(1.2)};
   background: #f2f2f2; border-radius: ${m(1.2)}; padding: ${m(1.4)} ${m(1.6)};
   font-size: ${p(6.2)}; line-height: 1.3;
 }
@@ -381,7 +380,7 @@ export function buildInvoiceCss(mode = 'print') {
 
 /* ---- Penutup: hanya satu baris ucapan terima kasih ---- */
 .dnsw-inv .ithanks {
-  margin-top: ${m(3)}; text-align: center;
+  margin-top: ${m(2)}; text-align: center;
   font-size: ${p(7.2)}; font-weight: 700;
   page-break-inside: avoid; break-inside: avoid;
 }
@@ -495,9 +494,8 @@ export function buildInvoiceBody(r = {}, settings = {}, helpers = {}) {
   // memenuhi area tabel, hasilnya 0 dan tidak ada baris tambahan.
   const fillerCount = countFillerRows({
     itemRows: itemRowHeights,
-    hasCashier: Boolean(r.cashier),
-    docNo,
     customerName: r.customer_name || 'Pelanggan',
+    tanggal,
     note: r.note,
     summaryRowCount: sum.length,
     address,
@@ -527,7 +525,10 @@ export function buildInvoiceBody(r = {}, settings = {}, helpers = {}) {
       <h1>INVOICE</h1>
       <div class="biz">${esc(settings.business_name || 'Daneswara Print')}</div>
       <div class="ct">${esc(address)}</div>
-      <div class="ct">${esc(phone)} | <b>${esc(BRAND.website)}</b></div>
+      <div class="ct ctfoot">
+        <span>${esc(phone)} | <b>${esc(BRAND.website)}</b></span>
+        <span class="invno">NO : ${esc(docNo)}</span>
+      </div>
     </div>
     <div class="ihead-logo">
       ${logo ? `<img src="${esc(logo)}" alt="" crossorigin="anonymous" onerror="this.style.display='none'"/>` : ''}
@@ -536,22 +537,23 @@ export function buildInvoiceBody(r = {}, settings = {}, helpers = {}) {
   <div class="rule"></div>
 
   <div class="iinfo">
-    <div class="c">
+    <div class="c kepada">
       <div class="lbl">KEPADA :</div>
       <div class="val">${esc(r.customer_name || 'Pelanggan')}</div>
-      ${r.cashier ? `<div class="lbl sp">KASIR :</div><div class="val">${esc(r.cashier)}</div>` : ''}
     </div>
-    <div class="c r">
+    <div class="c kasir">
+      <div class="lbl">KASIR :</div>
+      <div class="val">${esc(r.cashier || '-')}</div>
+    </div>
+    <div class="c tgl">
       <div class="lbl">TANGGAL :</div>
       <div class="val">${esc(tanggal)}</div>
       <div class="val">${esc(jam)}</div>
-      <div class="lbl sp">NO INVOICE :</div>
-      <div class="val">${esc(docNo)}</div>
     </div>
   </div>
 
   <table class="iitems">
-    <thead><tr><th>KETERANGAN</th><th class="u">HARGA / UNIT</th><th class="q">JML</th><th class="t">TOTAL</th></tr></thead>
+    <thead><tr><th>KETERANGAN</th><th class="u">HARGA</th><th class="q">QTY</th><th class="t">TOTAL</th></tr></thead>
     <tbody>${rows}${fillerRows}</tbody>
   </table>
 
