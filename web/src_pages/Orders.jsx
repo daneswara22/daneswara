@@ -287,10 +287,10 @@ export default function Orders({ channelView = false }) {
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <ChannelBadge order={o} />
-            <p className="truncate font-semibold">{o.order_number}</p>
+            <p className="font-bold">{(o.customer_name || "Tanpa nama")} - {new Date(o.order_date || o.created_at).toLocaleString("id-ID", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}</p>
             {o.order_type && <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground" data-testid={`order-type-${o.id}`}>{o.order_type}</span>}
           </div>
-          <p className="text-xs text-muted-foreground">{o.customer_name || "Tanpa nama"} · {new Date(o.order_date || o.created_at).toLocaleString("id-ID")}</p>
+          <p className="text-xs text-muted-foreground" data-testid={`order-number-${o.id}`}>{o.order_number}</p>
           {(o.items || []).length > 0 && (
             <p className="mt-0.5 truncate text-xs text-muted-foreground" data-testid={`order-items-${o.id}`}>
               {(o.items || [])
