@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import ImageCaptureBridge from '@/components/ImageCaptureBridge';
 
 export const metadata: Metadata = {
   title: {
@@ -45,7 +46,7 @@ export const viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="id" suppressHydrationWarning>
-      <body>{children}</body>
+      <body>{children}<ImageCaptureBridge /></body>
     </html>
   );
 }
