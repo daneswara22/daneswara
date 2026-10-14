@@ -308,9 +308,9 @@ export function buildInvoiceCss(mode = 'print') {
 .dnsw-inv .iitems thead { display: table-header-group; }
 
 /* ---- Pembayaran (kiri) + ringkasan (kanan) ---- */
-.dnsw-inv .ipay { display: flex; align-items: flex-start; gap: ${m(3)}; margin-top: ${m(1.6)}; }
+.dnsw-inv .ipay { display: flex; align-items: flex-start; gap: ${m(2)}; margin-top: ${m(1.6)}; }
 .dnsw-inv .ibank {
-  flex: 0 0 ${m(45)}; border: ${p(0.8)} solid #000; border-radius: ${m(1.2)};
+  flex: 0 0 ${m(38)}; border: ${p(0.8)} solid #000; border-radius: ${m(1.2)};
   padding: ${m(1.5)} ${m(1.8)};
 }
 .dnsw-inv .ibank .bt { font-size: ${p(7)}; font-weight: 800; }
@@ -343,7 +343,7 @@ export function buildInvoiceCss(mode = 'print') {
   font-size: ${p(QRIS_CAPTION_PT)}; font-weight: 700; letter-spacing: ${p(0.3)}; color: #555;
 }
 
-.dnsw-inv .isum { flex: 1 1 auto; }
+.dnsw-inv .isum { flex: 1 1 auto; min-width: 0; }
 .dnsw-inv .isum td { padding: ${m(0.5)} 0; font-size: ${p(7.2)}; border: 0; }
 .dnsw-inv .isum tr.prelast td { padding-bottom: ${m(1.4)}; }
 .dnsw-inv .isum td.l { text-align: left; white-space: nowrap; }
