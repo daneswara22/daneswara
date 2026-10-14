@@ -9,6 +9,22 @@ import { ReceiptShareCard } from "@/components/ReceiptShareCard";
 import { toast } from "sonner";
 import { MessageCircle, Copy, Printer, Image as ImageIcon } from "lucide-react";
 
+// Cache blob gambar nota agar klik berulang untuk nota yang sama tidak
+// me-render ulang (reuse hasil render yang masih valid). Kunci memuat seluruh
+// nilai yang memengaruhi tampilan nota, jadi perubahan apa pun otomatis invalid.
+const notaImageCache = new Map();
+
+function notaCacheKey(nota, settings) {
+  return [
+    nota.id, nota.invoice, nota.order_number,
+    nota.subtotal, nota.discount, nota.tax, nota.total,
+    nota.deposit_amount, nota.remaining, nota.settle_paid, nota.paid_amount,
+    nota.payment_method, nota.status,
+    (nota.items || []).length,
+    settings.business_name, settings.logo,
+  ].join("|");
+}
+
 // Reusable "Bagikan Nota sebagai Gambar" button + offscreen PNG card.
 // Renders the shareable card offscreen and shares (mobile) or downloads (desktop).
 export function ShareNotaImageButton({ nota, settings = {}, className = "w-full gap-2" }) {
@@ -20,9 +36,15 @@ export function ShareNotaImageButton({ nota, settings = {}, className = "w-full 
     if (!cardRef.current) return;
     setBusy(true);
     try {
-      // Invoice berlatar putih. Kartu sudah digambar 2x (IMAGE_UNIT_SCALE),
-      // jadi scale 1.5 sudah menghasilkan gambar ~1200px yang tajam.
-      const blob = await captureToBlob(cardRef.current, { backgroundColor: "#ffffff", scale: 1.5 });
+      const key = notaCacheKey(nota, settings);
+      let blob = notaImageCache.get(key);
+      if (!blob) {
+        // Invoice berlatar putih & hanya memakai font sistem (Arial), jadi
+        // tak perlu menunggu web-font halaman (waitFonts:false) -> lebih cepat.
+        // Kartu sudah digambar 2x (IMAGE_UNIT_SCALE), scale 1.5 => ~1200px tajam.
+        blob = await captureToBlob(cardRef.current, { backgroundColor: "#ffffff", scale: 1.5, waitFonts: false });
+        notaImageCache.set(key, blob);
+      }
       const fname = `nota-${nota.invoice || nota.order_number || "struk"}.png`;
       const res = await shareOrDownload(blob, fname, { title: "Nota Transaksi", text: `Nota ${nota.invoice || nota.order_number || ""}` });
       if (res === "downloaded") toast.success("Gambar nota diunduh — tinggal lampirkan di WhatsApp");

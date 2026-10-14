@@ -21,9 +21,9 @@ async function waitForImages(node, timeout = 5000) {
 }
 
 // Capture a DOM node to a PNG Blob reliably, with font/image preloading and retries.
-export async function captureToBlob(node, { backgroundColor = "#15171c", scale = 2 } = {}) {
+export async function captureToBlob(node, { backgroundColor = "#15171c", scale = 2, waitFonts = true } = {}) {
   if (!node) throw new Error("no node");
-  if (document.fonts && document.fonts.ready) {
+  if (waitFonts && document.fonts && document.fonts.ready) {
     try { await document.fonts.ready; } catch (e) { /* ignore */ }
   }
   await waitForImages(node);
