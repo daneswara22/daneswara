@@ -310,7 +310,7 @@ export function buildInvoiceCss(mode = 'print') {
 /* ---- Pembayaran (kiri) + ringkasan (kanan) ---- */
 .dnsw-inv .ipay { display: flex; align-items: flex-start; gap: ${m(2)}; margin-top: ${m(1.6)}; }
 .dnsw-inv .ibank {
-  flex: 0 0 ${m(38)}; border: ${p(0.8)} solid #000; border-radius: ${m(1.2)};
+  flex: 0 0 ${m(43)}; border: ${p(0.8)} solid #000; border-radius: ${m(1.2)};
   padding: ${m(1.5)} ${m(1.8)};
 }
 .dnsw-inv .ibank .bt { font-size: ${p(7)}; font-weight: 800; }
@@ -323,10 +323,10 @@ export function buildInvoiceCss(mode = 'print') {
 }
 .dnsw-inv .ibank .bn img { display: block; height: ${m(3.2)}; width: auto; }
 .dnsw-inv .ibank .bn i { font-style: italic; }
-.dnsw-inv .ibank .bv { font-size: ${p(7)}; word-break: break-all; }
+.dnsw-inv .ibank .bv { font-size: ${p(7)}; white-space: nowrap; }
 .dnsw-inv .ibank .bd { border-top: ${p(0.6)} solid #000; margin: ${m(1.3)} 0 ${m(1)}; }
-.dnsw-inv .ibank .bh { font-size: ${p(6.6)}; }
-.dnsw-inv .ibank .bh b { font-weight: 700; }
+.dnsw-inv .ibank .bh { font-size: ${p(6)}; }
+.dnsw-inv .ibank .bh b { font-weight: 700; white-space: nowrap; }
 /* Baris bawah kotak pembayaran: nama rekening di kiri, QRIS kecil di kanan.
    Sengaja dibuat tidak mencolok - tanpa bingkai, label kecil abu-abu di samping
    kodenya (bukan di bawah, supaya tidak menambah tinggi halaman), dan
@@ -343,10 +343,10 @@ export function buildInvoiceCss(mode = 'print') {
   font-size: ${p(QRIS_CAPTION_PT)}; font-weight: 700; letter-spacing: ${p(0.3)}; color: #555;
 }
 
-.dnsw-inv .isum { flex: 1 1 auto; min-width: 0; }
+.dnsw-inv .isum { flex: 0 1 auto; width: auto; max-width: 100%; margin-left: auto; }
 .dnsw-inv .isum td { padding: ${m(0.5)} 0; font-size: ${p(7.2)}; border: 0; }
 .dnsw-inv .isum tr.prelast td { padding-bottom: ${m(1.4)}; }
-.dnsw-inv .isum td.l { text-align: left; white-space: nowrap; }
+.dnsw-inv .isum td.l { text-align: left; white-space: nowrap; padding-right: ${m(3)}; }
 .dnsw-inv .isum td.v { text-align: right; white-space: nowrap; }
 .dnsw-inv .isum tr.grand td {
   border-top: ${p(1.1)} solid #000; padding-top: ${m(1.4)}; font-weight: 800;
@@ -354,7 +354,7 @@ export function buildInvoiceCss(mode = 'print') {
 }
 /* Sisa pembayaran setelah dikurangi DP: hanya tampil pada invoice deposit. */
 .dnsw-inv .isum tr.due td {
-  padding-top: ${m(1)}; font-weight: 800; font-size: ${p(8.2)};
+  padding-top: ${m(1)}; font-weight: 800; font-size: ${p(7.2)};
 }
 
 /* ---- Status pembayaran (dinamis) ---- */
