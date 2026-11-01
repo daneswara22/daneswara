@@ -3,6 +3,9 @@ const path = require('path');
 const nextConfig = {
   output: 'standalone',
   reactStrictMode: false,
+  // Dua dev server (landing :3000, POS :3001) tidak boleh berbagi folder .next —
+  // cache webpack saling menimpa dan route jadi 404. Pisahkan lewat env.
+  distDir: process.env.NEXT_DIST_DIR || '.next',
   // Indicator dev (badge "Static route" kiri bawah) tetap aktif, posisi dipindah
   // ke kanan bawah supaya tidak menutupi konten di kiri.
   devIndicators: {
