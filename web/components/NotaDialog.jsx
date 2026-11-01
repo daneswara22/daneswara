@@ -1,13 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { rupiah } from "@/lib/api";
 import { captureToBlob, shareOrDownload } from "@/lib/captureImage";
-import { printReceiptSmart, paymentStatus, sendReceiptWhatsApp, copyReceiptText } from "@/lib/printer";
+import { printReceiptSmart, paymentStatus, copyReceiptText } from "@/lib/printer";
 import { ReceiptShareCard } from "@/components/ReceiptShareCard";
 import { toast } from "sonner";
-import { MessageCircle, Copy, Printer, Image as ImageIcon, FileText } from "lucide-react";
+import { Copy, Printer, Image as ImageIcon, FileText } from "lucide-react";
 
 // Cache blob gambar nota agar klik berulang untuk nota yang sama tidak
 // me-render ulang (reuse hasil render yang masih valid). Kunci memuat seluruh
@@ -63,11 +62,8 @@ export function ShareNotaImageButton({ nota, settings = {}, className = "w-full 
   );
 }
 
-// Reusable nota/receipt dialog with Cetak / Kirim WA (teks) / Salin / Bagikan Gambar.
+// Reusable nota/receipt dialog with Cetak / Salin / Bagikan Gambar.
 export function NotaDialog({ nota, onClose, settings = {}, onPreview }) {
-  const [phone, setPhone] = useState("");
-  useEffect(() => { setPhone(nota?.customer_phone || ""); }, [nota]);
-
   const open = !!nota;
   const status = nota ? paymentStatus(nota) : "";
   const isDeposit = status === "DEPOSIT";
@@ -77,10 +73,6 @@ export function NotaDialog({ nota, onClose, settings = {}, onPreview }) {
       const mode = await printReceiptSmart(nota, settings);
       if (mode === "bluetooth") toast.success("Nota dikirim ke printer Bluetooth");
     } catch (e) { toast.error(e.message || "Gagal mencetak nota"); }
-  };
-  const doWa = () => {
-    const ok = sendReceiptWhatsApp(nota, settings, phone);
-    if (!ok) toast.info("Nomor tujuan kosong — pilih kontak di WhatsApp");
   };
   const doCopy = async () => { await copyReceiptText(nota, settings); toast.success("Nota disalin — tinggal tempel di WhatsApp pelanggan"); };
 
@@ -123,19 +115,12 @@ export function NotaDialog({ nota, onClose, settings = {}, onPreview }) {
               )}
             </div>
 
-            <div>
-              <label className="text-xs text-muted-foreground">Nomor WhatsApp pelanggan</label>
-              <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="cth: 08123456789" data-testid="nota-wa-phone-input" />
-            </div>
             <ShareNotaImageButton nota={nota} settings={settings} />
             {onPreview && (
               <Button variant="outline" className="w-full gap-2 border-amber-500/60 text-amber-600 hover:bg-amber-500/10" onClick={() => onPreview(nota)} data-testid="nota-preview-penawaran-button">
                 <FileText className="h-4 w-4" /> Preview Penawaran
               </Button>
             )}
-            <Button className="w-full gap-2 bg-[#25D366] text-white hover:bg-[#1ebe5b]" onClick={doWa} data-testid="nota-whatsapp-button">
-              <MessageCircle className="h-4 w-4" /> Kirim Teks via WhatsApp
-            </Button>
             <div className="flex gap-2">
               <Button variant="secondary" className="flex-1 gap-2" onClick={doCopy} data-testid="nota-copy-button"><Copy className="h-4 w-4" /> Salin</Button>
               <Button variant="outline" className="flex-1 gap-2" onClick={doPrint} data-testid="nota-print-button"><Printer className="h-4 w-4" /> Cetak</Button>

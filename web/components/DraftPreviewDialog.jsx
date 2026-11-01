@@ -1,13 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { rupiah } from "@/lib/api";
-import { rp, normalizePhone, printReceiptSmart } from "@/lib/printer";
+import { rp, printReceiptSmart } from "@/lib/printer";
 import { captureToBlob, shareOrDownload } from "@/lib/captureImage";
 import { ReceiptShareCard } from "@/components/ReceiptShareCard";
 import { toast } from "sonner";
-import { MessageCircle, Copy, Image as ImageIcon, FileText, Printer } from "lucide-react";
+import { Copy, Image as ImageIcon, FileText, Printer } from "lucide-react";
 
 // Plain-text quotation for WhatsApp / clipboard (distinct from paid receipt text).
 export function buildDraftText(o, settings = {}) {
@@ -42,21 +41,12 @@ export function buildDraftText(o, settings = {}) {
 // Preview/quotation dialog for DRAFT (unpaid) orders — deliberately styled
 // differently from the paid NotaDialog (amber quotation vs blue receipt).
 export function DraftPreviewDialog({ order, onClose, settings = {} }) {
-  const [phone, setPhone] = useState("");
   const [busy, setBusy] = useState(false);
   const cardRef = useRef(null);
-  useEffect(() => { setPhone(order?.customer_phone || ""); }, [order]);
 
   const open = !!order;
   const items = order?.items || [];
 
-  const doWa = () => {
-    const text = buildDraftText(order, settings);
-    const d = normalizePhone(phone);
-    const url = d ? `https://wa.me/${d}?text=${encodeURIComponent(text)}` : `https://wa.me/?text=${encodeURIComponent(text)}`;
-    window.open(url, "_blank");
-    if (!d) toast.info("Nomor kosong — pilih kontak di WhatsApp");
-  };
   const doCopy = async () => {
     const text = buildDraftText(order, settings);
     try { await navigator.clipboard.writeText(text); }
@@ -120,15 +110,8 @@ export function DraftPreviewDialog({ order, onClose, settings = {} }) {
               <div className="flex justify-between font-bold"><span>TOTAL</span><span>{rupiah(order.total)}</span></div>
             </div>
 
-            <div>
-              <label className="text-xs text-muted-foreground">Nomor WhatsApp pelanggan</label>
-              <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="cth: 08123456789" data-testid="draft-wa-phone-input" />
-            </div>
             <Button className="w-full gap-2 bg-amber-500 text-white hover:bg-amber-600" onClick={shareImage} disabled={busy} data-testid="draft-share-image-button">
               <ImageIcon className="h-4 w-4" /> {busy ? "Membuat gambar..." : "Bagikan Penawaran sebagai Gambar"}
-            </Button>
-            <Button className="w-full gap-2 bg-[#25D366] text-white hover:bg-[#1ebe5b]" onClick={doWa} data-testid="draft-whatsapp-button">
-              <MessageCircle className="h-4 w-4" /> Kirim Penawaran via WhatsApp
             </Button>
             <div className="flex gap-2">
               <Button variant="secondary" className="flex-1 gap-2" onClick={doCopy} data-testid="draft-copy-button"><Copy className="h-4 w-4" /> Salin Pesanan</Button>
