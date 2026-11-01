@@ -344,7 +344,7 @@ export default function POS() {
     if (cart.length === 0) return toast.error("Keranjang kosong");
     setHoldBusy(true);
     try {
-      await api.post("/orders", {
+      const { data } = await api.post("/orders", {
         customer_id: customerId || null,
         customer_name: holdName || "",
         items: cart, discount: Number(discount) || 0, tax_rate: taxRate,
@@ -353,6 +353,8 @@ export default function POS() {
       toast.success("Draft pesanan disimpan di menu Pesanan");
       setHoldOpen(false); setHoldName(""); setHoldType("Reguler");
       setCart([]); setDiscount(0); setDiscountTouched(false); setCustomerId(""); setCartOpen(false); setChannel("Toko");
+      // Kasir bisa langsung kirim penawaran tanpa pindah ke menu Pesanan.
+      if (data) setPreviewPenawaran({ ...data, order_number: data.order_number || data.invoice });
     } catch (e) { toast.error(formatApiError(e.response?.data?.detail)); }
     finally { setHoldBusy(false); }
   };
