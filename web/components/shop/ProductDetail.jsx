@@ -219,7 +219,7 @@ export default function ProductDetail({ product }) {
               {product.colors.map((o) => (
                 <button
                   type="button"
-                  key={o.v}
+                  key={`${o.v}|${o.hex}`}
                   onClick={() => setColor(o.v)}
                   data-testid={`opt-color-${o.v}`}
                   className={`flex items-center gap-2 ${chip(color === o.v)}`}

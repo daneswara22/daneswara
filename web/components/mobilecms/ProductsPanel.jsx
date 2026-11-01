@@ -244,12 +244,12 @@ function VariantEditor({ form, setForm }) {
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <Label className="text-xs text-muted-foreground">Variasi Produk (Ukuran · Warna · Stok)</Label>
+        <Label className="text-xs text-muted-foreground">Variasi Produk (Ukuran · Warna · Stok · Harga)</Label>
         <Button
           type="button"
           size="sm"
           variant="outline"
-          onClick={() => setForm((f) => ({ ...f, variants: [...f.variants, { size: '', color: '', stock: 0 }] }))}
+          onClick={() => setForm((f) => ({ ...f, variants: [...f.variants, { size: '', color: '', stock: 0, price: '' }] }))}
           data-testid="cms-variant-add"
         >
           <Plus className="mr-1 h-3.5 w-3.5" /> Tambah Variasi
@@ -260,7 +260,7 @@ function VariantEditor({ form, setForm }) {
       ) : (
         <div className="space-y-2">
           {form.variants.map((v, i) => (
-            <div key={i} className="grid grid-cols-[1fr_1fr_90px_36px] items-center gap-2">
+            <div key={i} className="grid grid-cols-[1fr_1fr_70px_1fr_36px] items-center gap-2">
               <Input
                 value={v.size}
                 placeholder="Ukuran (S / M / 10cm)"
@@ -279,6 +279,13 @@ function VariantEditor({ form, setForm }) {
                 placeholder="Stok"
                 onChange={(e) => update(i, 'stock', e.target.value.replace(/[^0-9]/g, ''))}
                 data-testid={`cms-variant-stock-${i}`}
+              />
+              <Input
+                value={v.price ?? ''}
+                inputMode="numeric"
+                placeholder="Harga (opsional)"
+                onChange={(e) => update(i, 'price', e.target.value.replace(/[^0-9]/g, ''))}
+                data-testid={`cms-variant-price-${i}`}
               />
               <Button
                 type="button"
@@ -397,7 +404,7 @@ export default function ProductsPanel({ draft, reload, onMediaAdded }) {
       cost: Number(form.cost) || 0,
       compare_price: Number(form.compare_price) || 0,
       discount: Number(form.discount) || 0,
-      variants: form.variants.map((v) => ({ ...v, stock: Number(v.stock) || 0 })),
+      variants: form.variants.map((v) => ({ ...v, stock: Number(v.stock) || 0, price: Number(v.price) || 0 })),
     };
     try {
       if (editId) await api.put(`/mobile-cms/products/${editId}`, payload);

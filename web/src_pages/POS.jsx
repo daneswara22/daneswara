@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import api, { rupiah, formatApiError } from "@/lib/api";
 import { printReceiptSmart } from "@/lib/printer";
 import { NotaDialog, ShareNotaImageButton } from "@/components/NotaDialog";
+import { DraftPreviewDialog } from "@/components/DraftPreviewDialog";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,7 +20,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Command, CommandInput, CommandList, CommandEmpty, CommandItem } from "@/components/ui/command";
 import { toast } from "sonner";
-import { Search, Plus, Minus, Trash2, X, ArrowLeft, ShoppingCart, ScanLine, CheckCircle2, PauseCircle, PlayCircle, HandCoins, Copy, MessageCircle, UserPlus, Check, ChevronsUpDown, Grid2x2, Grid3x3, LayoutGrid, Pencil, History, ChevronDown, ChevronRight, Phone, Loader2, Save, RotateCcw } from "lucide-react";
+import { Search, Plus, Minus, Trash2, X, ArrowLeft, ShoppingCart, ScanLine, CheckCircle2, PauseCircle, PlayCircle, HandCoins, Copy, Check, ChevronsUpDown, Grid2x2, Grid3x3, LayoutGrid, Pencil, History, ChevronDown, ChevronRight, Phone, Loader2, Save, RotateCcw } from "lucide-react";
 
 const METHODS = ["Tunai", "Bank Transfer", "QRIS", "E-Wallet"];
 const CHANNELS = ["Toko", "Shopee", "Tokopedia", "WhatsApp", "Lainnya"];
@@ -117,7 +118,6 @@ export default function POS() {
   const [channel, setChannel] = useState("Toko");
   const [paid, setPaid] = useState("");
   const [receipt, setReceipt] = useState(null);
-  const [waPhone, setWaPhone] = useState("");
   const [settings, setSettings] = useState({});
   const [customers, setCustomers] = useState([]);
   const [customerId, setCustomerId] = useState("");
@@ -135,6 +135,7 @@ export default function POS() {
   const [depositOpen, setDepositOpen] = useState(false);
   const [depositAmt, setDepositAmt] = useState("");
   const [nota, setNota] = useState(null);
+  const [previewPenawaran, setPreviewPenawaran] = useState(null);
   const [priceModal, setPriceModal] = useState(null); // { product, source: 'direct'|'variant' }
   const [priceVal, setPriceVal] = useState("");
 
@@ -603,7 +604,6 @@ export default function POS() {
       setTimeout(() => {
         document.body.style.pointerEvents = "";
         setReceipt(data);
-        setWaPhone(data.customer_phone || "");
       }, 300);
     } catch (e) {
       toast.error(formatApiError(e.response?.data?.detail));
@@ -645,38 +645,6 @@ export default function POS() {
     lines.push("--------------------------------");
     lines.push(settings.receipt_footer || "Terima kasih telah berbelanja!");
     return lines.join("\n");
-  };
-
-  const normalizePhone = (p) => {
-    let d = (p || "").replace(/[^0-9]/g, "");
-    if (!d) return "";
-    if (d.startsWith("0")) d = "62" + d.slice(1);
-    else if (d.startsWith("62")) { /* ok */ }
-    else if (d.startsWith("8")) d = "62" + d;
-    return d;
-  };
-
-  const sendWhatsApp = (r) => {
-    const text = buildBillText(r);
-    const phone = normalizePhone(waPhone);
-    const url = phone
-      ? `https://wa.me/${phone}?text=${encodeURIComponent(text)}`
-      : `https://wa.me/?text=${encodeURIComponent(text)}`;
-    window.open(url, "_blank");
-    if (!phone) toast.info("Nomor tujuan kosong — pilih kontak di WhatsApp");
-  };
-
-  const saveWaCustomer = async () => {
-    if (!waPhone.trim()) return toast.error("Isi nomor WhatsApp dulu");
-    const name = window.prompt("Nama pelanggan baru:", receipt?.customer_name || "");
-    if (!name || !name.trim()) return;
-    try {
-      await api.post("/customers", { name: name.trim(), phone: waPhone.trim() });
-      toast.success("Pelanggan baru tersimpan");
-      api.get("/customers").then((r) => setCustomers(r.data));
-    } catch (e) {
-      toast.error(formatApiError(e.response?.data?.detail));
-    }
   };
 
   const copyBill = async (r) => {
@@ -1259,7 +1227,17 @@ export default function POS() {
       </Dialog>
 
       {/* deposit dialog */}
-      <NotaDialog nota={nota} onClose={() => setNota(null)} settings={settings} />
+      <NotaDialog
+        nota={nota}
+        onClose={() => setNota(null)}
+        settings={settings}
+        onPreview={(n) => setPreviewPenawaran({ ...n, order_number: n.order_number || n.invoice })}
+      />
+      <DraftPreviewDialog
+        order={previewPenawaran}
+        onClose={() => setPreviewPenawaran(null)}
+        settings={settings}
+      />
       <Dialog open={depositOpen} onOpenChange={setDepositOpen}>
         <DialogContent data-testid="deposit-dialog">
           <DialogHeader><DialogTitle className="font-display">Pesanan Custom — Total {rupiah(total)}</DialogTitle></DialogHeader>
@@ -1378,29 +1356,6 @@ export default function POS() {
                 <div className="flex justify-between"><span>Kembalian</span><span>{rupiah(receipt.change)}</span></div>
               </div>
               <div className="mt-4 space-y-2">
-                <div className="space-y-1 text-left">
-                  <label className="text-xs text-muted-foreground">Nomor WhatsApp pelanggan</label>
-                  <Input
-                    value={waPhone}
-                    onChange={(e) => setWaPhone(e.target.value)}
-                    placeholder="cth: 08123456789"
-                    inputMode="tel"
-                    data-testid="receipt-wa-phone-input"
-                  />
-                  {waPhone.trim() && !receipt.customer_id && (
-                    <button
-                      type="button"
-                      onClick={saveWaCustomer}
-                      className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-                      data-testid="receipt-save-customer-button"
-                    >
-                      <UserPlus className="h-3.5 w-3.5" /> Simpan sebagai pelanggan baru
-                    </button>
-                  )}
-                </div>
-                <Button className="w-full gap-2 bg-[#25D366] text-white hover:bg-[#1ebe5b]" onClick={() => sendWhatsApp(receipt)} data-testid="receipt-whatsapp-button">
-                  <MessageCircle className="h-4 w-4" /> Kirim Struk via WhatsApp
-                </Button>
                 <ShareNotaImageButton nota={receipt} settings={settings} />
                 <Button variant="secondary" className="w-full gap-2" onClick={() => copyBill(receipt)} data-testid="receipt-copy-button">
                   <Copy className="h-4 w-4" /> Salin Struk

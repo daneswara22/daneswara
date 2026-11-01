@@ -9,7 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { NumberInput } from "@/components/NumberInput";
 import { ProductCombobox } from "@/components/ProductCombobox";
 import { toast } from "sonner";
-import { Plus, PackageCheck, Trash2, ClipboardList, Search, Eye, Pencil } from "lucide-react";
+import { Plus, PackageCheck, Trash2, ClipboardList, Search, Eye, Pencil, FileText } from "lucide-react";
+import { DraftPreviewDialog } from "@/components/DraftPreviewDialog";
 
 export default function Purchases() {
   const { user } = useAuth();
@@ -24,11 +25,14 @@ export default function Purchases() {
   const [items, setItems] = useState([]);
   const [q, setQ] = useState("");
   const [preview, setPreview] = useState(null);
+  const [previewPenawaran, setPreviewPenawaran] = useState(null);
+  const [settings, setSettings] = useState({});
 
   const load = () => {
     api.get("/purchases").then((r) => setList(r.data));
     api.get("/suppliers").then((r) => setSuppliers(r.data));
     api.get("/products").then((r) => setProducts(r.data));
+    api.get("/settings").then((r) => setSettings(r.data || {}));
   };
   useEffect(load, []);
 
@@ -198,10 +202,24 @@ export default function Purchases() {
               </div>
               {preview.note && <div><span className="text-muted-foreground">Catatan</span><p>{preview.note}</p></div>}
               <div className="flex justify-between font-display text-lg font-bold"><span>Total</span><span>{rupiah(preview.total)}</span></div>
+              <Button
+                variant="outline"
+                className="w-full gap-2 border-amber-500/60 text-amber-600 hover:bg-amber-500/10"
+                onClick={() => setPreviewPenawaran(preview)}
+                data-testid="po-preview-penawaran-button"
+              >
+                <FileText className="h-4 w-4" /> Preview Penawaran
+              </Button>
             </div>
           )}
         </DialogContent>
       </Dialog>
+
+      <DraftPreviewDialog
+        order={previewPenawaran}
+        onClose={() => setPreviewPenawaran(null)}
+        settings={settings}
+      />
     </div>
   );
 }
