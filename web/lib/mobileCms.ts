@@ -227,6 +227,8 @@ function cleanVariants(raw: any) {
       size: String(v?.size || '').slice(0, 40),
       color: String(v?.color || '').slice(0, 40),
       stock: Math.max(0, Math.floor(Number(v?.stock) || 0)),
+      // Harga khusus variasi; 0 = ikut harga produk.
+      price: Math.max(0, Math.floor(Number(v?.price) || 0)),
     }))
     .filter((v) => v.size || v.color);
 }
