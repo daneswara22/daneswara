@@ -7,7 +7,7 @@ import { captureToBlob, shareOrDownload } from "@/lib/captureImage";
 import { printReceiptSmart, paymentStatus, sendReceiptWhatsApp, copyReceiptText } from "@/lib/printer";
 import { ReceiptShareCard } from "@/components/ReceiptShareCard";
 import { toast } from "sonner";
-import { MessageCircle, Copy, Printer, Image as ImageIcon } from "lucide-react";
+import { MessageCircle, Copy, Printer, Image as ImageIcon, FileText } from "lucide-react";
 
 // Cache blob gambar nota agar klik berulang untuk nota yang sama tidak
 // me-render ulang (reuse hasil render yang masih valid). Kunci memuat seluruh
@@ -64,7 +64,7 @@ export function ShareNotaImageButton({ nota, settings = {}, className = "w-full 
 }
 
 // Reusable nota/receipt dialog with Cetak / Kirim WA (teks) / Salin / Bagikan Gambar.
-export function NotaDialog({ nota, onClose, settings = {} }) {
+export function NotaDialog({ nota, onClose, settings = {}, onPreview }) {
   const [phone, setPhone] = useState("");
   useEffect(() => { setPhone(nota?.customer_phone || ""); }, [nota]);
 
@@ -128,6 +128,11 @@ export function NotaDialog({ nota, onClose, settings = {} }) {
               <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="cth: 08123456789" data-testid="nota-wa-phone-input" />
             </div>
             <ShareNotaImageButton nota={nota} settings={settings} />
+            {onPreview && (
+              <Button variant="outline" className="w-full gap-2 border-amber-500/60 text-amber-600 hover:bg-amber-500/10" onClick={() => onPreview(nota)} data-testid="nota-preview-penawaran-button">
+                <FileText className="h-4 w-4" /> Preview Penawaran
+              </Button>
+            )}
             <Button className="w-full gap-2 bg-[#25D366] text-white hover:bg-[#1ebe5b]" onClick={doWa} data-testid="nota-whatsapp-button">
               <MessageCircle className="h-4 w-4" /> Kirim Teks via WhatsApp
             </Button>

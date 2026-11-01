@@ -3,6 +3,13 @@ const path = require('path');
 const nextConfig = {
   output: 'standalone',
   reactStrictMode: false,
+  // Indicator dev (badge "Static route" kiri bawah) tetap aktif, posisi dipindah
+  // ke kanan bawah supaya tidak menutupi konten di kiri.
+  devIndicators: {
+    buildActivity: true,
+    buildActivityPosition: 'bottom-right',
+    appIsrStatus: true,
+  },
   eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: true },
   experimental: {

@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import api, { rupiah, formatApiError } from "@/lib/api";
 import { printReceiptSmart } from "@/lib/printer";
 import { NotaDialog, ShareNotaImageButton } from "@/components/NotaDialog";
+import { DraftPreviewDialog } from "@/components/DraftPreviewDialog";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -135,6 +136,7 @@ export default function POS() {
   const [depositOpen, setDepositOpen] = useState(false);
   const [depositAmt, setDepositAmt] = useState("");
   const [nota, setNota] = useState(null);
+  const [previewPenawaran, setPreviewPenawaran] = useState(null);
   const [priceModal, setPriceModal] = useState(null); // { product, source: 'direct'|'variant' }
   const [priceVal, setPriceVal] = useState("");
 
@@ -1259,7 +1261,17 @@ export default function POS() {
       </Dialog>
 
       {/* deposit dialog */}
-      <NotaDialog nota={nota} onClose={() => setNota(null)} settings={settings} />
+      <NotaDialog
+        nota={nota}
+        onClose={() => setNota(null)}
+        settings={settings}
+        onPreview={(n) => setPreviewPenawaran({ ...n, order_number: n.order_number || n.invoice })}
+      />
+      <DraftPreviewDialog
+        order={previewPenawaran}
+        onClose={() => setPreviewPenawaran(null)}
+        settings={settings}
+      />
       <Dialog open={depositOpen} onOpenChange={setDepositOpen}>
         <DialogContent data-testid="deposit-dialog">
           <DialogHeader><DialogTitle className="font-display">Pesanan Custom — Total {rupiah(total)}</DialogTitle></DialogHeader>
