@@ -3,73 +3,101 @@ import { rupiah } from "@/lib/api";
 import { canvasSafeUrl } from "@/lib/media";
 import { terbilang } from "@/lib/terbilang";
 
-// Offscreen voucher card for a SINGLE expense / other-income transaction.
-// Same width/paper as the sales receipt (460px) but a distinct "bukti kas" layout.
-// Theme: charcoal + gold to match the brand logo.
-const BG = "#15171c";
+/**
+ * Kartu offscreen untuk "Buat Gambar" pada bukti pengeluaran / pendapatan lain.
+ *
+ * Desainnya SENGAJA dibuat sama dengan hasil Cetak A5 (VoucherDialog.printA5):
+ * header logo + nama toko, garis tebal, judul "BUKTI KAS KELUAR", nomor bukti
+ * emas, tabel field bertitik dua, kotak nominal bergaris, dan dua kolom tanda
+ * tangan. Jadi gambar dan cetakan terlihat identik.
+ *
+ * Nominal tanpa tanda minus/plus; warna tetap merah untuk pengeluaran dan
+ * hijau untuk pendapatan.
+ */
+const DARK = "#15171c";
 const GOLD = "#a9791b";
-const DARK = "#1f2430";
-const GRAY = "#8a92a3";
+const GRAY = "#555555";
 
-function Row({ label, value, strong }) {
+function Field({ label, value }) {
   return (
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "16px", margin: "9px 0" }}>
-      <span style={{ color: GRAY, fontSize: "12.5px", whiteSpace: "nowrap" }}>{label}</span>
-      <span style={{ color: DARK, fontSize: "12.5px", fontWeight: strong ? 700 : 600, textAlign: "right" }}>{value}</span>
-    </div>
+    <tr>
+      <td style={{ width: "150px", color: GRAY, padding: "8px 4px", verticalAlign: "top", fontSize: "13px" }}>{label}</td>
+      <td style={{ width: "12px", padding: "8px 4px", verticalAlign: "top", fontSize: "13px" }}>:</td>
+      <td style={{ padding: "8px 4px", verticalAlign: "top", fontSize: "13px", color: DARK }}>{value}</td>
+    </tr>
   );
 }
 
 export const VoucherShareCard = forwardRef(function VoucherShareCard({ data, kind = "expense", settings = {} }, ref) {
   const o = data || {};
   const isExpense = kind === "expense";
-  const heading = isExpense ? "Bukti Kas Keluar" : "Bukti Kas Masuk";
+  const title = isExpense ? "BUKTI KAS KELUAR" : "BUKTI KAS MASUK";
+  const amtLabel = isExpense ? "JUMLAH DIKELUARKAN" : "JUMLAH DITERIMA";
   const amountColor = isExpense ? "#b91c1c" : "#059669";
-  const sign = isExpense ? "-" : "+";
-  const ref_no = (isExpense ? "BKK" : "BKM") + "-" + String(o.id || "").slice(0, 8).toUpperCase();
-  const bumps = Array.from({ length: 22 });
+  const refNo = (isExpense ? "BKK" : "BKM") + "-" + String(o.id || "").slice(0, 8).toUpperCase();
+  const amount = Number(o.amount) || 0;
+  const biz = settings.business_name || "Daneswara POS";
+  const logo = canvasSafeUrl(settings.logo) || "/logo.png";
 
   return (
     <div style={{ position: "fixed", left: "-10000px", top: 0 }} aria-hidden="true">
-      <div ref={ref} style={{ width: "460px", background: BG, padding: "30px 22px 26px", fontFamily: "Arial, Helvetica, sans-serif" }}>
-        <div style={{ display: "flex", justifyContent: "center", overflow: "hidden", height: "10px" }}>
-          {bumps.map((_, i) => (
-            <div key={i} style={{ width: "18px", height: "10px", background: "#ffffff", borderTopLeftRadius: "9px", borderTopRightRadius: "9px", marginLeft: i ? "1px" : 0 }} />
-          ))}
+      <div
+        ref={ref}
+        style={{
+          width: "560px",
+          background: "#ffffff",
+          padding: "34px 34px 30px",
+          fontFamily: "Arial, Helvetica, sans-serif",
+          color: DARK,
+          boxSizing: "border-box",
+        }}
+      >
+        {/* Header: logo kiri, nama + alamat + telepon */}
+        <div style={{ display: "flex", alignItems: "center", gap: "14px", borderBottom: `3px solid ${DARK}`, paddingBottom: "12px" }}>
+          <img src={logo} alt="" crossOrigin="anonymous" style={{ width: "56px", height: "56px", objectFit: "contain" }} />
+          <div>
+            <div style={{ fontSize: "19px", fontWeight: 800, margin: 0, lineHeight: 1.2 }}>{biz}</div>
+            {settings.address ? <div style={{ fontSize: "11px", color: GRAY, marginTop: "3px" }}>{settings.address}</div> : null}
+            {settings.phone ? <div style={{ fontSize: "11px", color: GRAY, marginTop: "1px" }}>Telp: {settings.phone}</div> : null}
+          </div>
         </div>
 
-        <div style={{ position: "relative", background: "#ffffff", borderBottomLeftRadius: "16px", borderBottomRightRadius: "16px", padding: "22px 26px 26px" }}>
-          {/* header */}
-          <div style={{ textAlign: "center" }}>
-            <img src={canvasSafeUrl(settings.logo) || "/logo.png"} alt="" crossOrigin="anonymous" style={{ maxWidth: "120px", maxHeight: "46px", objectFit: "contain", margin: "0 auto 6px" }} />
-            <div style={{ fontSize: "16px", fontWeight: 800, color: DARK, letterSpacing: "0.2px" }}>{settings.business_name || "Daneswara POS"}</div>
-            {settings.address ? <div style={{ fontSize: "11px", color: GRAY, marginTop: "2px" }}>{settings.address}</div> : null}
-            <div style={{ fontSize: "18px", fontWeight: 800, color: DARK, marginTop: "12px", textTransform: "uppercase", letterSpacing: "1px" }}>{heading}</div>
-            <div style={{ width: "48px", height: "3px", background: GOLD, borderRadius: "2px", margin: "12px auto 0" }} />
+        {/* Judul + nomor bukti */}
+        <div style={{ textAlign: "center", fontSize: "18px", fontWeight: 800, letterSpacing: "3px", margin: "22px 0 4px" }}>{title}</div>
+        <div style={{ textAlign: "center", fontSize: "12px", color: GOLD, fontWeight: 700, marginBottom: "18px" }}>No. {refNo}</div>
+
+        {/* Field */}
+        <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: "18px" }}>
+          <tbody>
+            <Field label="Tanggal" value={o.date || "-"} />
+            <Field label={isExpense ? "Jenis Pengeluaran" : "Kategori Pendapatan"} value={o.category || "-"} />
+            <Field label="Keterangan" value={o.note || "-"} />
+            {o.created_by ? <Field label="Dicatat oleh" value={o.created_by} /> : null}
+          </tbody>
+        </table>
+
+        {/* Kotak nominal */}
+        <div style={{ border: `2px solid ${DARK}`, borderRadius: "10px", padding: "14px 18px", margin: "8px 0 6px" }}>
+          <div style={{ fontSize: "11px", textTransform: "uppercase", letterSpacing: "1px", color: GRAY }}>{amtLabel}</div>
+          <div style={{ fontSize: "27px", fontWeight: 800, marginTop: "4px", color: amountColor }}>{rupiah(amount)}</div>
+          <div style={{ fontSize: "12px", fontStyle: "italic", marginTop: "8px" }}>
+            Terbilang: <b>{terbilang(amount)}</b>
           </div>
+        </div>
 
-          <div style={{ borderTop: "1px solid #eef1f5", margin: "16px 0 4px" }} />
-
-          <Row label="No. Bukti" value={ref_no} />
-          <Row label="Tanggal" value={o.date || "-"} />
-          <Row label={isExpense ? "Jenis Pengeluaran" : "Kategori Pendapatan"} value={o.category || "-"} />
-          {o.note ? <Row label="Keterangan" value={o.note} /> : null}
-          {o.created_by ? <Row label="Dicatat oleh" value={o.created_by} /> : null}
-
-          <div style={{ borderTop: "1px solid #eef1f5", margin: "10px 0 4px" }} />
-
-          {/* amount block */}
-          <div style={{ background: "#f7f8fa", borderRadius: "12px", padding: "14px 16px", margin: "12px 0 4px" }}>
-            <div style={{ fontSize: "11.5px", fontWeight: 700, color: GRAY, letterSpacing: "0.6px", textTransform: "uppercase" }}>{isExpense ? "Jumlah Dikeluarkan" : "Jumlah Diterima"}</div>
-            <div style={{ color: amountColor, fontSize: "26px", fontWeight: 800, marginTop: "4px" }}>{sign}{rupiah(o.amount)}</div>
-            <div style={{ color: DARK, fontSize: "11.5px", fontStyle: "italic", marginTop: "6px" }}>Terbilang: {terbilang(o.amount)}</div>
+        {/* Tanda tangan */}
+        <div style={{ display: "flex", justifyContent: "space-between", marginTop: "40px", fontSize: "12px" }}>
+          <div style={{ width: "40%", textAlign: "center" }}>
+            Dibuat oleh,
+            <div style={{ marginTop: "56px", borderTop: "1px solid #333", paddingTop: "6px" }}>
+              ( {o.created_by || "..............................."} )
+            </div>
           </div>
-
-          <div style={{ borderTop: "1px solid #eef1f5", margin: "16px 0 12px" }} />
-          <div style={{ textAlign: "center", fontSize: "10.5px", color: GRAY, lineHeight: 1.5 }}>
-            Dokumen ini adalah bukti transaksi kas yang sah.
-            <br />
-            {settings.business_name || "Daneswara POS"}{settings.phone ? ` • ${settings.phone}` : ""}
+          <div style={{ width: "40%", textAlign: "center" }}>
+            {isExpense ? "Disetujui oleh," : "Diterima oleh,"}
+            <div style={{ marginTop: "56px", borderTop: "1px solid #333", paddingTop: "6px" }}>
+              ( ............................... )
+            </div>
           </div>
         </div>
       </div>

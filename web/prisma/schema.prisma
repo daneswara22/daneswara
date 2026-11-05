@@ -299,6 +299,8 @@ model orders {
   updated_at        DateTime? @db.DateTime(0)
   external_raw      String?   @db.LongText
 
+  tasks             order_tasks[]
+
   @@unique([tenant_id, sales_channel, external_order_id], map: "uq_orders_channel_external")
   @@index([sales_channel], map: "ix_orders_sales_channel")
   @@index([external_order_id], map: "ix_orders_external_order_id")
@@ -721,4 +723,50 @@ model mobile_cms_layout {
   published    String?   @db.LongText
   published_at DateTime? @db.DateTime(0)
   updated_at   DateTime  @db.DateTime(0)
+}
+
+// ---------------------------------------------------------------------------
+// Task To Do — antrean pekerjaan yang berasal dari pesanan pelanggan.
+// Ringan: hanya menyimpan referensi order_id + data penugasan. Nama pelanggan,
+// produk, dan pembayaran TIDAK disalin; dibaca dari tabel orders saat dibutuhkan.
+// ---------------------------------------------------------------------------
+model order_tasks {
+  id              String    @id @db.VarChar(36)
+  tenant_id       String    @db.VarChar(36)
+  order_id        String?   @db.VarChar(36)
+  task_number     String    @db.VarChar(40)
+  project_name    String?   @db.VarChar(200)
+  description     String?   @db.Text
+  items           String?   @db.LongText
+  priority        String    @default("Normal") @db.VarChar(20)
+  status          String    @default("AVAILABLE") @db.VarChar(20)
+  assigned_user_id String?  @db.VarChar(36)
+  assigned_at     DateTime? @db.DateTime(0)
+  deadline        DateTime? @db.DateTime(0)
+  release_reason  String?   @db.VarChar(300)
+  completed_at    DateTime? @db.DateTime(0)
+  created_at      DateTime  @db.DateTime(0)
+  updated_at      DateTime  @db.DateTime(0)
+
+  order           orders?   @relation(fields: [order_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([order_id], map: "uq_order_tasks_order")
+  @@index([tenant_id, status], map: "ix_order_tasks_tenant_status")
+  @@index([tenant_id, assigned_user_id], map: "ix_order_tasks_tenant_pic")
+  @@index([tenant_id, deadline], map: "ix_order_tasks_tenant_deadline")
+  @@index([tenant_id, created_at], map: "ix_order_tasks_tenant_created")
+}
+
+model order_task_activities {
+  id         String   @id @db.VarChar(36)
+  tenant_id  String   @db.VarChar(36)
+  task_id    String   @db.VarChar(36)
+  action     String   @db.VarChar(40)
+  detail     String?  @db.VarChar(300)
+  user_id    String?  @db.VarChar(36)
+  user_name  String?  @db.VarChar(120)
+  created_at DateTime @db.DateTime(0)
+
+  @@index([task_id, created_at], map: "ix_order_task_activities_task")
+  @@index([tenant_id], map: "ix_order_task_activities_tenant")
 }

@@ -217,3 +217,64 @@ export const ensureChatSchema = once(async () => {
     console.log('[schema] tabel chat_messages dibuat');
   }
 });
+
+/* ========================================================================= */
+/* Task To Do: order_tasks + order_task_activities                           */
+/* ========================================================================= */
+
+export const ensureTaskSchema = once(async () => {
+  if (!(await tableExists('orders'))) return;
+
+  if (!(await tableExists('order_tasks'))) {
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS \`order_tasks\` (
+        \`id\` VARCHAR(36) NOT NULL,
+        \`tenant_id\` VARCHAR(36) NOT NULL,
+        \`order_id\` VARCHAR(36) NULL,
+        \`task_number\` VARCHAR(40) NOT NULL,
+        \`project_name\` VARCHAR(200) NULL,
+        \`description\` TEXT NULL,
+        \`items\` LONGTEXT NULL,
+        \`priority\` VARCHAR(20) NOT NULL DEFAULT 'Normal',
+        \`status\` VARCHAR(20) NOT NULL DEFAULT 'AVAILABLE',
+        \`assigned_user_id\` VARCHAR(36) NULL,
+        \`assigned_at\` DATETIME(0) NULL,
+        \`deadline\` DATETIME(0) NULL,
+        \`release_reason\` VARCHAR(300) NULL,
+        \`completed_at\` DATETIME(0) NULL,
+        \`created_at\` DATETIME(0) NOT NULL,
+        \`updated_at\` DATETIME(0) NOT NULL,
+        UNIQUE INDEX \`uq_order_tasks_order\`(\`order_id\`),
+        INDEX \`ix_order_tasks_tenant_status\`(\`tenant_id\`, \`status\`),
+        INDEX \`ix_order_tasks_tenant_pic\`(\`tenant_id\`, \`assigned_user_id\`),
+        INDEX \`ix_order_tasks_tenant_deadline\`(\`tenant_id\`, \`deadline\`),
+        INDEX \`ix_order_tasks_tenant_created\`(\`tenant_id\`, \`created_at\`),
+        PRIMARY KEY (\`id\`)
+      ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
+    `);
+    console.log('[schema] tabel order_tasks dibuat');
+  } else {
+    // Instalasi lama: tambahkan kolom baru tanpa menyentuh data yang ada.
+    await addColumnIfMissing('order_tasks', 'description', 'TEXT NULL');
+    await addColumnIfMissing('order_tasks', 'items', 'LONGTEXT NULL');
+  }
+
+  if (!(await tableExists('order_task_activities'))) {
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS \`order_task_activities\` (
+        \`id\` VARCHAR(36) NOT NULL,
+        \`tenant_id\` VARCHAR(36) NOT NULL,
+        \`task_id\` VARCHAR(36) NOT NULL,
+        \`action\` VARCHAR(40) NOT NULL,
+        \`detail\` VARCHAR(300) NULL,
+        \`user_id\` VARCHAR(36) NULL,
+        \`user_name\` VARCHAR(120) NULL,
+        \`created_at\` DATETIME(0) NOT NULL,
+        INDEX \`ix_order_task_activities_task\`(\`task_id\`, \`created_at\`),
+        INDEX \`ix_order_task_activities_tenant\`(\`tenant_id\`),
+        PRIMARY KEY (\`id\`)
+      ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
+    `);
+    console.log('[schema] tabel order_task_activities dibuat');
+  }
+});
