@@ -6,6 +6,7 @@ import { HttpError, newId } from '@/lib/http';
 import { docNumber, rp, safeJsonParse } from '@/lib/business';
 import { customOrderInputSchema } from '@/lib/schemas';
 import { serializeOrder } from '@/lib/serializers';
+import { createTaskForOrder } from '@/lib/tasks';
 
 export const GET = handle(async (req: NextRequest) => {
   const user = await getCurrentUser(req);
@@ -108,5 +109,7 @@ export const POST = handle(async (req: NextRequest) => {
   } else {
     await logActivity(tid, user, 'Pesanan Custom + Deposit', `${o.order_number} DP ${rp(data.deposit_amount)}`);
   }
+  // Task To Do: satu order = satu task. Gagal membuat task tidak membatalkan order.
+  await createTaskForOrder(tid, o.id, { projectName: custName || null });
   return serializeOrder(o);
 });

@@ -24,6 +24,7 @@ const NAV = [
   { to: "/app/inventory", label: "Inventory", icon: Warehouse, roles: ["Owner", "Manager", "Gudang"] },
   { to: "/app/pelanggan", label: "Pelanggan", icon: UserCircle, roles: ["Owner", "Manager", "Kasir"] },
   { to: "/app/pesanan", label: "Pesanan", icon: ShoppingBag, roles: ["Owner", "Manager", "Kasir"] },
+  { to: "/app/task-todo", label: "Task To Do", icon: ClipboardList, roles: ["Owner", "Manager", "Kasir", "Gudang"] },
   { to: "/app/riwayat", label: "Riwayat Transaksi", icon: ReceiptText, roles: ["Owner", "Manager", "Kasir"] },
   { to: "/app/supplier", label: "Supplier", icon: Truck, roles: ["Owner", "Manager", "Gudang"] },
   { to: "/app/pembelian", label: "Pembelian", icon: ClipboardList, roles: ["Owner", "Manager", "Gudang"] },

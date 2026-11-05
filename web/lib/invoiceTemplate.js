@@ -415,7 +415,12 @@ export function buildInvoiceBody(r = {}, settings = {}, helpers = {}) {
 
   // Aset lokal dipanggil dengan URL absolut supaya tetap termuat di dalam
   // iframe cetak (about:blank) maupun saat dirender html2canvas.
-  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  // Nilainya harus SAMA antara SSR dan client, kalau tidak React melaporkan
+  // hydration mismatch. Karena itu origin hanya dipakai saat benar-benar
+  // merender di browser (setelah hidrasi), bukan saat SSR.
+  const origin = typeof window !== 'undefined' && typeof document !== 'undefined' && document.readyState !== 'loading'
+    ? window.location.origin
+    : '';
 
   const address = settings.address || BRAND.address;
   const phone = settings.phone || BRAND.phone;
