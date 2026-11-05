@@ -13,11 +13,28 @@ import { DraftPreviewDialog, buildDraftText } from "@/components/DraftPreviewDia
 import { SupplierPickerDialog } from "@/components/SupplierPickerDialog";
 import { printReceiptSmart } from "@/lib/printer";
 import { toast } from "sonner";
-import { CheckCircle2, Clock, Trash2, Printer, Search, FileText, Copy, HandCoins, Wallet, Pencil, Plus, Minus, PackagePlus, PackageCheck, Store, Eye, XCircle, ShoppingBag } from "lucide-react";
+import { CheckCircle2, Clock, Trash2, Printer, Search, FileText, Copy, HandCoins, Wallet, Pencil, Plus, Minus, PackagePlus, PackageCheck, Store, Eye, XCircle, ShoppingBag, LayoutGrid, Rows3, List } from "lucide-react";
 
 const METHODS = ["Tunai", "Bank Transfer", "QRIS", "E-Wallet"];
 const BANKS = ["BCA TOKO", "BRI TOKO", "BCA ADMIN (ELIS)"];
 const ORDER_TYPES = ["Reguler", "Express", "Custom", "Lainnya"];
+
+/**
+ * Kepadatan tampilan daftar pesanan. Disimpan di localStorage supaya pilihan
+ * kasir bertahan antar sesi.
+ *   besar  — 1 kolom, kartu lega (default di layar kecil)
+ *   normal — 2 kolom di desktop
+ *   kecil  — 3 kolom, kartu rapat
+ *   daftar — 1 baris per pesanan, paling padat
+ */
+const DENSITY_KEY = "daneswara.orders.density";
+const DENSITIES = [
+  { key: "besar", label: "Besar", icon: LayoutGrid, grid: "grid-cols-1", compact: false, list: false },
+  { key: "normal", label: "Normal", icon: Rows3, grid: "grid-cols-1 lg:grid-cols-2", compact: false, list: false },
+  { key: "kecil", label: "Kecil", icon: LayoutGrid, grid: "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3", compact: true, list: false },
+  { key: "daftar", label: "Daftar", icon: List, grid: "grid-cols-1", compact: true, list: true },
+];
+const densityOf = (key) => DENSITIES.find((d) => d.key === key) || DENSITIES[1];
 const isBank = (m) => BANKS.includes(m);
 
 // Filter kanal penjualan. 'manual' mencakup pesanan POS/toko lama (tanpa kanal).
@@ -112,6 +129,15 @@ export default function Orders({ channelView = false }) {
   const [dateTo, setDateTo] = useState("");
   const [detailId, setDetailId] = useState(null);
   const [syncing, setSyncing] = useState(false);
+  const [density, setDensity] = useState(() => {
+    if (typeof window === "undefined") return "normal";
+    return localStorage.getItem(DENSITY_KEY) || "normal";
+  });
+  const view = densityOf(density);
+  const changeDensity = (key) => {
+    setDensity(key);
+    try { localStorage.setItem(DENSITY_KEY, key); } catch { /* storage penuh / private mode */ }
+  };
   const [teeOrders, setTeeOrders] = useState([]);
   const navigate = useNavigate();
 
@@ -282,22 +308,26 @@ export default function Orders({ channelView = false }) {
   };
 
   const renderCard = (o) => (
-    <div key={o.id} className="rounded-lg border border-border bg-card p-4" data-testid={`order-${o.id}`}>
+    <div
+      key={o.id}
+      className={`rounded-lg border border-border bg-card ${view.compact ? "p-3" : "p-4"}`}
+      data-testid={`order-${o.id}`}
+    >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <ChannelBadge order={o} />
-            <p className="font-bold">{(o.customer_name || "Tanpa nama")} - {new Date(o.order_date || o.created_at).toLocaleString("id-ID", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}</p>
+            <p className={`font-bold ${view.compact ? "text-sm" : ""}`}>{(o.customer_name || "Tanpa nama")} - {new Date(o.order_date || o.created_at).toLocaleString("id-ID", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}</p>
             {o.order_type && <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground" data-testid={`order-type-${o.id}`}>{o.order_type}</span>}
           </div>
           <p className="text-xs text-muted-foreground" data-testid={`order-number-${o.id}`}>{o.order_number}</p>
           {(o.items || []).length > 0 && (
-            <p className="mt-0.5 truncate text-xs text-muted-foreground" data-testid={`order-items-${o.id}`}>
+            <p className={`mt-0.5 truncate text-xs text-muted-foreground ${view.list ? "max-w-[60ch]" : ""}`} data-testid={`order-items-${o.id}`}>
               {(o.items || [])
-                .slice(0, 2)
+                .slice(0, view.list ? 1 : 2)
                 .map((i) => `${i.name}${i.variation_name ? ` (${i.variation_name})` : ""} ×${i.qty}`)
                 .join(", ")}
-              {(o.items || []).length > 2 ? ` +${(o.items || []).length - 2} lainnya` : ""}
+              {(o.items || []).length > (view.list ? 1 : 2) ? ` +${(o.items || []).length - (view.list ? 1 : 2)} lainnya` : ""}
             </p>
           )}
           {o.internal_status && (
@@ -325,8 +355,8 @@ export default function Orders({ channelView = false }) {
           {o.status === "Selesai" ? <CheckCircle2 className="h-3 w-3" /> : o.status === "Draft" ? <FileText className="h-3 w-3" /> : o.status === "Dibatalkan" ? <XCircle className="h-3 w-3" /> : <Clock className="h-3 w-3" />} {o.status === "Draft" ? (isMarketplace(o) ? "Belum Dibayar" : "Belum Bayar") : o.status}
         </span>
       </div>
-      <div className="mt-3 space-y-1 text-sm">
-        <div className="flex justify-between text-muted-foreground"><span>Total</span><span>{rupiah(o.total)}</span></div>
+      <div className={`mt-3 space-y-1 ${view.compact ? "text-xs" : "text-sm"}`}>
+        <div className="flex justify-between text-muted-foreground"><span>Total</span><span className={view.compact ? "font-semibold text-foreground" : ""}>{rupiah(o.total)}</span></div>
         {isMarketplace(o) ? (
           <>
             {o.shipping_fee > 0 && <div className="flex justify-between text-muted-foreground"><span>Ongkir</span><span>{rupiah(o.shipping_fee)}</span></div>}
@@ -339,7 +369,7 @@ export default function Orders({ channelView = false }) {
           </>
         )}
       </div>
-      <div className="mt-3 flex flex-wrap gap-2">
+      <div className={`mt-3 flex flex-wrap ${view.compact ? "gap-1" : "gap-2"}`}>
         <Button variant="outline" size="sm" className="gap-1" onClick={() => setDetailId(o.id)} data-testid={`detail-order-${o.id}`}>
           <Eye className="h-4 w-4" /> Detail
         </Button>
@@ -474,7 +504,7 @@ export default function Orders({ channelView = false }) {
 
       {list.length > 0 && filtered.length > 0 && (
         <>
-          <div className="flex flex-wrap gap-1 border-b border-border" data-testid="order-tabs">
+          <div className="flex flex-wrap items-center gap-1 border-b border-border" data-testid="order-tabs">
             {GROUPS.map((g) => {
               const count = (filtered || []).filter((o) => o.status === g.key).length;
               const active = tab === g.key;
@@ -490,6 +520,28 @@ export default function Orders({ channelView = false }) {
                 </button>
               );
             })}
+            <div className="ml-auto flex items-center gap-1 pb-1.5" data-testid="order-density-picker">
+              <span className="mr-1 hidden text-xs text-muted-foreground sm:inline">Tampilan</span>
+              {DENSITIES.map((d) => {
+                const Icon = d.icon;
+                const active = density === d.key;
+                return (
+                  <button
+                    key={d.key}
+                    type="button"
+                    onClick={() => changeDensity(d.key)}
+                    title={`Tampilan ${d.label}`}
+                    aria-label={`Tampilan ${d.label}`}
+                    aria-pressed={active}
+                    className={`flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-semibold transition-colors duration-200 ${active ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground hover:text-foreground"}`}
+                    data-testid={`order-density-${d.key}`}
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                    <span className="hidden md:inline">{d.label}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {(() => {
@@ -498,7 +550,7 @@ export default function Orders({ channelView = false }) {
               return <p className="text-sm text-muted-foreground" data-testid="order-tab-empty">{term ? "Tidak ada pesanan cocok di tab ini." : "Belum ada pesanan di tab ini."}</p>;
             }
             return (
-              <div className="grid grid-cols-1 gap-3 lg:grid-cols-2" data-testid={`order-group-${tab}`}>
+              <div className={`grid gap-3 ${view.grid}`} data-testid={`order-group-${tab}`} data-density={density}>
                 {(rows || []).map(renderCard)}
               </div>
             );
