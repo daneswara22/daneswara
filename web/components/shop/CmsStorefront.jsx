@@ -48,27 +48,9 @@ function discountPct(p) {
   return 0;
 }
 
-/** Variasi yang punya harga sendiri (price > 0), diurutkan dari termurah. */
-function pricedVariants(p) {
-  return (p.variants || [])
-    .filter((v) => Number(v.price) > 0)
-    .sort((a, b) => Number(a.price) - Number(b.price));
-}
-
-function variantLabel(v) {
-  return [v.size, v.color].filter(Boolean).join(' · ');
-}
-
 function ProductCard({ p, preview }) {
   const pct = discountPct(p);
   const oos = p.status === 'out_of_stock';
-  const variants = pricedVariants(p);
-  const hasVariantPrice = variants.length > 0;
-  const minVariant = hasVariantPrice ? Number(variants[0].price) : 0;
-  const maxVariant = hasVariantPrice ? Number(variants[variants.length - 1].price) : 0;
-  const basePrice = Number(p.price) || 0;
-  const showFrom = hasVariantPrice && minVariant < basePrice;
-  const displayPrice = showFrom ? minVariant : basePrice;
   return (
     <Clickable
       href={`/belanja/${p.slug}`}
@@ -100,28 +82,11 @@ function ProductCard({ p, preview }) {
           <div className="text-[10px] uppercase tracking-wide text-slate-400">{p.category_name}</div>
         )}
         <div className="mt-auto flex flex-wrap items-baseline gap-1.5">
-          {showFrom && <span className="text-[10px] text-slate-500">Mulai</span>}
-          <span className="text-[15px] font-bold text-blue-700">{rupiah(displayPrice)}</span>
+          <span className="text-[15px] font-bold text-blue-700">{rupiah(p.price)}</span>
           {p.compare_price > p.price && (
             <span className="text-[11px] text-slate-400 line-through">{rupiah(p.compare_price)}</span>
           )}
         </div>
-        {hasVariantPrice && (
-          <div className="mt-1 space-y-0.5 border-t border-dashed border-slate-200 pt-1" data-testid={`cms-variant-prices-${p.slug}`}>
-            {variants.slice(0, 4).map((v, i) => (
-              <div key={`${v.size}|${v.color}|${i}`} className="flex items-baseline justify-between gap-2 text-[10px]">
-                <span className="truncate text-slate-500">{variantLabel(v) || 'Varian'}</span>
-                <span className="shrink-0 font-semibold text-slate-700">{rupiah(Number(v.price))}</span>
-              </div>
-            ))}
-            {variants.length > 4 && (
-              <div className="text-[10px] text-slate-400">+{variants.length - 4} varian lain</div>
-            )}
-            {maxVariant > minVariant && (
-              <div className="text-[10px] text-slate-400">s/d {rupiah(maxVariant)}</div>
-            )}
-          </div>
-        )}
       </div>
     </Clickable>
   );
