@@ -742,6 +742,8 @@ model order_tasks {
   status          String    @default("AVAILABLE") @db.VarChar(20)
   assigned_user_id String?  @db.VarChar(36)
   assigned_at     DateTime? @db.DateTime(0)
+  created_by_id   String?   @db.VarChar(36)
+  created_by_name String?   @db.VarChar(120)
   deadline        DateTime? @db.DateTime(0)
   release_reason  String?   @db.VarChar(300)
   completed_at    DateTime? @db.DateTime(0)

@@ -54,6 +54,8 @@ export async function createManualTask(
     priority?: TaskPriority;
     deadline?: Date | null;
     assignedUserId?: string | null;
+    createdById?: string | null;
+    createdByName?: string | null;
   },
 ) {
   await ensureTaskSchema();
@@ -74,6 +76,8 @@ export async function createManualTask(
       assigned_user_id: assigned,
       assigned_at: assigned ? now : null,
       deadline: input.deadline || null,
+      created_by_id: input.createdById || null,
+      created_by_name: input.createdByName || null,
       created_at: now,
       updated_at: now,
     },
@@ -91,7 +95,7 @@ export async function createManualTask(
 export async function createTaskForOrder(
   tenantId: string,
   orderId: string,
-  opts: { projectName?: string | null; deadline?: Date | null; priority?: TaskPriority } = {},
+  opts: { projectName?: string | null; deadline?: Date | null; priority?: TaskPriority; createdById?: string | null; createdByName?: string | null } = {},
 ) {
   try {
     await ensureTaskSchema();
@@ -110,6 +114,8 @@ export async function createTaskForOrder(
         priority: opts.priority || 'Normal',
         status: 'AVAILABLE',
         deadline: opts.deadline || null,
+        created_by_id: opts.createdById || null,
+        created_by_name: opts.createdByName || null,
         created_at: now,
         updated_at: now,
       },

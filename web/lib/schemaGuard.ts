@@ -239,6 +239,8 @@ export const ensureTaskSchema = once(async () => {
         \`status\` VARCHAR(20) NOT NULL DEFAULT 'AVAILABLE',
         \`assigned_user_id\` VARCHAR(36) NULL,
         \`assigned_at\` DATETIME(0) NULL,
+        \`created_by_id\` VARCHAR(36) NULL,
+        \`created_by_name\` VARCHAR(120) NULL,
         \`deadline\` DATETIME(0) NULL,
         \`release_reason\` VARCHAR(300) NULL,
         \`completed_at\` DATETIME(0) NULL,
@@ -257,6 +259,8 @@ export const ensureTaskSchema = once(async () => {
     // Instalasi lama: tambahkan kolom baru tanpa menyentuh data yang ada.
     await addColumnIfMissing('order_tasks', 'description', 'TEXT NULL');
     await addColumnIfMissing('order_tasks', 'items', 'LONGTEXT NULL');
+    await addColumnIfMissing('order_tasks', 'created_by_id', 'VARCHAR(36) NULL');
+    await addColumnIfMissing('order_tasks', 'created_by_name', 'VARCHAR(120) NULL');
   }
 
   if (!(await tableExists('order_task_activities'))) {

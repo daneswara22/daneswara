@@ -112,6 +112,7 @@ export const GET = handle(async (req: NextRequest) => {
       project_name: t.project_name,
       description: t.description,
       is_manual: !t.order_id,
+      created_by_name: t.created_by_name || null,
       priority: t.priority,
       status: t.status,
       assigned_user_id: t.assigned_user_id,
@@ -180,6 +181,8 @@ export const POST = handle(async (req: NextRequest) => {
     priority: priority as any,
     deadline,
     assignedUserId: body?.assigned_user_id || null,
+    createdById: user.id,
+    createdByName: user.name || user.username,
   });
 
   return task;
