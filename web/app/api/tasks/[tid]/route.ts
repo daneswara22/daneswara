@@ -49,6 +49,7 @@ export const GET = handle(async (req: NextRequest, ctx: any) => {
     project_name: task.project_name,
     description: task.description,
     is_manual: !task.order_id,
+    created_by_name: task.created_by_name || null,
     priority: task.priority,
     status: task.status,
     assigned_user_id: task.assigned_user_id,

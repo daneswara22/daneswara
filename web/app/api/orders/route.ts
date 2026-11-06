@@ -110,6 +110,6 @@ export const POST = handle(async (req: NextRequest) => {
     await logActivity(tid, user, 'Pesanan Custom + Deposit', `${o.order_number} DP ${rp(data.deposit_amount)}`);
   }
   // Task To Do: satu order = satu task. Gagal membuat task tidak membatalkan order.
-  await createTaskForOrder(tid, o.id, { projectName: custName || null });
+  await createTaskForOrder(tid, o.id, { projectName: custName || null, createdById: user.id, createdByName: user.name || user.username });
   return serializeOrder(o);
 });

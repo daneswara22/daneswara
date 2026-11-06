@@ -4,7 +4,8 @@ import { useAuth } from "@/context/AuthContext";
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from "recharts";
-import { TrendingUp, Receipt, PiggyBank, Package, AlertTriangle, Activity, PackageMinus } from "lucide-react";
+import { TrendingUp, Receipt, PiggyBank, Package, AlertTriangle, Activity, PackageMinus, ClipboardList, UserPlus, Clock, CheckCircle2 } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const Stat = ({ icon: Icon, label, value, sub, tint }) => (
   <div className="rounded-lg border border-border bg-card p-5" data-testid={`stat-${label}`}>
@@ -23,12 +24,23 @@ export default function Dashboard() {
   const { user } = useAuth();
   const isKasir = user?.role === "Kasir";
   const [d, setD] = useState(null);
+  const [tasks, setTasks] = useState(null);
 
   useEffect(() => {
     api.get("/dashboard").then((r) => setD(r.data));
+    // Ringkasan Task To Do. Gagal memuat tidak boleh mengganggu dashboard.
+    api.get("/tasks/summary").then((r) => setTasks(r.data)).catch(() => setTasks(null));
   }, []);
 
   if (!d) return <div className="text-muted-foreground">Memuat...</div>;
+
+  const taskCards = [
+    { key: "active", label: "Active", value: tasks?.active ?? 0, icon: ClipboardList, cls: "text-blue-600" },
+    { key: "available", label: "Available", value: tasks?.available ?? 0, icon: UserPlus, cls: "text-slate-600" },
+    { key: "mine", label: "My Tasks", value: tasks?.mine ?? 0, icon: Clock, cls: "text-amber-600" },
+    { key: "completed", label: "Completed", value: tasks?.completed ?? 0, icon: CheckCircle2, cls: "text-emerald-600" },
+    { key: "overdue", label: "Overdue", value: tasks?.overdue ?? 0, icon: AlertTriangle, cls: "text-red-600" },
+  ];
 
   return (
     <div className="space-y-6">
@@ -36,6 +48,39 @@ export default function Dashboard() {
         <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Ringkasan Bisnis</p>
         <h1 className="font-display text-3xl font-bold tracking-tight">Dashboard</h1>
       </div>
+
+      {/* Highlight Task To Do — tampil untuk semua role, termasuk kasir. */}
+      <section className="rounded-lg border border-border bg-card p-4" data-testid="dashboard-task-todo">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Produksi</p>
+            <h2 className="font-display text-2xl font-bold tracking-tight">Task To Do</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Antrean pekerjaan dari pesanan pelanggan. Ambil tugas, kerjakan, lalu selesaikan.</p>
+          </div>
+          <Link
+            to="/app/task-todo"
+            className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground"
+            data-testid="dashboard-task-todo-link"
+          >
+            Buka Task To Do
+          </Link>
+        </div>
+        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+          {taskCards.map((t) => (
+            <Link
+              key={t.key}
+              to="/app/task-todo"
+              className="rounded-lg border border-border bg-background p-3 transition-colors hover:border-primary/50"
+              data-testid={`dashboard-task-${t.key}`}
+            >
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <t.icon className={`h-3.5 w-3.5 ${t.cls}`} /> {t.label}
+              </div>
+              <div className="mt-1 font-display text-2xl font-bold">{t.value}</div>
+            </Link>
+          ))}
+        </div>
+      </section>
 
       {!isKasir && (
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">

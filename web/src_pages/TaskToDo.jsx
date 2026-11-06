@@ -292,7 +292,12 @@ export default function TaskToDo() {
             )}
             {!loading && data.items.map((t) => (
               <tr key={t.id} className="border-t border-border align-top" data-testid={`task-row-${t.id}`}>
-                <td className="px-3 py-2 font-mono text-xs font-semibold">{t.task_number}</td>
+                <td className="px-3 py-2 font-mono text-xs font-semibold">
+                  {t.task_number}
+                  <div className="mt-0.5 font-sans text-[10px] font-normal text-muted-foreground" data-testid={`task-creator-${t.id}`}>
+                    {t.created_by_name || '—'}
+                  </div>
+                </td>
                 <td className="px-3 py-2 text-xs text-muted-foreground">{fmtDate(t.order?.order_date)}</td>
                 <td className="px-3 py-2">
                   <button type="button" onClick={() => openDetail(t.id)} className="text-left font-medium hover:text-primary hover:underline" data-testid={`task-open-${t.id}`}>
