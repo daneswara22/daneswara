@@ -56,10 +56,15 @@ model expenses {
   date       DateTime @db.Date
   user_name  String?
   source     String?  @db.VarChar(40)
+  // Klasifikasi akuntansi: 'expense' (biaya), 'transfer' (pindah kas),
+  // 'loan' (pinjaman/utang), 'receivable' (kasbon/piutang karyawan).
+  // Hanya 'expense' yang masuk laba rugi.
+  entry_type String   @default("expense") @db.VarChar(20)
   created_at DateTime @db.DateTime(0)
 
   @@index([date], map: "ix_expenses_date")
   @@index([tenant_id], map: "ix_expenses_tenant_id")
+  @@index([tenant_id, entry_type], map: "ix_expenses_tenant_type")
 }
 
 model finance_categories {
@@ -320,10 +325,13 @@ model other_income {
   date       DateTime @db.Date
   user_name  String?
   source     String?  @db.VarChar(40)
+  // 'income' (pendapatan), 'loan_in' (pinjaman masuk), 'transfer_in' (pindah kas masuk)
+  entry_type String   @default("income") @db.VarChar(20)
   created_at DateTime @db.DateTime(0)
 
   @@index([date], map: "ix_other_income_date")
   @@index([tenant_id], map: "ix_other_income_tenant_id")
+  @@index([tenant_id, entry_type], map: "ix_other_income_tenant_type")
 }
 
 model products {
@@ -365,6 +373,11 @@ model purchases {
   status        String    @db.VarChar(20)
   cashier       String?
   received_at   DateTime? @db.DateTime(0)
+  // Pembayaran ke supplier. Arus kas memakai paid_at, bukan received_at.
+  payment_status String   @default("UNPAID") @db.VarChar(20)
+  paid_at        DateTime? @db.DateTime(0)
+  paid_amount    Float?    @db.Float
+  payment_source String?   @db.VarChar(40)
   created_at    DateTime  @db.DateTime(0)
 
   @@index([created_at], map: "ix_purchases_created_at")
@@ -372,6 +385,8 @@ model purchases {
   @@index([po_number], map: "ix_purchases_po_number")
   @@index([status], map: "ix_purchases_status")
   @@index([tenant_id], map: "ix_purchases_tenant_id")
+  @@index([tenant_id, paid_at], map: "ix_purchases_tenant_paid")
+  @@index([tenant_id, payment_status], map: "ix_purchases_tenant_paystatus")
 }
 
 model sales {

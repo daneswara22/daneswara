@@ -165,6 +165,8 @@ export const financeEntryInputSchema = z.object({
   note: optStr().optional().default(''),
   date: z.string().nullable().optional(),
   source: z.string().optional().default('Tunai'),
+  // Klasifikasi akuntansi. Default 'expense'/'income' supaya data lama tetap valid.
+  entry_type: z.enum(['expense', 'transfer', 'loan', 'receivable', 'income', 'loan_in', 'transfer_in']).optional(),
 });
 
 export const galleryInputSchema = z.object({

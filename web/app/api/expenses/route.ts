@@ -6,6 +6,7 @@ import { HttpError, newId } from '@/lib/http';
 import { parseDate, localToday } from '@/lib/business';
 import { financeEntryInputSchema } from '@/lib/schemas';
 import { serializeExpense } from '@/lib/serializers';
+import { ensureFinanceSchema } from '@/lib/schemaGuard';
 
 export const GET = handle(async (req: NextRequest) => {
   const user = await requireRoles(req, 'Owner', 'Manager');
@@ -24,13 +25,16 @@ export const GET = handle(async (req: NextRequest) => {
 
 export const POST = handle(async (req: NextRequest) => {
   const user = await requireRoles(req, 'Owner', 'Manager');
+  await ensureFinanceSchema();
   const data = financeEntryInputSchema.parse(await readBody(req));
   if (data.amount <= 0) throw new HttpError(400, 'Nominal harus lebih dari 0');
   const d = parseDate(data.date) || parseDate(localToday())!;
   const row = await prisma.expenses.create({
     data: {
       id: newId(), tenant_id: user.tenant_id, category: data.category, amount: data.amount,
-      note: data.note || '', date: d, user_name: user.name || '', source: (data.source || 'Tunai').trim() || 'Tunai', created_at: new Date(),
+      note: data.note || '', date: d, user_name: user.name || '', source: (data.source || 'Tunai').trim() || 'Tunai',
+      entry_type: data.entry_type || 'expense',
+      created_at: new Date(),
     },
   });
   await logActivity(user.tenant_id, user, 'Tambah Pengeluaran', `${data.category} - ${data.amount}`);

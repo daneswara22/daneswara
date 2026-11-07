@@ -23,8 +23,10 @@ export const GET = handle(async (req: NextRequest) => {
   if (startDate || endDate) finWhere.date = {};
   if (startDate) finWhere.date.gte = startDate;
   if (endDate) finWhere.date.lte = endDate;
-  const expenses = await prisma.expenses.findMany({ where: finWhere });
-  const others = await prisma.other_income.findMany({ where: finWhere });
+  // Hanya entri bertipe biaya/pendapatan yang masuk laba rugi.
+  // Transfer kas, pinjaman, dan kasbon BUKAN biaya.
+  const expenses = await prisma.expenses.findMany({ where: { ...finWhere, entry_type: 'expense' } });
+  const others = await prisma.other_income.findMany({ where: { ...finWhere, entry_type: 'income' } });
 
   const byCat: Record<string, number> = {};
   for (const e of expenses) byCat[e.category] = (byCat[e.category] || 0) + e.amount;
