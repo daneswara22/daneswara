@@ -223,6 +223,12 @@ export default function TaskToDo() {
           <Button size="sm" variant="ghost" className="h-7 gap-1 px-2 text-xs" disabled={busy} onClick={() => openDetail(t.id)} data-testid={`task-edit-${t.id}`}>
             <Pencil className="h-3.5 w-3.5" /> Edit
           </Button>
+          {/* Admin bisa melepas task milik user lain (mis. user lupa password). */}
+          {isAdmin && t.assigned_user_id && t.assigned_user_id !== user?.id && t.status !== 'COMPLETED' && (
+            <Button size="sm" variant="ghost" className="h-7 gap-1 px-2 text-xs text-destructive" disabled={busy} onClick={() => { setReleaseFor(t); setReleaseReason(''); }} data-testid={`task-admin-release-${t.id}`}>
+              <UserMinus className="h-3.5 w-3.5" /> Lepas
+            </Button>
+          )}
           {isAdmin && (
             <Button size="sm" variant="ghost" className="h-7 px-2 text-xs text-destructive" disabled={busy} onClick={() => setDeleteFor(t)} data-testid={`task-delete-${t.id}`}>
               <Trash2 className="h-3.5 w-3.5" />
@@ -483,6 +489,52 @@ export default function TaskToDo() {
                   </div>
                 </div>
               </section>
+
+              {/* Panel admin: ambil alih status / lepas task milik user lain. */}
+              {isAdmin && (
+                <section className="rounded-md border border-amber-500/40 bg-amber-500/5 p-3" data-testid="task-admin-panel">
+                  <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-amber-700">Kontrol Admin</h3>
+                  <p className="mb-2 text-[11px] text-muted-foreground">
+                    Dipakai kalau PIC tidak bisa melanjutkan (mis. lupa password). Lepas akan mengembalikan task ke Available.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 gap-1 px-2 text-xs"
+                      disabled={busy || detail.status === 'AVAILABLE'}
+                      onClick={() => act(detail, 'release', { reason: 'Dilepas admin' })}
+                      data-testid="task-admin-release-detail"
+                    >
+                      <UserMinus className="h-3.5 w-3.5" /> Lepas ke Available
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 px-2 text-xs"
+                      disabled={busy || detail.status === 'CLAIMED'}
+                      onClick={() => act(detail, 'status', { status: 'CLAIMED' })}
+                      data-testid="task-admin-set-claimed"
+                    >Set CLAIMED</Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 px-2 text-xs"
+                      disabled={busy || detail.status === 'IN PROGRESS'}
+                      onClick={() => act(detail, 'status', { status: 'IN PROGRESS' })}
+                      data-testid="task-admin-set-progress"
+                    >Set IN PROGRESS</Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 px-2 text-xs"
+                      disabled={busy || detail.status === 'ON HOLD'}
+                      onClick={() => act(detail, 'status', { status: 'ON HOLD' })}
+                      data-testid="task-admin-set-hold"
+                    >Set ON HOLD</Button>
+                  </div>
+                </section>
+              )}
 
               <section>
                 <h3 className="mb-1 text-xs font-bold uppercase tracking-wide text-muted-foreground">Customer</h3>

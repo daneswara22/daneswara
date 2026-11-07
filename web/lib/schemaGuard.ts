@@ -282,3 +282,46 @@ export const ensureTaskSchema = once(async () => {
     console.log('[schema] tabel order_task_activities dibuat');
   }
 });
+
+/* ========================================================================= */
+/* Klasifikasi keuangan: entry_type + pembayaran pembelian                   */
+/* ========================================================================= */
+
+export const ensureFinanceSchema = once(async () => {
+  // expenses.entry_type — hanya 'expense' yang masuk laba rugi.
+  await addColumnIfMissing('expenses', 'entry_type', "VARCHAR(20) NOT NULL DEFAULT 'expense'");
+  // other_income.entry_type — hanya 'income' yang masuk laba rugi.
+  await addColumnIfMissing('other_income', 'entry_type', "VARCHAR(20) NOT NULL DEFAULT 'income'");
+
+  // purchases: pembayaran ke supplier (arus kas memakai paid_at).
+  await addColumnIfMissing('purchases', 'payment_status', "VARCHAR(20) NOT NULL DEFAULT 'UNPAID'");
+  await addColumnIfMissing('purchases', 'paid_at', 'DATETIME(0) NULL');
+  await addColumnIfMissing('purchases', 'paid_amount', 'FLOAT NULL');
+  await addColumnIfMissing('purchases', 'payment_source', 'VARCHAR(40) NULL');
+
+  // Backfill: PO yang sudah diterima dianggap sudah dibayar pada tanggal terima.
+  await prisma.$executeRawUnsafe(`
+    UPDATE purchases
+    SET payment_status = 'PAID',
+        paid_at = COALESCE(received_at, created_at),
+        paid_amount = total
+    WHERE status = 'Diterima' AND (paid_at IS NULL OR payment_status = 'UNPAID')
+  `);
+
+  // Backfill klasifikasi dari nama kategori yang jelas bukan biaya.
+  await prisma.$executeRawUnsafe(`
+    UPDATE expenses SET entry_type = 'transfer'
+    WHERE entry_type = 'expense'
+      AND (LOWER(category) LIKE '%pindah buku%' OR LOWER(category) LIKE '%withdraw%' OR LOWER(category) LIKE '%transfer%')
+  `);
+  await prisma.$executeRawUnsafe(`
+    UPDATE expenses SET entry_type = 'loan'
+    WHERE entry_type = 'expense'
+      AND (LOWER(category) LIKE '%pinjaman%' OR LOWER(category) LIKE '%loan%' OR LOWER(category) LIKE '%cicilan%')
+  `);
+  await prisma.$executeRawUnsafe(`
+    UPDATE expenses SET entry_type = 'receivable'
+    WHERE entry_type = 'expense'
+      AND (LOWER(category) LIKE '%kasbon%' OR LOWER(category) LIKE '%piutang%')
+  `);
+});
