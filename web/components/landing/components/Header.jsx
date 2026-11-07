@@ -66,20 +66,26 @@ export const Header = ({ onCtaClick }) => {
             <button
               data-testid="lang-toggle-en"
               onClick={() => setLang("en")}
-              className={`px-2 sm:px-2.5 py-1 text-[11px] sm:text-xs font-bold uppercase tracking-widest ${
+              aria-label="English"
+              title="English"
+              className={`flex items-center gap-1 px-2 sm:px-2.5 py-1 text-[11px] sm:text-xs font-bold uppercase tracking-widest ${
                 lang === "en" ? "bg-foreground text-background" : "bg-background"
               }`}
             >
-              EN
+              <span aria-hidden="true" className="text-[13px] leading-none">🇬🇧</span>
+              <span>EN</span>
             </button>
             <button
               data-testid="lang-toggle-id"
               onClick={() => setLang("id")}
-              className={`px-2 sm:px-2.5 py-1 text-[11px] sm:text-xs font-bold uppercase tracking-widest border-l-2 border-foreground ${
+              aria-label="Bahasa Indonesia"
+              title="Bahasa Indonesia"
+              className={`flex items-center gap-1 px-2 sm:px-2.5 py-1 text-[11px] sm:text-xs font-bold uppercase tracking-widest border-l-2 border-foreground ${
                 lang === "id" ? "bg-foreground text-background" : "bg-background"
               }`}
             >
-              ID
+              <span aria-hidden="true" className="text-[13px] leading-none">🇮🇩</span>
+              <span>ID</span>
             </button>
           </div>
 

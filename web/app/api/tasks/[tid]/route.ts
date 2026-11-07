@@ -25,7 +25,10 @@ export const GET = handle(async (req: NextRequest, ctx: any) => {
   const task = await loadTask(tid, taskId);
 
   const [order, activities] = await Promise.all([
-    prisma.orders.findFirst({ where: { id: task.order_id, tenant_id: tid } }),
+    // Task manual tidak punya order_id — jangan query dengan id null.
+    task.order_id
+      ? prisma.orders.findFirst({ where: { id: task.order_id, tenant_id: tid } })
+      : Promise.resolve(null),
     prisma.order_task_activities.findMany({
       where: { task_id: task.id },
       orderBy: { created_at: 'desc' },
@@ -257,4 +260,23 @@ export const PATCH = handle(async (req: NextRequest, ctx: any) => {
   }
 
   throw new HttpError(400, 'Aksi tidak dikenal');
+});
+
+/**
+ * DELETE /api/tasks/:tid
+ * Hapus task. Hanya Owner/Manager. Task dari order tidak menghapus order-nya.
+ */
+export const DELETE = handle(async (req: NextRequest, ctx: any) => {
+  const user = await getCurrentUser(req);
+  await ensureTaskSchema();
+  if (user.role !== 'Owner' && user.role !== 'Manager') {
+    throw new HttpError(403, 'Hanya admin yang bisa menghapus task');
+  }
+  const tid = user.tenant_id;
+  const taskId = (await ctx?.params)?.tid;
+  const task = await loadTask(tid, taskId);
+
+  await prisma.order_task_activities.deleteMany({ where: { task_id: task.id } });
+  await prisma.order_tasks.delete({ where: { id: task.id } });
+  return { deleted: true, task_number: task.task_number };
 });

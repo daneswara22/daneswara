@@ -20,7 +20,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Command, CommandInput, CommandList, CommandEmpty, CommandItem } from "@/components/ui/command";
 import { toast } from "sonner";
-import { Search, Plus, Minus, Trash2, X, ArrowLeft, ShoppingCart, ScanLine, CheckCircle2, PauseCircle, PlayCircle, HandCoins, Copy, Check, ChevronsUpDown, Grid2x2, Grid3x3, LayoutGrid, Pencil, History, ChevronDown, ChevronRight, Phone, Loader2, Save, RotateCcw } from "lucide-react";
+import { Search, Plus, Minus, Trash2, X, ArrowLeft, ShoppingCart, ScanLine, CheckCircle2, PauseCircle, PlayCircle, HandCoins, Copy, Check, ChevronsUpDown, Grid2x2, Grid3x3, LayoutGrid, Pencil, History, ChevronDown, ChevronRight, Phone, Loader2, Save, RotateCcw, ClipboardList } from "lucide-react";
 
 const METHODS = ["Tunai", "Bank Transfer", "QRIS", "E-Wallet"];
 const CHANNELS = ["Toko", "Shopee", "Tokopedia", "WhatsApp", "Lainnya"];
@@ -578,7 +578,7 @@ export default function POS() {
     </div>
   );
 
-  const submitPay = async () => {
+  const submitPay = async (opts = {}) => {
     if (method === "Tunai" && Number(paid) < total)
       return toast.error("Nominal bayar kurang");
     try {
@@ -602,6 +602,28 @@ export default function POS() {
       clearSavedOrder();
       if (resumeOrder) { try { await api.delete(`/orders/${resumeOrder.id}`); } catch { /* ignore */ } setResumeOrder(null); }
       load();
+
+      if (opts.toTask) {
+        // Transaksi tersimpan, lalu buat task manual dari item yang sama.
+        try {
+          await api.post("/tasks", {
+            project_name: data.customer_name || `Penjualan ${data.invoice || ""}`.trim(),
+            description: `Dari transaksi ${data.invoice || ""}`.trim(),
+            priority: "Normal",
+            items: (data.items || []).map((i) => ({
+              name: i.name,
+              qty: Number(i.qty) || 0,
+              price: Number(i.price) || 0,
+              note: i.note || "",
+            })),
+          });
+          toast.success("Transaksi tersimpan & task dibuat");
+        } catch (e) {
+          toast.error(`Transaksi tersimpan, tapi task gagal dibuat: ${formatApiError(e.response?.data?.detail)}`);
+        }
+        return;
+      }
+
       toast.success("Transaksi berhasil");
       setTimeout(() => {
         document.body.style.pointerEvents = "";
@@ -1220,9 +1242,18 @@ export default function POS() {
               </div>
             )}
           </div>
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:gap-2">
             <Button onClick={submitPay} className="h-12 w-full text-base font-bold" data-testid="pay-confirm-button">
               Konfirmasi & Cetak Struk
+            </Button>
+            {/* Simpan transaksi lalu buat task tanpa mencetak struk. */}
+            <Button
+              variant="outline"
+              onClick={() => submitPay({ toTask: true })}
+              className="h-9 w-full gap-1.5 border-emerald-500/50 text-xs font-semibold text-emerald-700 hover:bg-emerald-500/10"
+              data-testid="pay-to-task-button"
+            >
+              <ClipboardList className="h-3.5 w-3.5" /> Masukkan ke Task
             </Button>
           </DialogFooter>
         </DialogContent>

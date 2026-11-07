@@ -51,13 +51,24 @@ export const GET = handle(async (req: NextRequest) => {
   else if (deadline === 'none') where.deadline = null;
 
   // Pencarian menyentuh task_number/project_name dan kolom order (order_number,
-  // customer_name). Dibatasi ke tenant lewat relasi.
+  // customer_name). Kolom order dicari lewat subquery id terpisah karena tabel
+  // `orders` memakai collation berbeda (utf8mb4_uca1400_ai_ci) dari
+  // `order_tasks` (utf8mb4_unicode_ci) — JOIN langsung memicu
+  // "Illegal mix of collations" di MariaDB.
   if (q) {
+    const matchedOrders = await prisma.orders.findMany({
+      where: {
+        tenant_id: tid,
+        OR: [{ order_number: { contains: q } }, { customer_name: { contains: q } }],
+      },
+      select: { id: true },
+      take: 500,
+    });
+    const orderIds = matchedOrders.map((o) => o.id);
     where.OR = [
       { task_number: { contains: q } },
       { project_name: { contains: q } },
-      { order: { order_number: { contains: q } } },
-      { order: { customer_name: { contains: q } } },
+      ...(orderIds.length ? [{ order_id: { in: orderIds } }] : []),
     ];
   }
 
