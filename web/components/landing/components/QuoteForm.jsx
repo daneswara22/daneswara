@@ -11,16 +11,17 @@ const SHEET_H = 43;
 const GAP = 0.1;
 
 // 3 produk sticker (aset gambar terpisah agar bisa diedit sendiri-sendiri).
+// Judul & harga diambil dari kamus terjemahan landing (bukan hardcoded).
 const STICKER_PRODUCTS = [
-  { id: "bontax", title: "Stiker Bontax + Cutting", price: "Rp15.000", img: "/stickers/bontax.jpg" },
-  { id: "vinyl", title: "Stiker Vinyl + Cutting", price: "Rp25.000", img: "/stickers/vinyl.jpg" },
-  { id: "custom", title: "Stiker Custom", price: "Mulai Rp6.000", img: "/stickers/custom.jpg" },
+  { id: "bontax", titleKey: "sq_product_bontax", price: "Rp15.000", img: "/stickers/bontax.jpg" },
+  { id: "vinyl", titleKey: "sq_product_vinyl", price: "Rp25.000", img: "/stickers/vinyl.jpg" },
+  { id: "custom", titleKey: "sq_product_custom", priceKey: "sq_price_from", priceValue: "Rp6.000", img: "/stickers/custom.jpg" },
 ];
 
 const SHAPES = [
-  { v: "square", l: "Kotak 1:1" },
-  { v: "circle", l: "Lingkaran" },
-  { v: "custom", l: "Custom Size" },
+  { v: "square", key: "sq_shape_square" },
+  { v: "circle", key: "sq_shape_circle" },
+  { v: "custom", key: "sq_shape_custom" },
 ];
 
 const num = (v) => {
@@ -85,12 +86,12 @@ export const QuoteForm = forwardRef(function QuoteForm(_, ref) {
         {/* Panel Custom Sticker */}
         <div className="border-2 border-foreground bg-card p-6 shadow-stamp-lg sm:p-8 lg:col-span-7" data-testid="sticker-quick-panel">
           <div className="text-[11px] font-bold uppercase tracking-[0.3em] text-primary">Custom Sticker</div>
-          <p className="mt-2 text-sm text-muted-foreground">Atur ukuran, lihat estimasi jumlah sticker, lalu upload desainmu.</p>
+          <p className="mt-2 text-sm text-muted-foreground">{t("sq_intro")}</p>
 
           <div className="mt-6 grid gap-6 sm:grid-cols-2">
             <div className="space-y-5">
               <div>
-                <span className={labelCls}>1. Pilih Bentuk</span>
+                <span className={labelCls}>{t("sq_step_shape")}</span>
                 <div className="grid grid-cols-3 gap-2">
                   {SHAPES.map((s) => (
                     <button
@@ -102,34 +103,34 @@ export const QuoteForm = forwardRef(function QuoteForm(_, ref) {
                         shape === s.v ? "bg-foreground text-background" : "bg-background"
                       }`}
                     >
-                      {s.l}
+                      {t(s.key)}
                     </button>
                   ))}
                 </div>
               </div>
 
               <div>
-                <span className={labelCls}>2. Atur Ukuran</span>
+                <span className={labelCls}>{t("sq_step_size")}</span>
                 {shape === "custom" ? (
                   <div className="grid grid-cols-2 gap-2">
-                    <input className={inputCls} value={w} onChange={(e) => setW(e.target.value)} inputMode="decimal" placeholder="Lebar (cm)" data-testid="sq-width" />
-                    <input className={inputCls} value={h} onChange={(e) => setH(e.target.value)} inputMode="decimal" placeholder="Tinggi (cm)" data-testid="sq-height" />
+                    <input className={inputCls} value={w} onChange={(e) => setW(e.target.value)} inputMode="decimal" placeholder={t("sq_width")} data-testid="sq-width" />
+                    <input className={inputCls} value={h} onChange={(e) => setH(e.target.value)} inputMode="decimal" placeholder={t("sq_height")} data-testid="sq-height" />
                   </div>
                 ) : (
-                  <input className={inputCls} value={size} onChange={(e) => setSize(e.target.value)} inputMode="decimal" placeholder={shape === "circle" ? "Diameter (cm)" : "Sisi (cm)"} data-testid="sq-size" />
+                  <input className={inputCls} value={size} onChange={(e) => setSize(e.target.value)} inputMode="decimal" placeholder={shape === "circle" ? t("sq_diameter") : t("sq_side")} data-testid="sq-size" />
                 )}
                 <p className="mt-1.5 text-[11px] text-muted-foreground">
-                  {shape === "circle" ? "Diameter dalam cm" : shape === "custom" ? "Lebar × tinggi dalam cm" : "Sisi dalam cm"} · lembar {SHEET_W} × {SHEET_H} cm
+                  {shape === "circle" ? t("sq_hint_diameter") : shape === "custom" ? t("sq_hint_custom") : t("sq_hint_side")} · {t("sq_sheet")} {SHEET_W} × {SHEET_H} cm
                 </p>
               </div>
 
               <div className="border-2 border-foreground bg-background px-4 py-3">
-                <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Estimasi</div>
+                <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground">{t("sq_estimate")}</div>
                 <div className="font-display text-2xl" data-testid="sq-estimate">
-                  {grid.total} sticker / lembar
+                  {grid.total} {t("sq_per_sheet")}
                 </div>
                 <div className="text-[11px] text-muted-foreground">
-                  {dim.w ? `${dim.w.toFixed(1)} × ${dim.h.toFixed(1)} cm` : "Masukkan ukuran"} · jarak 0,1 cm
+                  {dim.w ? `${dim.w.toFixed(1)} × ${dim.h.toFixed(1)} cm` : t("sq_enter_size")} · {t("sq_gap")}
                 </div>
               </div>
 
@@ -138,14 +139,14 @@ export const QuoteForm = forwardRef(function QuoteForm(_, ref) {
                 data-testid="sq-start"
                 className="lift inline-flex items-center gap-2 border-2 border-foreground bg-primary px-6 py-3 text-sm font-bold uppercase tracking-wider text-primary-foreground shadow-stamp"
               >
-                Mulai Custom Sticker <ArrowRight size={16} />
+                {t("sq_start")} <ArrowRight size={16} />
               </a>
             </div>
 
             {/* Preview mini (bukan editor) */}
             <div className="border-2 border-foreground bg-background p-3">
               <div className="mb-2 flex items-center justify-between text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
-                <span>Simulasi</span>
+                <span>{t("sq_simulation")}</span>
                 <span>{grid.cols} × {grid.rows}</span>
               </div>
               <div
@@ -182,10 +183,12 @@ export const QuoteForm = forwardRef(function QuoteForm(_, ref) {
                 data-testid={`sticker-product-${p.id}`}
                 className="flex flex-col overflow-hidden rounded-xl border-2 border-foreground bg-background shadow-sm transition hover:shadow-md"
               >
-                <img src={p.img} alt={p.title} loading="lazy" className="aspect-square w-full object-cover" />
+                <img src={p.img} alt={t(p.titleKey)} loading="lazy" className="aspect-square w-full object-cover" />
                 <div className="flex flex-1 flex-col gap-2 p-3">
-                  <div className="text-sm font-semibold leading-snug">{p.title}</div>
-                  <div className="font-display text-lg text-primary">{p.price}</div>
+                  <div className="text-sm font-semibold leading-snug">{t(p.titleKey)}</div>
+                  <div className="font-display text-lg text-primary">
+                    {p.priceKey ? `${t(p.priceKey)} ${p.priceValue}` : p.price}
+                  </div>
                   <a
                     href="/custom-sticker"
                     data-testid={`sticker-product-order-${p.id}`}
