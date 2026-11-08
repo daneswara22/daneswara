@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
-import { Receipt, Undo2, FileSpreadsheet, FileText, Scale, Landmark, Printer, Wallet, ArrowDownRight, ArrowUpRight, Store } from "lucide-react";
+import { Receipt, Undo2, FileSpreadsheet, FileText, Scale, Landmark, Printer, Wallet, ArrowDownRight, ArrowUpRight, Store, TrendingUp, PiggyBank, Package } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { printReceiptSmart } from "@/lib/printer";
 import * as XLSX from "xlsx";
@@ -36,6 +36,8 @@ export default function Reports() {
   const [detailSale, setDetailSale] = useState(null);
   const [settings, setSettings] = useState({});
   const [printing, setPrinting] = useState(false);
+  // Ringkasan bisnis (dipindah dari Dashboard): omzet/laba hari ini, total, produk.
+  const [dash, setDash] = useState(null);
 
   const loadPL = (params) => {
     api.get("/reports/profit-loss", { params }).then((r) => setPl(r.data));
@@ -52,6 +54,10 @@ export default function Reports() {
     api.get("/reports/monthly", { params: { year: y } }).then((r) => setTrend(r.data.months));
   };
   useEffect(() => { load(); loadTrend(year); }, []);
+
+  useEffect(() => {
+    api.get("/dashboard").then((r) => setDash(r.data)).catch(() => setDash(null));
+  }, []);
 
   useEffect(() => { api.get("/settings").then((r) => setSettings(r.data || {})).catch(() => {}); }, []);
 
@@ -152,6 +158,43 @@ export default function Reports() {
           </Button>
         </div>
       </div>
+
+      {/* Ringkasan bisnis — dipindah dari Dashboard. */}
+      {dash && (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4" data-testid="report-summary-cards">
+          <div className="rounded-lg border border-border bg-card p-5" data-testid="stat-omzet-hari-ini">
+            <div className="flex items-center justify-between">
+              <p className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Omzet Hari Ini</p>
+              <div className="flex h-9 w-9 items-center justify-center rounded-md bg-accent text-accent-foreground"><TrendingUp className="h-4 w-4" /></div>
+            </div>
+            <p className="mt-3 font-display text-2xl font-bold tracking-tight">{rupiah(dash.today_revenue)}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{dash.today_transactions} transaksi</p>
+          </div>
+          <div className="rounded-lg border border-border bg-card p-5" data-testid="stat-laba-hari-ini">
+            <div className="flex items-center justify-between">
+              <p className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Laba Hari Ini</p>
+              <div className="flex h-9 w-9 items-center justify-center rounded-md bg-emerald-500/10 text-emerald-600"><PiggyBank className="h-4 w-4" /></div>
+            </div>
+            <p className="mt-3 font-display text-2xl font-bold tracking-tight">{rupiah(dash.today_profit)}</p>
+          </div>
+          <div className="rounded-lg border border-border bg-card p-5" data-testid="stat-total-omzet">
+            <div className="flex items-center justify-between">
+              <p className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Total Omzet</p>
+              <div className="flex h-9 w-9 items-center justify-center rounded-md bg-violet-500/10 text-violet-600"><Receipt className="h-4 w-4" /></div>
+            </div>
+            <p className="mt-3 font-display text-2xl font-bold tracking-tight">{rupiah(dash.total_revenue)}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{dash.total_transactions} transaksi</p>
+          </div>
+          <div className="rounded-lg border border-border bg-card p-5" data-testid="stat-total-produk">
+            <div className="flex items-center justify-between">
+              <p className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Total Produk</p>
+              <div className="flex h-9 w-9 items-center justify-center rounded-md bg-orange-500/10 text-orange-600"><Package className="h-4 w-4" /></div>
+            </div>
+            <p className="mt-3 font-display text-2xl font-bold tracking-tight">{dash.product_count}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{dash.low_stock_count} stok menipis</p>
+          </div>
+        </div>
+      )}
 
       <div className="space-y-3 rounded-lg border border-border bg-card p-4">
         <div className="flex flex-wrap items-end gap-3">
