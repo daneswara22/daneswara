@@ -308,8 +308,10 @@ export function buildInvoiceCss(mode = 'print') {
 .dnsw-inv .iitems thead { display: table-header-group; }
 
 /* ---- Pembayaran (kiri) + ringkasan (kanan) ---- */
-.dnsw-inv .ipay { display: flex; align-items: flex-start; gap: ${m(2)}; margin-top: ${m(1.6)}; }
-.dnsw-inv .ibank {
+/* Bank di kiri (lebar tetap), ringkasan di kanan. Ringkasan diberi lebar
+   minimum supaya nominal besar tidak terpotong; kalau ruang benar-benar
+   tidak cukup (nominal ekstrem), barulah turun ke baris baru. */
+.dnsw-inv .ipay { display: flex; align-items: flex-start; flex-wrap: wrap; gap: ${m(2)}; margin-top: ${m(1.6)}; }.dnsw-inv .ibank {
   flex: 0 0 ${m(43)}; border: ${p(0.8)} solid #000; border-radius: ${m(1.2)};
   padding: ${m(1.5)} ${m(1.8)};
 }
@@ -343,10 +345,19 @@ export function buildInvoiceCss(mode = 'print') {
   font-size: ${p(QRIS_CAPTION_PT)}; font-weight: 700; letter-spacing: ${p(0.3)}; color: #555;
 }
 
-.dnsw-inv .isum { flex: 0 1 auto; width: auto; max-width: 100%; margin-left: auto; }
+/* Ringkasan: JANGAN menyusut (flex-shrink 0) supaya nominal besar tidak
+   terpotong. Lebar minimum dijaga agar label & angka tetap terbaca, dan
+   padding kanan kecil memberi jarak dari tepi kertas. */
+/* Ringkasan: JANGAN menyusut (flex-shrink 0) supaya nominal besar tidak
+   terpotong. Lebar mengikuti isi (auto) dengan batas atas ruang yang tersedia
+   setelah kotak pembayaran, jadi tetap sebaris dan tidak menyentuh tepi. */
+.dnsw-inv .isum {
+  flex: 0 0 auto; width: auto; max-width: calc(100% - ${m(45)});
+  margin-left: auto; padding-right: ${m(0.5)};
+}
 .dnsw-inv .isum td { padding: ${m(0.5)} 0; font-size: ${p(7.2)}; border: 0; }
 .dnsw-inv .isum tr.prelast td { padding-bottom: ${m(1.4)}; }
-.dnsw-inv .isum td.l { text-align: left; white-space: nowrap; padding-right: ${m(3)}; }
+.dnsw-inv .isum td.l { text-align: left; padding-right: ${m(3)}; }
 .dnsw-inv .isum td.v { text-align: right; white-space: nowrap; }
 .dnsw-inv .isum tr.grand td {
   border-top: ${p(1.1)} solid #000; padding-top: ${m(1.4)}; font-weight: 800;

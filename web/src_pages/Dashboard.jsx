@@ -4,21 +4,8 @@ import { useAuth } from "@/context/AuthContext";
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from "recharts";
-import { TrendingUp, Receipt, PiggyBank, Package, AlertTriangle, Activity, PackageMinus, ClipboardList, UserPlus, Clock, CheckCircle2 } from "lucide-react";
+import { AlertTriangle, Activity, PackageMinus, ClipboardList, UserPlus, Clock, CheckCircle2 } from "lucide-react";
 import { Link } from "react-router-dom";
-
-const Stat = ({ icon: Icon, label, value, sub, tint }) => (
-  <div className="rounded-lg border border-border bg-card p-5" data-testid={`stat-${label}`}>
-    <div className="flex items-center justify-between">
-      <p className="text-xs uppercase tracking-[0.15em] text-muted-foreground">{label}</p>
-      <div className={`flex h-9 w-9 items-center justify-center rounded-md ${tint}`}>
-        <Icon className="h-4 w-4" />
-      </div>
-    </div>
-    <p className="mt-3 font-display text-2xl font-bold tracking-tight">{value}</p>
-    {sub && <p className="mt-1 text-xs text-muted-foreground">{sub}</p>}
-  </div>
-);
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -81,15 +68,6 @@ export default function Dashboard() {
           ))}
         </div>
       </section>
-
-      {!isKasir && (
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Stat icon={TrendingUp} label="Omzet Hari Ini" value={rupiah(d.today_revenue)} sub={`${d.today_transactions} transaksi`} tint="bg-accent text-accent-foreground" />
-        <Stat icon={PiggyBank} label="Laba Hari Ini" value={rupiah(d.today_profit)} tint="bg-emerald-500/10 text-emerald-600" />
-        <Stat icon={Receipt} label="Total Omzet" value={rupiah(d.total_revenue)} sub={`${d.total_transactions} transaksi`} tint="bg-violet-500/10 text-violet-600" />
-        <Stat icon={Package} label="Total Produk" value={d.product_count} sub={`${d.low_stock_count} stok menipis`} tint="bg-orange-500/10 text-orange-600" />
-      </div>
-      )}
 
       {!isKasir && (d.minus_stock || []).length > 0 && (
         <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-5" data-testid="minus-stock-card">
