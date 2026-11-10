@@ -1,6 +1,7 @@
 'use client';
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import api from '@/lib/api';
+import { setPrinterUserScope } from '@/lib/printer';
 
 interface User {
   id: string;
@@ -49,6 +50,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       })
       .finally(() => setLoading(false));
   }, []);
+
+  // Printer preferences are scoped per account so two cashiers sharing one
+  // browser never overwrite each other's printer setup.
+  useEffect(() => {
+    setPrinterUserScope(user && user.id ? user.id : "");
+  }, [user]);
 
   const login = async (username: string, password: string) => {
     const { data } = await api.post('/auth/login', { username, password });

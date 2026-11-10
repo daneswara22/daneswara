@@ -7,15 +7,45 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import api, { formatApiError } from "@/lib/api";
-import { restorePrinterConnection } from "@/lib/printer";
+import { restorePrinterConnection, setPrinterStatusCallback, getPrinterStatus } from "@/lib/printer";
 import { toast } from "sonner";
 import {
   LayoutDashboard, Package, Tags, Warehouse, BarChart3, Users as UsersIcon,
   Settings as SettingsIcon, ShoppingCart, Sun, Moon, LogOut, Menu, X, Store,
   UserCircle, Truck, ClipboardList, ShoppingBag, KeyRound, Wallet, DownloadCloud, HandCoins, ReceiptText, Images, Shirt, Palette, Sticker,
-  MessagesSquare, ChevronRight, ChevronDown, Smartphone,
+  MessagesSquare, ChevronRight, ChevronDown, Smartphone, Bluetooth, BluetoothOff, Loader2,
 } from "lucide-react";
 import { playChatBeep, notifyBrowser } from "@/lib/chatNotify";
+
+// Compact live printer indicator for the header. Hidden when no Bluetooth
+// printer is configured on this device, so it never clutters the UI.
+function PrinterStatusBadge() {
+  const [status, setStatus] = useState(getPrinterStatus());
+  const [queue, setQueue] = useState(0);
+  useEffect(() => {
+    const off = setPrinterStatusCallback((s, _name, meta) => {
+      setStatus(s);
+      setQueue((meta && meta.queue) || 0);
+    });
+    return off;
+  }, []);
+  if (status === "disconnected") return null;
+  const map = {
+    connected: { icon: Bluetooth, cls: "text-emerald-600", label: "Printer siap" },
+    printing: { icon: Loader2, cls: "text-blue-600 animate-spin", label: queue > 0 ? `Mencetak · ${queue} antre` : "Mencetak" },
+    connecting: { icon: Loader2, cls: "text-amber-600 animate-spin", label: "Menyambungkan" },
+    reconnecting: { icon: Loader2, cls: "text-amber-600 animate-spin", label: "Menyambung ulang" },
+    error: { icon: BluetoothOff, cls: "text-destructive", label: "Printer error" },
+  };
+  const m = map[status] || map.connected;
+  const Icon = m.icon;
+  return (
+    <span className={`hidden items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-xs font-medium sm:inline-flex ${m.cls}`} title={m.label} data-testid="printer-badge" data-status={status}>
+      <Icon className="h-3.5 w-3.5" />
+      <span className="hidden md:inline">{m.label}</span>
+    </span>
+  );
+}
 
 const NAV = [
   { to: "/app", label: "Dashboard", icon: LayoutDashboard, roles: ["Owner", "Manager", "Kasir", "Gudang"], end: true },
@@ -259,8 +289,12 @@ export default function Layout() {
   }, [user?.role]);
 
   // Restore a previously-connected Bluetooth printer on ANY page/refresh so the
-  // link stays alive for cashiers regardless of the landing route.
-  useEffect(() => { restorePrinterConnection().catch(() => {}); }, []);
+  // link stays alive for cashiers regardless of the landing route. Re-runs when
+  // the account changes because printer config is scoped per user.
+  useEffect(() => {
+    if (!user?.id) return;
+    restorePrinterConnection().catch(() => {});
+  }, [user?.id]);
 
   const changePassword = async () => {
     if (pw.new_password !== pw.confirm) return toast.error("Konfirmasi password tidak cocok");
@@ -339,6 +373,7 @@ export default function Layout() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <PrinterStatusBadge />
             <span className="hidden rounded-full bg-accent px-3 py-1 text-xs font-semibold text-accent-foreground sm:inline-block">
               {user?.role}
             </span>

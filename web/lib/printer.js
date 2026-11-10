@@ -11,32 +11,112 @@ let btKeepStay = false;     // maintain connection until user explicitly disconn
 let btWatchdog = null;      // interval: watchdog + keep-alive
 let btReconnecting = false;
 let btWriteBusy = false;    // simple mutex so keep-alive & print never overlap
-let btStatusCb = null;      // UI callback: 'connected' | 'reconnecting' | 'lost' | 'disconnected'
+let btPrinting = false;     // true while a receipt is being streamed (blocks keep-alive)
+// Multiple components can observe the printer (header badge + Settings page),
+// so subscribers are kept in a set instead of a single slot.
+const btStatusSubs = new Set();
+
+// Connection status surfaced to the UI. Exactly six states:
+//   connected | connecting | reconnecting | disconnected | printing | error
+let btStatus = "disconnected";
+let btLastError = "";
+let btVisibilityHooked = false;
+let btUserScope = "";       // logged-in user id -> per-user printer preferences
+
+// Print queue: BLE allows ONE connection per printer, so jobs are serialized.
+// Each job carries the user id + a job id so two accounts on the same browser
+// never interleave bytes and the UI can show whose job is running.
+let btQueue = [];
+let btQueueSeq = 0;
+let btQueueRunning = false;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-function notifyBt(status) { try { btStatusCb && btStatusCb(status, btName); } catch (e) { /* ignore */ } }
-export function setPrinterStatusCallback(cb) { btStatusCb = cb; }
+
+function notifyBt(status, meta) {
+  if (status) btStatus = status;
+  if (meta && meta.error) btLastError = meta.error;
+  const payload = { queue: btQueue.length, error: btLastError, ...(meta || {}) };
+  btStatusSubs.forEach((cb) => {
+    try { cb(btStatus, btName, payload); } catch (e) { /* ignore */ }
+  });
+}
+// Subscribe to live printer status. Returns an unsubscribe function.
+export function setPrinterStatusCallback(cb) {
+  if (!cb) return () => {};
+  btStatusSubs.add(cb);
+  try { cb(btStatus, btName, { queue: btQueue.length, error: btLastError }); } catch (e) { /* ignore */ }
+  return () => { btStatusSubs.delete(cb); };
+}
 export const isPrinterReconnecting = () => btReconnecting;
+export const getPrinterStatus = () => btStatus;
+export const getPrinterError = () => btLastError;
 
 export const rp = (n) => "Rp" + Number(n || 0).toLocaleString("id-ID", { maximumFractionDigits: 0 });
 
-// ---- Per-DEVICE printer config (localStorage) ----
+// ---- Printer config: per-USER, per-DEVICE (localStorage) ----
 // Printer setup (list, active printer, mode, paper width) is stored on THIS
-// device only, so two devices never overwrite each other's printer settings.
+// device AND scoped to the logged-in user, so:
+//   * two devices never overwrite each other's printer settings, and
+//   * two users on the same device never overwrite each other's printer settings.
+// The legacy device-wide key is kept as a fallback and migrated on first read.
 const DEVICE_CFG_KEY = "pos_printer_config_v1";
+const USER_CFG_PREFIX = "pos_printer_config_v1:";
+
+// Set the active user scope. Called by AuthContext on login/logout so printer
+// preferences follow the account, not just the browser.
+export function setPrinterUserScope(userId) {
+  const next = userId ? String(userId) : "";
+  if (next === btUserScope) return;
+  btUserScope = next;
+  // Logging out must not kill a receipt that is still streaming. Defer the
+  // disconnect until the queue drains so no print job is lost.
+  if (!next && btKeepStay) {
+    if (btQueueRunning || btQueue.length) {
+      const wait = setInterval(() => {
+        if (btQueueRunning || btQueue.length) return;
+        clearInterval(wait);
+        if (!btUserScope && btKeepStay) disconnectPrinter();
+      }, 400);
+    } else {
+      disconnectPrinter();
+    }
+  }
+}
+
+export const getPrinterUserScope = () => btUserScope;
+
+function cfgKey() {
+  return btUserScope ? USER_CFG_PREFIX + btUserScope : DEVICE_CFG_KEY;
+}
+
+function readCfg(key) {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const c = JSON.parse(raw);
+    return c && typeof c === "object" ? c : null;
+  } catch { return null; }
+}
+
 export function getDevicePrinterConfig() {
   try {
-    const raw = localStorage.getItem(DEVICE_CFG_KEY);
-    if (!raw) return {};
-    const c = JSON.parse(raw);
-    return c && typeof c === "object" ? c : {};
+    const scoped = btUserScope ? readCfg(cfgKey()) : null;
+    if (scoped) return scoped;
+    // First run for this user: inherit the legacy device-wide config so an
+    // already-paired printer is not lost after this update.
+    const legacy = readCfg(DEVICE_CFG_KEY);
+    if (legacy && btUserScope) {
+      try { localStorage.setItem(cfgKey(), JSON.stringify(legacy)); } catch (e) { /* ignore */ }
+      return legacy;
+    }
+    return legacy || {};
   } catch { return {}; }
 }
 export function setDevicePrinterConfig(cfg = {}) {
   try {
     const cur = getDevicePrinterConfig();
     const next = { ...cur, ...cfg };
-    localStorage.setItem(DEVICE_CFG_KEY, JSON.stringify({
+    localStorage.setItem(cfgKey(), JSON.stringify({
       print_mode: next.print_mode || "desktop",
       paper_width: next.paper_width || "58",
       printers: next.printers || [],
@@ -171,11 +251,30 @@ async function locateWritable(server) {
 function armConnection(device) {
   try { device.removeEventListener("gattserverdisconnected", onGattDisconnected); } catch (e) { /* ignore */ }
   device.addEventListener("gattserverdisconnected", onGattDisconnected);
+  hookVisibility();
   startWatchdog();
+}
+
+// Browsers throttle timers in background tabs, which is a common cause of the
+// BLE link dying while the cashier is on another tab. Re-check the link as soon
+// as the tab becomes visible again instead of waiting for the next tick.
+function hookVisibility() {
+  if (btVisibilityHooked || typeof document === "undefined") return;
+  btVisibilityHooked = true;
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState !== "visible") return;
+    if (!btKeepStay || !btDevice) return;
+    if (!btDevice.gatt.connected) { btChar = null; reconnectPrinter(); }
+  });
 }
 
 function onGattDisconnected() {
   btChar = null;
+  if (btPrinting) {
+    // A drop mid-print is handled by the print job itself (it retries once).
+    notifyBt("error", { error: "Koneksi terputus saat mencetak" });
+    return;
+  }
   if (btKeepStay) { notifyBt("reconnecting"); reconnectPrinter(); }
   else notifyBt("disconnected");
 }
@@ -190,13 +289,21 @@ async function reconnectPrinter(maxAttempts = 10) {
     try {
       if (!btDevice.gatt.connected) await btDevice.gatt.connect();
       const w = await locateWritable(btDevice.gatt);
-      if (w) { btChar = w; btReconnecting = false; notifyBt("connected"); return true; }
+      if (w) {
+        btChar = w;
+        btReconnecting = false;
+        btLastError = "";
+        notifyBt("connected");
+        return true;
+      }
     } catch (e) { /* retry */ }
     await sleep(delay);
     delay = Math.min(Math.round(delay * 1.6), 5000);
   }
   btReconnecting = false;
-  if (btKeepStay) notifyBt("lost");
+  if (btKeepStay) {
+    notifyBt("error", { error: "Printer tidak merespons. Pastikan printer menyala dan berada dalam jangkauan." });
+  }
   return false;
 }
 
@@ -205,7 +312,9 @@ function startWatchdog() {
   btWatchdog = setInterval(async () => {
     if (!btKeepStay || !btDevice) return;
     if (!btDevice.gatt.connected) { btChar = null; reconnectPrinter(); return; }
-    if (!btChar || btReconnecting) return;
+    // Never inject keep-alive bytes while a receipt is streaming — that would
+    // corrupt the ESC/POS payload and produce a garbled print.
+    if (!btChar || btReconnecting || btPrinting || btWriteBusy) return;
     // Keep-alive: NUL byte is ignored by ESC/POS printers but keeps the BLE link
     // active, preventing the idle timeout that causes sudden disconnects.
     try {
@@ -234,10 +343,18 @@ export async function connectBluetoothPrinter() {
   if (!bluetoothSupported()) {
     throw new Error("Browser ini tidak mendukung Web Bluetooth. Gunakan Chrome di Android/Windows.");
   }
-  const device = await navigator.bluetooth.requestDevice({
-    acceptAllDevices: true,
-    optionalServices: KNOWN_SERVICES,
-  });
+  notifyBt("connecting");
+  let device;
+  try {
+    device = await navigator.bluetooth.requestDevice({
+      acceptAllDevices: true,
+      optionalServices: KNOWN_SERVICES,
+    });
+  } catch (e) {
+    // User closed the chooser — not an error worth flagging.
+    notifyBt(btChar ? "connected" : "disconnected");
+    throw e;
+  }
   const server = await device.gatt.connect().catch(async (err) => {
     // BLE printers accept only ONE active connection. Retry once, then explain.
     await sleep(700);
@@ -251,6 +368,7 @@ export async function connectBluetoothPrinter() {
   btChar = writable;
   btName = device.name || "Printer Thermal";
   btKeepStay = true;
+  btLastError = "";
   try { setDevicePrinterConfig({ last_device_id: device.id, last_device_name: btName }); } catch (e) { /* ignore */ }
   armConnection(device);
   notifyBt("connected");
@@ -282,6 +400,7 @@ export function disconnectPrinter() {
   stopWatchdog();
   try { if (btDevice?.gatt?.connected) btDevice.gatt.disconnect(); } catch (e) { /* ignore */ }
   btChar = null; btDevice = null; btName = "";
+  btLastError = "";
   notifyBt("disconnected");
 }
 
@@ -295,6 +414,74 @@ async function writeBytes(bytes) {
     });
     await sleep(20);
   }
+}
+
+// ---- Print queue -----------------------------------------------------------
+// BLE exposes ONE writable characteristic per printer, so concurrent jobs from
+// two accounts would interleave bytes and corrupt both receipts. Every job is
+// therefore queued and streamed strictly one at a time, tagged with the user id
+// and a job id so the UI can report whose job is running.
+export function getPrintQueueInfo() {
+  return {
+    pending: btQueue.length,
+    running: btQueueRunning,
+    jobs: btQueue.map((j) => ({ id: j.id, user: j.user, label: j.label })),
+  };
+}
+
+export function clearPrintQueue() {
+  const dropped = btQueue.length;
+  btQueue = [];
+  notifyBt(btStatus);
+  return dropped;
+}
+
+function enqueuePrintJob(job) {
+  return new Promise((resolve, reject) => {
+    const id = `job-${Date.now()}-${++btQueueSeq}`;
+    btQueue.push({ ...job, id, resolve, reject });
+    notifyBt(btStatus);
+    drainPrintQueue();
+  });
+}
+
+async function drainPrintQueue() {
+  if (btQueueRunning) return;
+  btQueueRunning = true;
+  try {
+    while (btQueue.length) {
+      const job = btQueue[0];
+      try {
+        const res = await withPrinterLock(() => job.run(job.id));
+        job.resolve(res);
+      } catch (e) {
+        job.reject(e);
+      } finally {
+        btQueue.shift();
+        notifyBt(btStatus);
+      }
+    }
+  } finally {
+    btQueueRunning = false;
+    if (btStatus === "printing") notifyBt(btChar ? "connected" : "disconnected");
+  }
+}
+
+// Two tabs (or two accounts in two tabs) of the same browser can both hold a
+// BLE link to the same printer. Web Locks serializes them across tabs and is
+// released automatically if a tab is closed or crashes, so no stale lock.
+const PRINTER_LOCK = "daneswara-bt-printer";
+async function withPrinterLock(fn) {
+  if (typeof navigator === "undefined" || !navigator.locks || !navigator.locks.request) return fn();
+  return navigator.locks.request(PRINTER_LOCK, { mode: "exclusive" }, fn);
+}
+
+// Ensure the link is alive before streaming. Reconnects at most once per call so
+// a dead printer fails fast instead of looping forever.
+async function ensureLink(attempts = 6) {
+  if (btChar && btDevice?.gatt?.connected) return true;
+  if (!btDevice || !btKeepStay) return false;
+  return reconnectPrinter(attempts);
 }
 
 // Convert an image to a centered, size-limited ESC/POS raster command (GS v 0).
@@ -515,29 +702,51 @@ export async function printReceiptSmart(r, settings) {
   if (dev.print_mode) merged.print_mode = dev.print_mode;
   if (dev.paper_width) merged.paper_width = dev.paper_width;
   const mode = merged.print_mode || "desktop";
-  if (mode === "bluetooth") {
-    // If the link dropped momentarily, try to restore it before giving up.
-    if (!isPrinterConnected() && btDevice && btKeepStay) {
-      await reconnectPrinter(6);
-    }
-    if (!isPrinterConnected()) throw new Error("Printer Bluetooth belum terhubung di perangkat ini. Hubungkan dulu lewat menu Pengaturan, atau gunakan mode USB/Desktop agar bisa dipakai banyak perangkat.");
-    const payload = await buildEscPos(r, merged);
-    try {
-      await writeBytes(payload);
-    } catch (e) {
-      // The link may have died silently (idle GATT death) without a disconnect
-      // event yet. Reconnect and retry the full receipt once before failing.
-      btChar = null;
-      const ok = await reconnectPrinter(6);
-      if (!ok) throw new Error("Printer Bluetooth terputus. Pastikan printer menyala & berada dekat, lalu coba cetak lagi.");
+  if (mode !== "bluetooth") {
+    printDesktop(r, merged);
+    return "desktop";
+  }
+
+  const label = r?.invoice || r?.order_number || "Struk";
+  return enqueuePrintJob({
+    user: btUserScope || "anon",
+    label,
+    run: async (jobId) => {
+      // Reconnect BEFORE building the payload so a stale link does not waste work.
+      const linked = await ensureLink(6);
+      if (!linked) {
+        notifyBt("error", { error: "Printer Bluetooth tidak terhubung" });
+        throw new Error("Printer Bluetooth belum terhubung di perangkat ini. Hubungkan dulu lewat menu Pengaturan, atau gunakan mode USB/Desktop agar bisa dipakai banyak perangkat.");
+      }
+      const payload = await buildEscPos(r, merged);
+      btPrinting = true;
+      notifyBt("printing", { jobId });
       try {
         await writeBytes(payload);
-      } catch (e2) {
-        throw new Error("Gagal mengirim ke printer Bluetooth. Pastikan printer menyala & dekat, lalu coba cetak lagi.");
+        notifyBt("connected", { jobId });
+        return "bluetooth";
+      } catch (e) {
+        // The link may have died silently (idle GATT death) without a disconnect
+        // event yet. Reconnect and retry the FULL payload once. The retry only
+        // happens when the first write failed, so a successful print is never
+        // sent twice.
+        btChar = null;
+        const ok = await reconnectPrinter(6);
+        if (!ok) {
+          notifyBt("error", { error: "Printer terputus saat mencetak" });
+          throw new Error("Printer Bluetooth terputus. Pastikan printer menyala & berada dekat, lalu coba cetak lagi.");
+        }
+        try {
+          await writeBytes(payload);
+          notifyBt("connected", { jobId });
+          return "bluetooth";
+        } catch (e2) {
+          notifyBt("error", { error: "Gagal mengirim data ke printer" });
+          throw new Error("Gagal mengirim ke printer Bluetooth. Pastikan printer menyala & dekat, lalu coba cetak lagi.");
+        }
+      } finally {
+        btPrinting = false;
       }
-    }
-    return "bluetooth";
-  }
-  printDesktop(r, merged);
-  return "desktop";
+    },
+  });
 }
