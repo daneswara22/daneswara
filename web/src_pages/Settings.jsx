@@ -13,14 +13,16 @@ import { Store, Save, Printer, Bluetooth, Trash2, AlertTriangle, Monitor, TestTu
 import {
   connectBluetoothPrinter, disconnectPrinter, isPrinterConnected, getPrinterName,
   bluetoothSupported, printReceiptSmart, getDevicePrinterConfig, setDevicePrinterConfig,
-  setPrinterStatusCallback, restorePrinterConnection,
+  setPrinterStatusCallback, restorePrinterConnection, getPrinterStatus, getPrinterError,
 } from "@/lib/printer";
 
 export default function Settings() {
   const { user } = useAuth();
   const [form, setForm] = useState({ business_name: "", address: "", phone: "", currency: "Rp", tax_rate: 0, receipt_footer: "", print_mode: "desktop", paper_width: "58", printers: [], active_printer: "" });
   const [btName, setBtName] = useState(getPrinterName());
-  const [btStatus, setBtStatus] = useState(isPrinterConnected() ? "connected" : "disconnected");
+  const [btStatus, setBtStatus] = useState(getPrinterStatus() || (isPrinterConnected() ? "connected" : "disconnected"));
+  const [btError, setBtError] = useState(getPrinterError());
+  const [btQueue, setBtQueue] = useState(0);
   const [connecting, setConnecting] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
   const [resetting, setResetting] = useState(false);
@@ -47,15 +49,17 @@ export default function Settings() {
 
   // Reflect live Bluetooth status (auto-reconnect) + restore printer after reload.
   useEffect(() => {
-    setPrinterStatusCallback((status, name) => {
+    const off = setPrinterStatusCallback((status, name, meta) => {
       setBtStatus(status);
-      if (status === "connected") setBtName(name || getPrinterName());
+      setBtError((meta && meta.error) || "");
+      setBtQueue((meta && meta.queue) || 0);
+      if (status === "connected" && name) setBtName(name);
       if (status === "disconnected") setBtName("");
     });
     restorePrinterConnection().then((name) => {
       if (name) { setBtName(name); setBtStatus("connected"); }
     });
-    return () => setPrinterStatusCallback(null);
+    return off;
   }, []);
 
   const openAddPrinter = () => { setEditingPrinter(null); setPForm({ name: "", connection: "desktop", paper_width: "80" }); setPrinterDialog(true); };
@@ -118,19 +122,22 @@ export default function Settings() {
 
   const connectBt = async () => {
     setConnecting(true);
+    setBtStatus("connecting");
     try {
       const name = await connectBluetoothPrinter();
       setBtName(name);
       setBtStatus("connected");
+      setBtError("");
       toast.success(`Terhubung ke ${name}`);
     } catch (e) {
+      setBtStatus(isPrinterConnected() ? "connected" : "disconnected");
       if (e.name !== "NotFoundError") toast.error(e.message || "Gagal menghubungkan printer");
     } finally {
       setConnecting(false);
     }
   };
 
-  const disconnectBt = () => { disconnectPrinter(); setBtName(""); setBtStatus("disconnected"); toast.info("Printer diputus"); };
+  const disconnectBt = () => { disconnectPrinter(); setBtName(""); setBtStatus("disconnected"); setBtError(""); toast.info("Printer diputus"); };
 
   const handleLogo = async (e) => {
     const file = e.target.files?.[0];
@@ -326,15 +333,35 @@ export default function Settings() {
                 </p>
               ) : (
                 <>
-                  <div className="mb-3 flex items-center justify-between">
+                  <div className="mb-3 flex items-center justify-between gap-3">
                     <span className="text-sm">Status printer Bluetooth:</span>
-                    <span className={`text-sm font-semibold ${btStatus === "connected" ? "text-emerald-600" : btStatus === "reconnecting" ? "text-amber-600" : btStatus === "lost" ? "text-destructive" : "text-muted-foreground"}`} data-testid="bt-status">
-                      {btStatus === "connected" ? `Terhubung · ${btName}`
-                        : btStatus === "reconnecting" ? `Menyambung ulang… · ${btName}`
-                        : btStatus === "lost" ? `Koneksi terputus · ${btName} (menyambung ulang otomatis saat printer aktif)`
-                        : "Belum terhubung"}
+                    <span
+                      className={`text-sm font-semibold ${
+                        btStatus === "connected" ? "text-emerald-600"
+                          : btStatus === "printing" ? "text-blue-600"
+                          : btStatus === "connecting" || btStatus === "reconnecting" ? "text-amber-600"
+                          : btStatus === "error" ? "text-destructive"
+                          : "text-muted-foreground"
+                      }`}
+                      data-testid="bt-status"
+                      data-status={btStatus}
+                    >
+                      {btStatus === "connected" ? `CONNECTED · ${btName}`
+                        : btStatus === "printing" ? `PRINTING${btQueue > 0 ? ` · ${btQueue} antre` : ""}`
+                        : btStatus === "connecting" ? "CONNECTING…"
+                        : btStatus === "reconnecting" ? `RECONNECTING… · ${btName}`
+                        : btStatus === "error" ? `ERROR · ${btError || "Printer tidak tersedia"}`
+                        : "DISCONNECTED"}
                     </span>
                   </div>
+                  {btStatus === "error" && (
+                    <div className="mb-3 flex flex-wrap items-center gap-2 rounded-md border border-destructive/40 bg-destructive/5 p-2">
+                      <span className="text-xs text-destructive">{btError || "Printer tidak tersedia. Pastikan printer menyala dan berada dalam jangkauan."}</span>
+                      <Button size="sm" variant="outline" onClick={connectBt} disabled={connecting} data-testid="bt-try-again">
+                        <RefreshCw className="h-3.5 w-3.5" /> TRY AGAIN
+                      </Button>
+                    </div>
+                  )}
                   <p className="mb-3 text-xs text-muted-foreground">Koneksi dijaga otomatis (keep-alive) dan akan tersambung ulang sendiri jika printer sempat terputus — tanpa perlu buka menu ini lagi.</p>
                   <div className="flex flex-wrap gap-2">
                     <Button onClick={connectBt} disabled={connecting} className="gap-2" data-testid="bt-connect-button">

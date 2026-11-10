@@ -15,7 +15,8 @@
     "test:shopee-pipeline": "tsx scripts/test-shopee-sync-pipeline.ts",
     "test:shopee-timerange": "tsx scripts/test-shopee-timerange.ts",
     "test:shopee-resilience": "tsx scripts/test-shopee-resilience.ts",
-    "test:palette": "tsx scripts/test-palette.ts"
+    "test:palette": "tsx scripts/test-palette.ts",
+    "test:printer": "esbuild lib/printer.js --bundle --format=esm --platform=browser --outfile=scripts/.tmp/printer.bundle.mjs --alias:@=./ --loader:.js=jsx --log-level=warning && tsx scripts/test-printer.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.716.0",

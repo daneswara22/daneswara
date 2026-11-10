@@ -165,6 +165,22 @@ Rute POS sekarang pindah, semua menu dashboard ada di bawah `/app`, bukan lagi `
 
 Variabel yang berawalan `NEXT_PUBLIC_` ikut ditanam saat `next build`, jadi `NEXT_PUBLIC_POS_URL` harus di-set sebelum build, bukan saat aplikasi jalan. Terakhir, kalau muncul error Prisma P2024 karena koneksi database jauh dan lambat, tambahkan parameter pool di `DATABASE_URL` seperti dijelaskan di bagian memulai sesi.
 
+## Printer Bluetooth (BLE) — cara kerjanya sekarang
+
+Semua logika ada di `web/lib/printer.js`. Jangan bikin koneksi BLE baru di tempat lain; pakai `printReceiptSmart()` saja.
+
+Status yang dilaporkan ke UI ada enam: `connected`, `connecting`, `reconnecting`, `disconnected`, `printing`, `error`. Komponen berlangganan lewat `setPrinterStatusCallback(cb)` yang mengembalikan fungsi unsubscribe (boleh lebih dari satu pelanggan, misalnya badge di header dan halaman Pengaturan).
+
+Koneksi dijaga tiga lapis: listener `gattserverdisconnected`, watchdog 8 detik yang mengirim byte NUL sebagai keep-alive, dan hook `visibilitychange` untuk menyambung ulang begitu tab aktif lagi (browser menahan timer di tab latar, ini penyebab umum koneksi mati). Saat mencetak, keep-alive dimatikan sementara lewat flag `btPrinting` supaya byte NUL tidak menyelip di tengah payload ESC/POS dan membuat struk rusak.
+
+Semua pekerjaan cetak masuk antrean (`enqueuePrintJob`) dan dikirim satu per satu, ditandai user id dan job id. Antrean dilindungi Web Locks (`daneswara-bt-printer`) supaya dua tab di browser yang sama tidak saling menimpa. Kalau satu tulisan gagal, payload penuh dikirim ulang tepat satu kali setelah reconnect — jadi tidak ada cetak ganda saat tulisan pertama sebenarnya berhasil.
+
+Konfigurasi printer disimpan per user per perangkat dengan kunci `pos_printer_config_v1:<userId>`. Kunci lama `pos_printer_config_v1` tetap dibaca sebagai cadangan dan dimigrasikan otomatis pada pembacaan pertama, jadi printer yang sudah dipasangkan tidak hilang. `AuthContext` memanggil `setPrinterUserScope(user.id)` setiap kali user berubah; saat logout, pemutusan koneksi ditunda sampai antrean kosong agar struk yang sedang jalan tidak hilang.
+
+Batasan fisik yang tidak bisa dilawan dari kode: satu printer BLE hanya menerima satu koneksi aktif. Jadi dua perangkat tidak bisa memakai satu printer Bluetooth bersamaan — untuk itu pakai mode USB/Desktop. Dua user di satu browser tetap aman karena antrean dan Web Locks menyerialkan pekerjaannya.
+
+Tes ada di `web/scripts/test-printer.ts` dan dijalankan dengan `npm run test:printer` (esbuild membundel `printer.js` dulu supaya alias `@/` ter-resolve, lalu `tsx` menjalankan skenario). Tidak butuh printer fisik.
+
 ## Aturan Git
 
 Aturan intinya sederhana: jangan pernah commit atau push langsung ke `main`. Selalu lewat pull request memakai token PAT, dan biarkan pemilik yang review lalu merge sendiri.
