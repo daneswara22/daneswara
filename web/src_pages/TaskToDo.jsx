@@ -13,10 +13,10 @@ import {
 } from 'lucide-react';
 
 const TABS = [
-  { key: 'all', label: 'All Tasks' },
-  { key: 'available', label: 'Available Tasks' },
-  { key: 'mine', label: 'My Tasks' },
-  { key: 'completed', label: 'Completed' },
+  { key: 'available', label: 'Available Tasks', color: '#2563EB' },
+  { key: 'mine', label: 'My Tasks', color: '#7C3AED' },
+  { key: 'completed', label: 'Completed', color: '#16A34A' },
+  { key: 'all', label: 'All Tasks', color: '#475569' },
 ];
 
 const STATUSES = ['AVAILABLE', 'CLAIMED', 'IN PROGRESS', 'COMPLETED', 'ON HOLD'];
@@ -277,19 +277,26 @@ export default function TaskToDo() {
         ))}
       </div>
 
-      {/* Tab */}
-      <div className="flex flex-wrap gap-1 border-b border-border" data-testid="task-tabs">
-        {TABS.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => { setTab(t.key); setPage(1); }}
-            className={`-mb-px whitespace-nowrap border-b-2 px-4 py-2.5 text-sm font-semibold transition-colors duration-200 ${tab === t.key ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
-            data-testid={`task-tab-${t.key}`}
-          >
-            {t.label}
-          </button>
-        ))}
-        <Button variant="ghost" size="sm" className="ml-auto gap-1" onClick={load} disabled={loading} data-testid="task-refresh">
+      {/* Tab — solid horizontal blocks, scrollable on narrow screens */}
+      <div className="flex items-center gap-2 border-b border-border pb-2" data-testid="task-tabs">
+        <div className="flex min-w-0 flex-1 gap-2 overflow-x-auto pb-1">
+          {TABS.map((t) => {
+            const active = tab === t.key;
+            return (
+              <button
+                key={t.key}
+                onClick={() => { setTab(t.key); setPage(1); }}
+                style={{ backgroundColor: t.color, opacity: active ? 1 : 0.55 }}
+                className={`shrink-0 whitespace-nowrap rounded-md px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:opacity-100 ${active ? 'ring-2 ring-offset-2 ring-offset-background' : ''}`}
+                data-testid={`task-tab-${t.key}`}
+                data-active={active}
+              >
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
+        <Button variant="ghost" size="sm" className="shrink-0 gap-1" onClick={load} disabled={loading} data-testid="task-refresh">
           <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Muat ulang
         </Button>
       </div>
