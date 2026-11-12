@@ -20,7 +20,7 @@ export function ProductCombobox({ products = [], value, onChange, placeholder = 
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+      <PopoverContent className="w-[var(--radix-popover-trigger-width)] min-w-[22rem] max-w-[min(34rem,calc(100vw-2rem))] p-0" align="start">
         <Command>
           <CommandInput placeholder="Ketik nama / SKU produk..." data-testid={testId ? `${testId}-search` : undefined} />
           <CommandList id="product-combobox-listbox">
@@ -32,9 +32,10 @@ export function ProductCombobox({ products = [], value, onChange, placeholder = 
                   value={`${p.name} ${p.sku || ""} ${p.id}`}
                   onSelect={() => { onChange(p.id); setOpen(false); }}
                   data-testid={testId ? `${testId}-option-${p.id}` : undefined}
+                  title={renderLabel ? renderLabel(p) : p.name}
                 >
-                  <Check className={cn("mr-2 h-4 w-4", value === p.id ? "opacity-100" : "opacity-0")} />
-                  <span className="truncate">{renderLabel ? renderLabel(p) : p.name}</span>
+                  <Check className={cn("mr-2 h-4 w-4 shrink-0", value === p.id ? "opacity-100" : "opacity-0")} />
+                  <span className="min-w-0 flex-1 whitespace-normal break-words leading-snug">{renderLabel ? renderLabel(p) : p.name}</span>
                 </CommandItem>
               ))}
             </CommandGroup>
