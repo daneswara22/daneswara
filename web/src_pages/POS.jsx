@@ -1250,10 +1250,10 @@ export default function POS() {
             <Button
               variant="outline"
               onClick={() => submitPay({ toTask: true })}
-              className="h-9 w-full gap-1.5 border-emerald-500/50 text-xs font-semibold text-emerald-700 hover:bg-emerald-500/10"
+              className="h-12 w-full gap-2 border-emerald-600 bg-emerald-600 text-base font-bold text-white hover:bg-emerald-700 hover:text-white"
               data-testid="pay-to-task-button"
             >
-              <ClipboardList className="h-3.5 w-3.5" /> Masukkan ke Task
+              <ClipboardList className="h-4 w-4" /> Masukkan ke Task
             </Button>
           </DialogFooter>
         </DialogContent>
