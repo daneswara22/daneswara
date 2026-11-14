@@ -33,8 +33,10 @@ export async function decrementStock(tid: string, user: any, items: any[], note:
 }
 
 export const GET = handle(async (req: NextRequest) => {
-  const user = await getCurrentUser(req);
+  // Migrasi kolom dijalankan sebelum auth supaya skema selalu siap, termasuk
+  // saat request pertama datang tanpa sesi (mis. setelah deploy).
   await ensureFinanceSchema();
+  const user = await getCurrentUser(req);
   const limit = Math.min(parseInt(new URL(req.url).searchParams.get('limit') || '100'), 5000);
   const rows = await prisma.sales.findMany({
     where: { tenant_id: user.tenant_id },
@@ -45,8 +47,8 @@ export const GET = handle(async (req: NextRequest) => {
 });
 
 export const POST = handle(async (req: NextRequest) => {
-  const user = await getCurrentUser(req);
   await ensureFinanceSchema();
+  const user = await getCurrentUser(req);
   const data = saleInputSchema.parse(await readBody(req));
   if (!data.items || data.items.length === 0) throw new HttpError(400, 'Keranjang kosong');
   const tid = user.tenant_id;

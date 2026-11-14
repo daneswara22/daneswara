@@ -11,8 +11,8 @@ import { nextInvoice, decrementStock } from '../../../sales/route';
 
 export const POST = handle(async (req: NextRequest, ctx: { params: Promise<{ oid: string }> }) => {
   const { oid } = await ctx.params;
-  const user = await getCurrentUser(req);
   await ensureFinanceSchema();
+  const user = await getCurrentUser(req);
   const tid = user.tenant_id;
   const order = await prisma.orders.findFirst({ where: { id: oid, tenant_id: tid } });
   if (!order) throw new HttpError(404, 'Pesanan tidak ditemukan');
