@@ -56,11 +56,13 @@ export const POST = handle(async (req: NextRequest) => {
   const invoice = await nextInvoice(tid);
   let custName = data.customer_name || '';
   let custPhone = '';
+  let custAddress = '';
   if (data.customer_id) {
     const cust = await prisma.customers.findFirst({ where: { id: data.customer_id, tenant_id: tid } });
     if (cust) {
       custName = cust.name;
       custPhone = cust.phone || '';
+      custAddress = cust.address || '';
       await prisma.customers.update({
         where: { id: cust.id },
         data: { total_spent: (cust.total_spent || 0) + total, visits: (cust.visits || 0) + 1 },
@@ -75,6 +77,7 @@ export const POST = handle(async (req: NextRequest) => {
       payment_method: data.payment_method, paid_amount: data.paid_amount,
       change: Math.max(0, data.paid_amount - total),
       customer_name: custName, customer_id: data.customer_id || null, customer_phone: custPhone,
+      customer_address: custAddress || null,
       channel: (data.channel || 'Toko').trim() || 'Toko',
       cashier: user.name || '', cashier_id: user.id,
       refunded: false, created_at: new Date(),

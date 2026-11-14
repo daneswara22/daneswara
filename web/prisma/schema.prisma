@@ -407,6 +407,7 @@ model sales {
   customer_name  String?
   customer_id    String?   @db.VarChar(36)
   customer_phone String?   @db.VarChar(40)
+  customer_address String? @db.Text
   channel        String?   @db.VarChar(40)
   from_order     String?   @db.VarChar(40)
   cashier        String?

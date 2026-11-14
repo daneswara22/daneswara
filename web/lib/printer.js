@@ -560,6 +560,11 @@ async function buildEscPos(r, settings) {
   text(r.invoice ? `${r.invoice}\n` : `${r.order_number || ""}\n`);
   text(`${new Date(r.created_at).toLocaleString("id-ID")}\n`);
   if (r.customer_name) text(`Nama: ${r.customer_name}\n`);
+  if (r.customer_address) {
+    const addrLines = String(r.customer_address).replace(/\r\n?/g, "\n").split("\n").map((s) => s.trim()).filter(Boolean);
+    addrLines.forEach((ln, i) => text(`${i === 0 ? "Alamat: " : "        "}${ln}\n`));
+  }
+  if (r.customer_phone) text(`Telp: ${r.customer_phone}\n`);
   if (r.cashier) text(`Kasir: ${r.cashier}\n`);
   text(divider);
   (r.items || []).forEach((i) => {
@@ -637,6 +642,8 @@ function buildLegacyReceiptHtml(r, settings) {
   <div class="row"><span>${r.invoice || r.order_number || ""}</span></div>
   <div class="row"><span>${new Date(r.created_at).toLocaleString("id-ID")}</span></div>
   ${r.customer_name ? `<div class="row"><span>Nama: ${r.customer_name}</span></div>` : ""}
+  ${r.customer_address ? `<div class="row"><span>Alamat: ${String(r.customer_address).replace(/\r\n?/g, "\n").split("\n").map((s) => s.trim()).filter(Boolean).join(", ")}</span></div>` : ""}
+  ${r.customer_phone ? `<div class="row"><span>Telp: ${r.customer_phone}</span></div>` : ""}
   ${r.cashier ? `<div class="row"><span>Kasir: ${r.cashier}</span></div>` : ""}
   <div class="divider"></div>
   ${items}

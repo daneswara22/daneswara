@@ -114,7 +114,7 @@ const EMPTY_ROW_HEIGHT_MM = itemRowHeightMm(1, 0);
  * Mengembalikan 0 kalau ordernya sudah memenuhi area tabel, sehingga invoice
  * tetap satu lembar A6 dan tidak ada blok yang terpotong.
  */
-function countFillerRows({ itemRows, customerName, tanggal, note, summaryRowCount, address }) {
+function countFillerRows({ itemRows, customerName, customerAddress, customerPhone, tanggal, note, summaryRowCount, address }) {
   // Header: kolom teks di kiri, logo rata kanan dengan tinggi yang sama.
   const headTextMm =
     17 * 0.92 * MM_PER_PT +
@@ -131,7 +131,11 @@ function countFillerRows({ itemRows, customerName, tanggal, note, summaryRowCoun
   const infoInnerMm = INVOICE_CONTENT_WIDTH_MM - 2.5 * 2;
   const wKepada = (infoInnerMm * 1.1) / 3.2;
   const wTgl = (infoInnerMm * 1.3) / 3.2;
-  const infoKepadaMm = lineMm(6.8) + lineMm(7.2) * wrapLines(customerName, 7.2, wKepada);
+  const infoKepadaMm =
+    lineMm(6.8) +
+    lineMm(7.2) * wrapLines(customerName, 7.2, wKepada) +
+    (customerAddress ? lineMm(7.2) * wrapLines(customerAddress, 7.2, wKepada) : 0) +
+    (customerPhone ? lineMm(7.2) : 0);
   const infoKasirMm = lineMm(6.8) + lineMm(7.2);
   const infoTglMm = lineMm(6.8) + lineMm(7.2) * (wrapLines(tanggal, 7.2, wTgl) + 1);
   const infoMm = Math.max(infoKepadaMm, infoKasirMm, infoTglMm);
@@ -183,6 +187,18 @@ export const esc = (v) =>
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+
+/**
+ * Teks multi-baris (alamat pelanggan) -> HTML aman dengan <br>.
+ * Baris kosong dipertahankan supaya jarak antar baris yang diketik user
+ * di form pelanggan tetap sama di invoice.
+ */
+export const escLines = (v) =>
+  String(v == null ? '' : v)
+    .replace(/\r\n?/g, '\n')
+    .split('\n')
+    .map((line) => esc(line))
+    .join('<br/>');
 
 /** Deteksi Desktop/PC untuk memilih template cetak. */
 export function isDesktopPrintDevice() {
@@ -287,6 +303,7 @@ export function buildInvoiceCss(mode = 'print') {
 .dnsw-inv .iinfo .c.tgl { flex: 1.3 1 0; }
 .dnsw-inv .lbl { font-size: ${p(6.8)}; font-weight: 800; letter-spacing: ${p(0.2)}; }
 .dnsw-inv .val { font-size: ${p(7.2)}; word-break: break-word; }
+.dnsw-inv .val.addr { white-space: normal; line-height: 1.28; }
 .dnsw-inv .sp { margin-top: ${m(1.3)}; }
 
 /* ---- Tabel produk: KETERANGAN | HARGA / UNIT | JML | TOTAL ---- */
@@ -446,6 +463,11 @@ export function buildInvoiceBody(r = {}, settings = {}, helpers = {}) {
   });
   const jam = created.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
 
+  // Data pelanggan mengikuti form pelanggan: nama, alamat, lalu telepon.
+  // Alamat boleh multi-baris (enter) dan tampil persis seperti yang diketik.
+  const customerAddress = String(r.customer_address || r.shipping_address || '').trim();
+  const customerPhone = String(r.customer_phone || '').trim();
+
   const items = r.items || [];
 
   // Baris produk: nama di baris utama, catatan per item tepat di bawahnya.
@@ -511,6 +533,8 @@ export function buildInvoiceBody(r = {}, settings = {}, helpers = {}) {
   const fillerCount = countFillerRows({
     itemRows: itemRowHeights,
     customerName: r.customer_name || 'Pelanggan',
+    customerAddress,
+    customerPhone,
     tanggal,
     note: r.note,
     summaryRowCount: sum.length,
@@ -556,6 +580,8 @@ export function buildInvoiceBody(r = {}, settings = {}, helpers = {}) {
     <div class="c kepada">
       <div class="lbl">KEPADA :</div>
       <div class="val">${esc(r.customer_name || 'Pelanggan')}</div>
+      ${customerAddress ? `<div class="val addr">${escLines(customerAddress)}</div>` : ''}
+      ${customerPhone ? `<div class="val">${esc(customerPhone)}</div>` : ''}
     </div>
     <div class="c kasir">
       <div class="lbl">KASIR :</div>
