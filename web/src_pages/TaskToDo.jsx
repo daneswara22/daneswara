@@ -63,7 +63,7 @@ export default function TaskToDo() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'Owner' || user?.role === 'Manager';
 
-  const [tab, setTab] = useState('all');
+  const [tab, setTab] = useState('available');
   const [q, setQ] = useState('');
   const [status, setStatus] = useState('all');
   const [priority, setPriority] = useState('all');
