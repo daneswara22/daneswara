@@ -6,11 +6,13 @@ import { HttpError, newId } from '@/lib/http';
 import { safeJsonParse } from '@/lib/business';
 import { settleOrderSchema } from '@/lib/schemas';
 import { serializeSale } from '@/lib/serializers';
+import { ensureFinanceSchema } from '@/lib/schemaGuard';
 import { nextInvoice, decrementStock } from '../../../sales/route';
 
 export const POST = handle(async (req: NextRequest, ctx: { params: Promise<{ oid: string }> }) => {
   const { oid } = await ctx.params;
   const user = await getCurrentUser(req);
+  await ensureFinanceSchema();
   const tid = user.tenant_id;
   const order = await prisma.orders.findFirst({ where: { id: oid, tenant_id: tid } });
   if (!order) throw new HttpError(404, 'Pesanan tidak ditemukan');
@@ -22,9 +24,16 @@ export const POST = handle(async (req: NextRequest, ctx: { params: Promise<{ oid
   await decrementStock(tid, user, items, `Pesanan ${order.order_number}`);
   const totalCost = (items || []).reduce((s, i) => s + Number(i.cost || 0) * Number(i.qty || 0), 0);
   const invoice = await nextInvoice(tid);
+  // Data pelanggan: pakai yang tersimpan di order, lengkapi dari master pelanggan.
+  let custPhone = order.customer_phone || '';
+  let custAddress = order.shipping_address || '';
   if (order.customer_id) {
     const c = await prisma.customers.findFirst({ where: { id: order.customer_id, tenant_id: tid } });
-    if (c) await prisma.customers.update({ where: { id: c.id }, data: { total_spent: (c.total_spent || 0) + order.total, visits: (c.visits || 0) + 1 } });
+    if (c) {
+      if (!custPhone) custPhone = c.phone || '';
+      if (!custAddress) custAddress = c.address || '';
+      await prisma.customers.update({ where: { id: c.id }, data: { total_spent: (c.total_spent || 0) + order.total, visits: (c.visits || 0) + 1 } });
+    }
   }
   const paidTotal = data.paid_amount + (order.deposit_amount || 0);
   const sale = await prisma.sales.create({
@@ -34,7 +43,8 @@ export const POST = handle(async (req: NextRequest, ctx: { params: Promise<{ oid
       total: order.total, cost: totalCost, profit: (order.subtotal - order.discount) - totalCost,
       payment_method: data.payment_method, paid_amount: paidTotal,
       change: Math.max(0, paidTotal - order.total),
-      customer_name: order.customer_name || '', customer_id: order.customer_id || null, customer_phone: '',
+      customer_name: order.customer_name || '', customer_id: order.customer_id || null, customer_phone: custPhone,
+      customer_address: custAddress || null,
       from_order: order.order_number, channel: order.channel || 'Toko',
       cashier: user.name || '', cashier_id: user.id, refunded: false, created_at: new Date(),
     },

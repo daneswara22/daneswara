@@ -27,7 +27,20 @@ export const GET = handle(async (req: NextRequest, ctx: { params: Promise<{ oid:
     where: { tenant_id: user.tenant_id, source_order_id: order.id },
     select: { id: true, order_code: true, status: true, product_title: true, qty: true },
   });
-  return { ...serializeOrderDetail(order), custom_tee_orders: custom };
+  const detail: any = { ...serializeOrderDetail(order), custom_tee_orders: custom };
+  // Order lama belum menyimpan alamat/telepon pelanggan -> ambil dari master.
+  if (order.customer_id && (!detail.customer_phone || !detail.customer_address)) {
+    const c = await prisma.customers.findFirst({
+      where: { id: order.customer_id, tenant_id: user.tenant_id },
+      select: { name: true, phone: true, address: true },
+    });
+    if (c) {
+      if (!detail.customer_name) detail.customer_name = c.name || '';
+      if (!detail.customer_phone) detail.customer_phone = c.phone || '';
+      if (!detail.customer_address) detail.customer_address = c.address || '';
+    }
+  }
+  return detail;
 });
 
 export const PUT = handle(async (req: NextRequest, ctx: { params: Promise<{ oid: string }> }) => {
