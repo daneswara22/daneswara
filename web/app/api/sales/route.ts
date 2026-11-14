@@ -33,6 +33,9 @@ export async function decrementStock(tid: string, user: any, items: any[], note:
 }
 
 export const GET = handle(async (req: NextRequest) => {
+  // Migrasi kolom dijalankan sebelum auth supaya skema selalu siap, termasuk
+  // saat request pertama datang tanpa sesi (mis. setelah deploy).
+  await ensureFinanceSchema();
   const user = await getCurrentUser(req);
   await ensureFinanceSchema();
   const limit = Math.min(parseInt(new URL(req.url).searchParams.get('limit') || '100'), 5000);
@@ -45,6 +48,7 @@ export const GET = handle(async (req: NextRequest) => {
 });
 
 export const POST = handle(async (req: NextRequest) => {
+  await ensureFinanceSchema();
   const user = await getCurrentUser(req);
   await ensureFinanceSchema();
   const data = saleInputSchema.parse(await readBody(req));

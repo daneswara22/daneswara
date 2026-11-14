@@ -11,6 +11,7 @@ import { nextInvoice, decrementStock } from '../../../sales/route';
 
 export const POST = handle(async (req: NextRequest, ctx: { params: Promise<{ oid: string }> }) => {
   const { oid } = await ctx.params;
+  await ensureFinanceSchema();
   const user = await getCurrentUser(req);
   await ensureFinanceSchema();
   const tid = user.tenant_id;
