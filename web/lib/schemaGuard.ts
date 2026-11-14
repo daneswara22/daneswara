@@ -288,6 +288,10 @@ export const ensureTaskSchema = once(async () => {
 /* ========================================================================= */
 
 export const ensureFinanceSchema = once(async () => {
+  // sales.customer_address — alamat pelanggan disalin saat transaksi supaya
+  // invoice lama tetap menampilkan alamat seperti saat transaksi dibuat.
+  await addColumnIfMissing('sales', 'customer_address', 'TEXT NULL');
+
   // expenses.entry_type — hanya 'expense' yang masuk laba rugi.
   await addColumnIfMissing('expenses', 'entry_type', "VARCHAR(20) NOT NULL DEFAULT 'expense'");
   // other_income.entry_type — hanya 'income' yang masuk laba rugi.

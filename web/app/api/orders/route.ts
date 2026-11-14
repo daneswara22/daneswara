@@ -79,9 +79,15 @@ export const POST = handle(async (req: NextRequest) => {
   const taxed = (subtotal - data.discount) * (data.tax_rate / 100);
   const total = subtotal - data.discount + taxed;
   let custName = data.customer_name || '';
+  let custPhone = '';
+  let custAddress = '';
   if (data.customer_id) {
     const c = await prisma.customers.findFirst({ where: { id: data.customer_id, tenant_id: tid } });
-    if (c) custName = c.name;
+    if (c) {
+      custName = c.name;
+      custPhone = c.phone || '';
+      custAddress = c.address || '';
+    }
   }
   const count = await prisma.orders.count({ where: { tenant_id: tid } });
   const isDraft = (data.deposit_amount || 0) <= 0;
@@ -89,6 +95,8 @@ export const POST = handle(async (req: NextRequest) => {
     data: {
       id: newId(), tenant_id: tid, order_number: docNumber('ORD', count),
       customer_id: data.customer_id || null, customer_name: custName,
+      customer_phone: custPhone || null,
+      shipping_address: custAddress || null,
       items: JSON.stringify(items),
       subtotal, discount: data.discount, tax_rate: data.tax_rate, tax: taxed, total,
       deposit_amount: data.deposit_amount, deposit_method: data.deposit_method,

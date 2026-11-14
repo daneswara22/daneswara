@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import api, { rupiah, formatApiError } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { ViewToggle, useViewMode } from "@/components/ViewToggle";
@@ -104,7 +105,18 @@ export default function Customers() {
             <div className="space-y-1"><Label>Nama</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} data-testid="customer-name-input" /></div>
             <div className="space-y-1"><Label>Telepon</Label><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} data-testid="customer-phone-input" /></div>
             <div className="space-y-1"><Label>Email</Label><Input data-testid="customers-input-1" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
-            <div className="space-y-1"><Label>Alamat</Label><Input data-testid="customers-input-2" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></div>
+            <div className="space-y-1">
+              <Label>Alamat</Label>
+              <Textarea
+                data-testid="customers-input-2"
+                value={form.address}
+                onChange={(e) => setForm({ ...form, address: e.target.value })}
+                rows={3}
+                placeholder="Jalan, nomor, kota, kode pos"
+                className="resize-y"
+              />
+              <p className="text-xs text-muted-foreground">Tekan Enter untuk menambah baris. Tampilan di invoice mengikuti baris yang Anda ketik.</p>
+            </div>
           </div>
           <DialogFooter><Button onClick={save} className="w-full" data-testid="save-customer-button">Simpan</Button></DialogFooter>
         </DialogContent>
