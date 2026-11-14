@@ -60,11 +60,28 @@ export const GET = handle(async (req: NextRequest) => {
   for (const p of pos) {
     if (p.order_id) (poMap[p.order_id] ||= []).push(p.po_number);
   }
+  // Order lama belum menyimpan alamat/telepon pelanggan. Ambil dari master
+  // pelanggan supaya invoice & preview tetap menampilkan data yang benar.
+  const custIds = Array.from(new Set((orders || []).map((o: any) => o.customer_id).filter(Boolean)));
+  const custMap: Record<string, any> = {};
+  if (custIds.length) {
+    const cs = await prisma.customers.findMany({
+      where: { tenant_id: tid, id: { in: custIds as string[] } },
+      select: { id: true, name: true, phone: true, address: true },
+    });
+    for (const c of cs) custMap[c.id] = c;
+  }
   return (orders || []).map((o: any) => {
     const d = serializeOrder(o) as any;
     const nums = poMap[o.id] || [];
     d.po_created = nums.length > 0;
     d.po_numbers = nums;
+    const c = o.customer_id ? custMap[o.customer_id] : null;
+    if (c) {
+      if (!d.customer_name) d.customer_name = c.name || '';
+      if (!d.customer_phone) d.customer_phone = c.phone || '';
+      if (!d.customer_address) d.customer_address = c.address || '';
+    }
     return d;
   });
 });

@@ -7,6 +7,7 @@ import { HttpError, newId } from '@/lib/http';
 import { docNumber, safeJsonParse, rp } from '@/lib/business';
 import { saleInputSchema } from '@/lib/schemas';
 import { serializeSale } from '@/lib/serializers';
+import { ensureFinanceSchema } from '@/lib/schemaGuard';
 
 export async function nextInvoice(tid: string): Promise<string> {
   const count = await prisma.sales.count({ where: { tenant_id: tid } });
@@ -33,6 +34,7 @@ export async function decrementStock(tid: string, user: any, items: any[], note:
 
 export const GET = handle(async (req: NextRequest) => {
   const user = await getCurrentUser(req);
+  await ensureFinanceSchema();
   const limit = Math.min(parseInt(new URL(req.url).searchParams.get('limit') || '100'), 5000);
   const rows = await prisma.sales.findMany({
     where: { tenant_id: user.tenant_id },
@@ -44,6 +46,7 @@ export const GET = handle(async (req: NextRequest) => {
 
 export const POST = handle(async (req: NextRequest) => {
   const user = await getCurrentUser(req);
+  await ensureFinanceSchema();
   const data = saleInputSchema.parse(await readBody(req));
   if (!data.items || data.items.length === 0) throw new HttpError(400, 'Keranjang kosong');
   const tid = user.tenant_id;
