@@ -39,6 +39,14 @@ const PRIORITY_STYLE = {
 const fmtDate = (d) => (d ? new Date(d).toLocaleString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—');
 const fmtDay = (d) => (d ? new Date(d).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—');
 
+// Order dianggap lunas bila payment_status PAID, atau (order lama tanpa
+// payment_status) tidak ada sisa tagihan.
+const isPaid = (order) => {
+  if (!order) return false;
+  if (order.payment_status) return String(order.payment_status).toUpperCase() === 'PAID';
+  return Number(order.remaining || 0) <= 0;
+};
+
 function DeadlineCell({ task }) {
   if (!task.deadline) return <span className="text-muted-foreground">—</span>;
   const state = task.deadline_state;
@@ -186,7 +194,19 @@ export default function TaskToDo() {
         </button>
         <div className="text-[11px] text-muted-foreground">{t.order?.order_number}</div>
       </td>
-      <td className="px-3 py-2">{t.order?.customer_name || '—'}</td>
+      <td className="px-3 py-2">
+        <div>{t.order?.customer_name || '—'}</div>
+        {t.order && (
+          <div className="mt-0.5 flex items-center gap-1.5 text-[11px]">
+            <span className={`font-semibold ${isPaid(t.order) ? 'text-emerald-600' : 'text-red-600'}`}>
+              {rupiah(t.order.total)}
+            </span>
+            <span className={`rounded px-1 py-px text-[9px] font-bold uppercase ${isPaid(t.order) ? 'bg-emerald-500/15 text-emerald-600' : 'bg-red-500/15 text-red-600'}`}>
+              {isPaid(t.order) ? 'PAID' : 'UNPAID'}
+            </span>
+          </div>
+        )}
+      </td>
       <td className="px-3 py-2 text-xs">
         {t.product_summary || '—'}
         {t.product_extra > 0 && <span className="text-muted-foreground"> +{t.product_extra}</span>}
