@@ -177,6 +177,11 @@ export function buildReceiptText(r, settings = {}) {
   }
   L.push(`*STATUS  : ${paymentStatus(r)}*`);
   L.push("--------------------------------");
+  if (r.note) {
+    const noteLines = String(r.note).replace(/\r\n?/g, "\n").split("\n");
+    noteLines.forEach((ln, i) => L.push(`${i === 0 ? "Catatan : " : "          "}${ln}`));
+    L.push("--------------------------------");
+  }
   L.push(settings.receipt_footer || "Terima kasih telah berbelanja!");
   return L.join("\n");
 }
@@ -596,6 +601,12 @@ async function buildEscPos(r, settings) {
   push([ESC, 0x21, 0x00]);
   push([ESC, 0x61, 0x00]); // left
   text(divider);
+  // Catatan multi-baris: setiap Enter jadi baris baru di struk.
+  if (r.note) {
+    const noteLines = String(r.note).replace(/\r\n?/g, "\n").split("\n");
+    noteLines.forEach((ln, i) => text(`${i === 0 ? "Catatan: " : "         "}${ln}\n`));
+    text(divider);
+  }
   push([ESC, 0x61, 0x01]); // center
   text((settings.receipt_footer || "Terima kasih telah berbelanja!") + "\n");
   push([0x0a, 0x0a, 0x0a]); // feed
@@ -655,7 +666,7 @@ function buildLegacyReceiptHtml(r, settings) {
   ${payRows}
   <div class="center bold" style="margin-top:4px;border:1px solid #000;padding:2px;">${paymentStatus(r)}</div>
   <div class="divider"></div>
-  ${r.note ? `<p class="sub">Catatan: ${r.note}</p>` : ""}
+  ${r.note ? `<p class="sub">Catatan: ${String(r.note).replace(/\r\n?/g, "\n").split("\n").map((s) => s.trim()).join("<br/>")}</p>` : ""}
   <p class="center">${settings.receipt_footer || "Terima kasih telah berbelanja!"}</p>
 </body></html>`;
   return html;
