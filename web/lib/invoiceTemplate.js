@@ -162,7 +162,13 @@ function countFillerRows({ itemRows, customerName, customerAddress, customerPhon
 
   const statMm = 1.6 + 1 * MM_PER_PT * 2 + 1.3 * 2 + lineMm(8.2);
 
-  const noteMm = note ? 1.2 + lineMm(6.8) * wrapLines(note, 6.8, INVOICE_CONTENT_WIDTH_MM) : 0;
+  // Catatan bisa multi-baris (user menekan Enter). Setiap baris dihitung
+  // sendiri, termasuk baris kosong, supaya tinggi blok sesuai tampilan.
+  const noteLines = note
+    ? String(note).replace(/\r\n?/g, '\n').split('\n')
+        .reduce((n, line) => n + wrapLines(line, 6.8, INVOICE_CONTENT_WIDTH_MM), 0)
+    : 0;
+  const noteMm = note ? 1.2 + lineMm(6.8) * noteLines : 0;
 
   const quoteTextMm =
     lineMm(6.2) * wrapLines(QUOTE_NOTE.replace(/<[^>]*>/g, ''), 6.2, QUOTE_TEXT_WIDTH_MM);
@@ -392,7 +398,7 @@ export function buildInvoiceCss(mode = 'print') {
 }
 
 /* ---- Catatan transaksi + catatan penawaran ---- */
-.dnsw-inv .inote { margin-top: ${m(1.2)}; font-size: ${p(6.8)}; }
+.dnsw-inv .inote { margin-top: ${m(1.2)}; font-size: ${p(6.8)}; white-space: normal; line-height: 1.3; }
 .dnsw-inv .inote b { font-weight: 700; }
 .dnsw-inv .iquote {
   display: flex; align-items: center; gap: ${m(1.5)}; margin-top: ${m(1.2)};
@@ -618,7 +624,7 @@ export function buildInvoiceBody(r = {}, settings = {}, helpers = {}) {
 
   <div class="istat">${esc(statusOf(r))}</div>
 
-  ${r.note ? `<div class="inote"><b>Catatan :</b> ${esc(r.note)}</div>` : ''}
+  ${r.note ? `<div class="inote"><b>Catatan :</b> ${escLines(r.note)}</div>` : ''}
 
   <div class="iquote"><span class="ic">i</span><span>${QUOTE_NOTE}</span></div>
 
