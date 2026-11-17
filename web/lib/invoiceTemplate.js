@@ -326,7 +326,7 @@ export function buildInvoiceCss(mode = 'print') {
 .dnsw-inv .iitems td.u, .dnsw-inv .iitems td.t { white-space: nowrap; }
 .dnsw-inv .iitems tbody tr:last-child td { border-bottom: ${p(1.1)} solid #000; }
 .dnsw-inv .iitems .nm { display: block; font-weight: 700; }
-.dnsw-inv .iitems .nt { display: block; font-size: ${p(6.4)}; }
+.dnsw-inv .iitems .nt { display: block; font-size: ${p(6.4)}; white-space: normal; line-height: 1.3; }
 .dnsw-inv .iitems tr { page-break-inside: avoid; break-inside: avoid; }
 .dnsw-inv .iitems thead { display: table-header-group; }
 
@@ -485,13 +485,19 @@ export function buildInvoiceBody(r = {}, settings = {}, helpers = {}) {
       const price = Number(i.price) || 0;
       const disc = Number(i.disc) || 0;
       const sub = [];
-      if (i.note) sub.push(esc(i.note));
+      // Catatan per item bisa multi-baris (Enter di form catatan). Baris baru
+      // dipertahankan supaya struk sama dengan yang diketik user.
+      const noteLines = i.note
+        ? String(i.note).replace(/\r\n?/g, '\n').split('\n').map((s) => s.trim()).filter(Boolean)
+        : [];
+      if (noteLines.length) sub.push(noteLines.map((s) => esc(s)).join('<br/>'));
       if (disc > 0) sub.push(`Diskon ${rp(disc * qty)}`);
       const subText = sub.join(' - ');
       itemRowHeights.push(
         itemRowHeightMm(
           wrapLines(i.name, 7.2, DESC_COL_WIDTH_MM, true),
-          subText ? wrapLines(subText, 6.4, DESC_COL_WIDTH_MM) : 0,
+          subText ? noteLines.reduce((n, s) => n + wrapLines(s, 6.4, DESC_COL_WIDTH_MM), 0) +
+            (disc > 0 ? wrapLines(`Diskon ${rp(disc * qty)}`, 6.4, DESC_COL_WIDTH_MM) : 0) : 0,
         ),
       );
       return `<tr>

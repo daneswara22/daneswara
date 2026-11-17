@@ -160,7 +160,10 @@ export function buildReceiptText(r, settings = {}) {
     L.push(`${i.qty} x ${i.name}`);
     L.push(`     ${i.qty} x ${rp(i.price)}  =  ${rp(i.price * i.qty)}`);
     if (Number(i.disc) > 0) L.push(`     Diskon: -${rp(i.disc * i.qty)}`);
-    if (i.note) L.push(`     * ${i.note}`);
+    if (i.note) {
+      String(i.note).replace(/\r\n?/g, "\n").split("\n").map((s) => s.trim()).filter(Boolean)
+        .forEach((s) => L.push(`     * ${s}`));
+    }
   });
   L.push("--------------------------------");
   L.push(`Subtotal : ${rp(r.subtotal)}`);
@@ -577,7 +580,10 @@ async function buildEscPos(r, settings) {
     text(`  ${rp(i.price)} x ${i.qty}\n`);
     text(row("", rp(i.price * i.qty)));
     if (Number(i.disc) > 0) text(row("  Diskon", "-" + rp(i.disc * i.qty)));
-    if (i.note) text(`  * ${i.note}\n`);
+    if (i.note) {
+      String(i.note).replace(/\r\n?/g, "\n").split("\n").map((s) => s.trim()).filter(Boolean)
+        .forEach((s) => text(`  * ${s}\n`));
+    }
   });
   text(divider);
   text(row("Subtotal", rp(r.subtotal)));
@@ -621,7 +627,7 @@ function buildLegacyReceiptHtml(r, settings) {
   const logo = canvasSafeUrl(settings.logo) || `${window.location.origin}/logo.png`;
   const line = (l, rr) => `<div class="row"><span>${l}</span><span>${rr}</span></div>`;
   const items = (r.items || [])
-    .map((i) => line(`${i.qty}x ${i.name}`, rp(i.price * i.qty)) + `<div class="note">${rp(i.price)} x ${i.qty}</div>` + (Number(i.disc) > 0 ? `<div class="note">Diskon: -${rp(i.disc * i.qty)}</div>` : "") + (i.note ? `<div class="note">* ${i.note}</div>` : ""))
+    .map((i) => line(`${i.qty}x ${i.name}`, rp(i.price * i.qty)) + `<div class="note">${rp(i.price)} x ${i.qty}</div>` + (Number(i.disc) > 0 ? `<div class="note">Diskon: -${rp(i.disc * i.qty)}</div>` : "") + (i.note ? String(i.note).replace(/\r\n?/g, "\n").split("\n").map((s) => s.trim()).filter(Boolean).map((s) => `<div class="note">* ${s}</div>`).join("") : ""))
     .join("");
   const isDraft = r.__draft === true || r.status === "Draft";
   const isOrder = r.deposit_amount != null && r.remaining != null && !r.paid_amount;
