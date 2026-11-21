@@ -288,6 +288,10 @@ export const ensureTaskSchema = once(async () => {
 /* ========================================================================= */
 
 export const ensureFinanceSchema = once(async () => {
+  // orders: jejak user pembuat & penerima pembayaran.
+  await addColumnIfMissing('orders', 'created_by_name', 'VARCHAR(120) NULL');
+  await addColumnIfMissing('orders', 'settled_by_name', 'VARCHAR(120) NULL');
+
   // sales.customer_address — alamat pelanggan disalin saat transaksi supaya
   // invoice lama tetap menampilkan alamat seperti saat transaksi dibuat.
   await addColumnIfMissing('sales', 'customer_address', 'TEXT NULL');

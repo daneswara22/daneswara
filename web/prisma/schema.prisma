@@ -304,6 +304,11 @@ model orders {
   updated_at        DateTime? @db.DateTime(0)
   external_raw      String?   @db.LongText
 
+  // Jejak user: siapa yang membuat pesanan dan siapa yang menerima pembayaran.
+  // Bisa berbeda karena pesanan dibuat kasir A lalu dibayar kasir B.
+  created_by_name   String?   @db.VarChar(120)
+  settled_by_name   String?   @db.VarChar(120)
+
   tasks             order_tasks[]
 
   @@unique([tenant_id, sales_channel, external_order_id], map: "uq_orders_channel_external")

@@ -168,6 +168,8 @@ export function serializeOrder(o: any) {
     shipping_status: o.shipping_status || null,
     customer_phone: o.customer_phone || '',
     customer_address: o.shipping_address || '',
+    created_by_name: o.created_by_name || o.cashier || '',
+    settled_by_name: o.settled_by_name || '',
     shipping_address: o.shipping_address || '',
     shipping_city: o.shipping_city || '',
     shipping_province: o.shipping_province || '',

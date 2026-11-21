@@ -21,6 +21,7 @@ export const POST = handle(async (req: NextRequest, ctx: { params: Promise<{ oid
     data: {
       deposit_amount: data.deposit_amount, deposit_method: data.deposit_method,
       remaining: Math.max(0, order.total - data.deposit_amount), status: 'Proses',
+      settled_by_name: user.name || user.username || '',
     },
   });
   await logActivity(user.tenant_id, user, 'DP Pesanan', `${order.order_number} DP ${rp(data.deposit_amount)}`);

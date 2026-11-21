@@ -55,6 +55,7 @@ export const POST = handle(async (req: NextRequest, ctx: { params: Promise<{ oid
     data: {
       status: 'Selesai', completed_at: new Date(), invoice,
       payment_method: data.payment_method, settle_paid: data.paid_amount, remaining: 0,
+      settled_by_name: user.name || user.username || '',
     },
   });
   await logActivity(tid, user, 'Pesanan Selesai', `${order.order_number} -> ${invoice}`);
