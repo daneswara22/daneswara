@@ -11,6 +11,7 @@ import { ProductCombobox } from "@/components/ProductCombobox";
 import { toast } from "sonner";
 import { Plus, PackageCheck, Trash2, ClipboardList, Search, Eye, Pencil, FileText } from "lucide-react";
 import { DraftPreviewDialog } from "@/components/DraftPreviewDialog";
+import { PurchaseOrderBuilder } from "@/components/PurchaseOrderBuilder";
 
 export default function Purchases() {
   const { user } = useAuth();
@@ -47,7 +48,7 @@ export default function Purchases() {
 
   const openNew = () => {
     setEditId(null); setSupplierId(""); setNote("");
-    setItems([{ product_id: "", name: "", qty: 1, cost: 0 }]);
+    setItems([]);
     setOpen(true);
   };
   const openEdit = (po) => {
@@ -56,6 +57,19 @@ export default function Purchases() {
     setNote(po.note || "");
     setItems((po.items || []).map((i) => ({ product_id: i.product_id, name: i.name, qty: i.qty, cost: i.cost })));
     setOpen(true);
+  };
+
+  // Dipanggil dari PurchaseOrderBuilder (form lebar). Mengembalikan promise
+  // supaya builder bisa menutup dialog hanya setelah request sukses.
+  const saveFromBuilder = async (payload) => {
+    try {
+      if (editId) { await api.put(`/purchases/${editId}`, payload); toast.success("PO diperbarui"); }
+      else { await api.post("/purchases", payload); toast.success("PO dibuat"); }
+      setEditId(null); load();
+    } catch (e) {
+      toast.error(formatApiError(e.response?.data?.detail));
+      throw e;
+    }
   };
 
   const save = async () => {
@@ -134,42 +148,14 @@ export default function Purchases() {
         </table>
       </div>
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto" data-testid="po-dialog">
-          <DialogHeader><DialogTitle className="font-display">{editId ? "Edit Purchase Order" : "Buat Purchase Order"}</DialogTitle></DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-1">
-              <Label>Supplier <span className="text-destructive">*</span></Label>
-              <Select data-testid="purchases-select-1" value={supplierId} onValueChange={setSupplierId}>
-                <SelectTrigger data-testid="po-supplier-select"><SelectValue placeholder="Pilih supplier" /></SelectTrigger>
-                <SelectContent>{suppliers.map((s) => <SelectItem data-testid="purchases-select-item-1" key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between"><Label>Item</Label><Button size="sm" variant="ghost" onClick={addItem} data-testid="po-add-item"><Plus className="h-4 w-4" /></Button></div>
-              {items.map((it, idx) => (
-                <div key={idx} className="grid grid-cols-12 items-end gap-2">
-                  <div className="col-span-6">
-                    <ProductCombobox data-testid="purchases-product-combobox-1"
-                      products={products}
-                      value={it.product_id}
-                      onChange={(v) => setItem(idx, { product_id: v, cost: products.find((p) => p.id === v)?.cost || 0 })}
-                      placeholder="Cari produk..."
-                      testId={`po-item-product-${idx}`}
-                    />
-                  </div>
-                  <div className="col-span-2"><NumberInput placeholder="Qty" value={it.qty} onValueChange={(v) => setItem(idx, { qty: v })} data-testid={`po-item-qty-${idx}`} /></div>
-                  <div className="col-span-3"><NumberInput placeholder="Modal" value={it.cost} onValueChange={(v) => setItem(idx, { cost: v })} /></div>
-                  <div className="col-span-1"><Button data-testid="purchases-button-1" variant="ghost" size="icon" onClick={() => removeItem(idx)}><Trash2 className="h-4 w-4 text-destructive" /></Button></div>
-                </div>
-              ))}
-            </div>
-            <div className="space-y-1"><Label>Catatan</Label><Input data-testid="purchases-input-1" value={note} onChange={(e) => setNote(e.target.value)} /></div>
-            <div className="flex justify-between font-display text-lg font-bold"><span>Total</span><span>{rupiah(total)}</span></div>
-          </div>
-          <DialogFooter><Button onClick={save} className="w-full" data-testid="save-po-button">{editId ? "Simpan Perubahan" : "Simpan PO"}</Button></DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <PurchaseOrderBuilder
+        open={open}
+        onOpenChange={setOpen}
+        products={products}
+        suppliers={suppliers}
+        onSave={saveFromBuilder}
+        editPo={editId ? { supplier_id: supplierId, note, items } : null}
+      />
 
       <Dialog open={!!preview} onOpenChange={(o) => { if (!o) setPreview(null); }}>
         <DialogContent className="max-h-[90vh] overflow-y-auto" data-testid="po-preview-dialog">

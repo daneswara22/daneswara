@@ -121,6 +121,7 @@ export const POST = handle(async (req: NextRequest) => {
       note: data.note || '', order_type: data.order_type || 'Reguler',
       channel: (data.channel || 'Toko').trim() || 'Toko',
       status: isDraft ? 'Draft' : 'Proses', cashier: user.name || '',
+      created_by_name: user.name || user.username || '',
       sales_channel: 'manual',
       internal_status: isDraft ? 'NEW' : 'PROCESSING',
       payment_status: isDraft ? 'UNPAID' : 'PARTIAL',

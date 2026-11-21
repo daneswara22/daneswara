@@ -355,6 +355,13 @@ export default function Orders({ channelView = false }) {
           {o.status === "Selesai" ? <CheckCircle2 className="h-3 w-3" /> : o.status === "Draft" ? <FileText className="h-3 w-3" /> : o.status === "Dibatalkan" ? <XCircle className="h-3 w-3" /> : <Clock className="h-3 w-3" />} {o.status === "Draft" ? (isMarketplace(o) ? "Belum Dibayar" : "Belum Bayar") : o.status}
         </span>
       </div>
+      {/* Jejak user: pembuat pesanan dan (bila sudah dibayar) penerima pembayaran. */}
+      <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground" data-testid={`order-users-${o.id}`}>
+        <span>Created by : <span className="font-medium text-foreground">{o.created_by_name || o.cashier || "—"}</span></span>
+        {o.settled_by_name && (
+          <span>Submit by : <span className="font-medium text-foreground">{o.settled_by_name}</span></span>
+        )}
+      </div>
       <div className={`mt-3 space-y-1 ${view.compact ? "text-xs" : "text-sm"}`}>
         <div className="flex justify-between text-muted-foreground"><span>Total</span><span className={view.compact ? "font-semibold text-foreground" : ""}>{rupiah(o.total)}</span></div>
         {isMarketplace(o) ? (
@@ -382,9 +389,7 @@ export default function Orders({ channelView = false }) {
             {o.status === "Draft" && (
               <>
                 <Button variant="outline" size="sm" className="gap-1" onClick={() => setPreview(o)} data-testid={`preview-order-${o.id}`}><FileText className="h-4 w-4" /> Preview</Button>
-                <Button variant="outline" size="sm" className="gap-1" onClick={() => openEdit(o)} data-testid={`edit-order-${o.id}`}><Pencil className="h-4 w-4" /> Edit</Button>
                 <Button variant="outline" size="sm" className="gap-1" onClick={() => editInPos(o)} data-testid={`edit-pos-order-${o.id}`}><Store className="h-4 w-4" /> Edit di POS</Button>
-                <Button variant="secondary" size="sm" className="gap-1" onClick={() => copyDraft(o)} data-testid={`copy-order-${o.id}`}><Copy className="h-4 w-4" /> Salin</Button>
                 <Button size="sm" variant="outline" className="gap-1" onClick={() => { setDp(o); setDpMethod("Tunai"); setDpAmt(""); }} data-testid={`dp-order-${o.id}`}><HandCoins className="h-4 w-4" /> Jadi DP</Button>
                 <Button size="sm" className="gap-1" onClick={() => { setSettle(o); setMethod("Tunai"); setPaid(o.total); }} data-testid={`pay-order-${o.id}`}><Wallet className="h-4 w-4" /> Lunasi</Button>
                 <Button variant="outline" size="sm" className="gap-1" onClick={() => printDraft(o)} data-testid={`print-draft-${o.id}`}><Printer className="h-4 w-4" /> Cetak</Button>
