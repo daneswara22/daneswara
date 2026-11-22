@@ -7,12 +7,16 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { NumberInput } from "@/components/NumberInput";
 import { toast } from "sonner";
-import { Search, X, Check, Printer, FileText } from "lucide-react";
+import { Search, Check, Printer, FileText, ArrowLeft, ChevronDown, X } from "lucide-react";
 
 /**
- * Form Purchase Order lebar: pilih kategori (boleh lebih dari satu), daftar
- * produk mengikuti kategori, isi kolom PO per produk, lalu lihat estimasi
- * biaya dan preview ringkasan sebelum PO dibuat.
+ * Halaman Purchase Order layar penuh.
+ *
+ * - Kategori berupa dropdown dengan centang; bisa pilih lebih dari satu.
+ * - Daftar produk mengikuti kategori yang dicentang + pencarian.
+ * - Kolom PO per produk; subtotal per baris.
+ * - Summary (jumlah produk, total qty, estimasi biaya) menempel di atas
+ *   (sticky) sehingga tetap terlihat saat daftar produk di-scroll.
  *
  * Harga pokok diambil dari `product.cost` (modal), bukan harga jual.
  */
@@ -21,7 +25,7 @@ export function PurchaseOrderBuilder({ open, onOpenChange, products = [], suppli
   const [note, setNote] = useState(editPo?.note || "");
   const [q, setQ] = useState("");
   const [cats, setCats] = useState([]);
-  // qty per product id; hanya yang > 0 yang masuk PO
+  const [catOpen, setCatOpen] = useState(false);
   const [qty, setQty] = useState(() => {
     const init = {};
     (editPo?.items || []).forEach((i) => { if (i.product_id) init[i.product_id] = Number(i.qty) || 0; });
@@ -38,7 +42,7 @@ export function PurchaseOrderBuilder({ open, onOpenChange, products = [], suppli
     return map;
   }, [categories]);
 
-  const categories_ = useMemo(() => {
+  const catList = useMemo(() => {
     const set = new Set();
     (products || []).forEach((p) => {
       const n = p.category_id ? catName[p.category_id] : "";
@@ -76,13 +80,10 @@ export function PurchaseOrderBuilder({ open, onOpenChange, products = [], suppli
   const totalCost = lines.reduce((s, l) => s + l.subtotal, 0);
 
   const reset = () => {
-    setSupplierId(""); setNote(""); setQ(""); setCats([]); setQty({}); setPreviewOpen(false);
+    setSupplierId(""); setNote(""); setQ(""); setCats([]); setQty({}); setPreviewOpen(false); setCatOpen(false);
   };
 
-  const close = (o) => {
-    if (!o) reset();
-    onOpenChange(o);
-  };
+  const close = () => { reset(); onOpenChange(false); };
 
   const submit = async () => {
     if (!supplierId) return toast.error("Supplier wajib dipilih");
@@ -102,122 +103,163 @@ export function PurchaseOrderBuilder({ open, onOpenChange, products = [], suppli
     }
   };
 
+  if (!open) return null;
+
   return (
-    <>
-      <Dialog open={open} onOpenChange={close}>
-        <DialogContent className="max-h-[92vh] w-[min(1100px,96vw)] max-w-none overflow-y-auto" data-testid="po-builder-dialog">
-          <DialogHeader>
-            <DialogTitle className="font-display">{editPo ? "Edit Purchase Order" : "Buat Purchase Order"}</DialogTitle>
-          </DialogHeader>
+    <div className="fixed inset-0 z-50 flex flex-col bg-background" data-testid="po-builder-page">
+      {/* Header halaman */}
+      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3 lg:px-8">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" onClick={close} data-testid="po-back-button">
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div>
+            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Pembelian</p>
+            <h1 className="font-display text-xl font-bold">{editPo ? "Edit Purchase Order" : "Buat Purchase Order"}</h1>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={close}>Batal</Button>
+          <Button onClick={() => setPreviewOpen(true)} disabled={!lines.length} className="gap-2" data-testid="po-preview-button">
+            <FileText className="h-4 w-4" /> Preview &amp; Proses
+          </Button>
+        </div>
+      </div>
 
-          <div className="space-y-4">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-1">
-                <Label>Supplier <span className="text-destructive">*</span></Label>
-                <Select value={supplierId} onValueChange={setSupplierId}>
-                  <SelectTrigger data-testid="po-supplier-select"><SelectValue placeholder="Pilih supplier" /></SelectTrigger>
-                  <SelectContent>{suppliers.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1">
-                <Label>Catatan</Label>
-                <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Opsional" data-testid="po-note-input" />
-              </div>
-            </div>
+      {/* Summary sticky — tetap terlihat saat daftar produk di-scroll */}
+      <div className="sticky top-0 z-20 shrink-0 border-b border-border bg-card/95 px-4 py-3 backdrop-blur-xl lg:px-8" data-testid="po-summary-bar">
+        <div className="flex flex-wrap items-end gap-x-6 gap-y-2">
+          <div className="min-w-[180px] flex-1">
+            <Label className="text-[11px] uppercase tracking-wide text-muted-foreground">Supplier <span className="text-destructive">*</span></Label>
+            <Select value={supplierId} onValueChange={setSupplierId}>
+              <SelectTrigger className="mt-1 h-9" data-testid="po-supplier-select"><SelectValue placeholder="Pilih supplier" /></SelectTrigger>
+              <SelectContent>{suppliers.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+          <div className="min-w-[160px] flex-1">
+            <Label className="text-[11px] uppercase tracking-wide text-muted-foreground">Catatan</Label>
+            <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Opsional" className="mt-1 h-9" data-testid="po-note-input" />
+          </div>
+          <div className="text-right">
+            <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Produk</div>
+            <div className="font-display text-lg font-bold" data-testid="po-summary-lines">{lines.length}</div>
+          </div>
+          <div className="text-right">
+            <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Total Qty</div>
+            <div className="font-display text-lg font-bold" data-testid="po-summary-qty">{totalQty}</div>
+          </div>
+          <div className="text-right">
+            <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Estimasi Biaya</div>
+            <div className="font-display text-2xl font-bold text-primary" data-testid="po-estimate-total">{rupiah(totalCost)}</div>
+          </div>
+        </div>
+      </div>
 
-            {/* Filter kategori — boleh pilih lebih dari satu */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label>Kategori</Label>
-                {cats.length > 0 && (
-                  <button type="button" onClick={() => setCats([])} className="text-xs text-muted-foreground hover:text-foreground">
-                    Reset kategori ({cats.length})
-                  </button>
-                )}
-              </div>
-              <div className="flex max-h-24 flex-wrap gap-1.5 overflow-y-auto rounded-md border border-border p-2">
-                {categories_.length === 0 && <span className="text-xs text-muted-foreground">Belum ada kategori produk.</span>}
-                {categories_.map((c) => {
-                  const on = cats.includes(c);
-                  return (
-                    <button
-                      key={c}
-                      type="button"
-                      onClick={() => toggleCat(c)}
-                      className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${on ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground hover:text-foreground"}`}
-                      data-testid={`po-cat-${c}`}
-                    >
-                      {on && <Check className="mr-1 inline h-3 w-3" />}{c}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari produk / SKU..." className="pl-10" data-testid="po-product-search" />
-            </div>
-
-            {/* Daftar produk + kolom PO */}
-            <div className="overflow-x-auto rounded-lg border border-border">
-              <table className="w-full min-w-[720px] text-sm" data-testid="po-product-table">
-                <thead className="bg-secondary text-xs uppercase text-muted-foreground">
-                  <tr>
-                    <th className="px-3 py-2 text-left">Produk</th>
-                    <th className="px-3 py-2 text-left">Kategori</th>
-                    <th className="px-3 py-2 text-right">Harga Pokok</th>
-                    <th className="px-3 py-2 text-right">Stok</th>
-                    <th className="px-3 py-2 text-center w-28">PO</th>
-                    <th className="px-3 py-2 text-right">Subtotal</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {visible.map((p) => {
-                    const n = Number(qty[p.id] || 0);
-                    return (
-                      <tr key={p.id} className={`border-t border-border ${n > 0 ? "bg-primary/5" : ""}`} data-testid={`po-row-${p.id}`}>
-                        <td className="px-3 py-2">
-                          <div className="font-medium">{p.name}</div>
-                          {p.sku && <div className="text-[11px] text-muted-foreground">{p.sku}</div>}
-                        </td>
-                        <td className="px-3 py-2 text-xs text-muted-foreground">{(p.category_id && catName[p.category_id]) || "—"}</td>
-                        <td className="px-3 py-2 text-right">{rupiah(p.cost || 0)}</td>
-                        <td className={`px-3 py-2 text-right text-xs ${Number(p.stock) <= 0 ? "text-destructive" : "text-muted-foreground"}`}>{p.stock ?? 0}</td>
-                        <td className="px-3 py-2">
-                          <NumberInput value={n} onValueChange={(v) => setQtyFor(p.id, v)} className="h-8 text-center" data-testid={`po-qty-${p.id}`} />
-                        </td>
-                        <td className="px-3 py-2 text-right font-medium">{n > 0 ? rupiah(n * Number(p.cost || 0)) : "—"}</td>
-                      </tr>
-                    );
-                  })}
-                  {visible.length === 0 && (
-                    <tr><td colSpan={6} className="px-3 py-10 text-center text-muted-foreground">Tidak ada produk cocok.</td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Estimasi biaya */}
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-secondary/40 px-4 py-3">
-              <div className="text-sm text-muted-foreground">
-                {lines.length} produk dipilih · total {totalQty} pcs
-              </div>
-              <div className="text-right">
-                <div className="text-xs uppercase tracking-wide text-muted-foreground">Estimasi Biaya</div>
-                <div className="font-display text-2xl font-bold" data-testid="po-estimate-total">{rupiah(totalCost)}</div>
-              </div>
-            </div>
+      {/* Toolbar filter */}
+      <div className="shrink-0 border-b border-border px-4 py-3 lg:px-8">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative min-w-[220px] flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari produk / SKU..." className="pl-10" data-testid="po-product-search" />
           </div>
 
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => close(false)}>Batal</Button>
-            <Button onClick={() => setPreviewOpen(true)} disabled={!lines.length} className="gap-2" data-testid="po-preview-button">
-              <FileText className="h-4 w-4" /> Preview Ringkasan
+          {/* Dropdown kategori dengan centang */}
+          <div className="relative">
+            <Button
+              variant="outline"
+              onClick={() => setCatOpen((v) => !v)}
+              className="gap-2"
+              data-testid="po-category-dropdown"
+            >
+              Kategori{cats.length > 0 ? ` (${cats.length})` : ""}
+              <ChevronDown className={`h-4 w-4 transition-transform ${catOpen ? "rotate-180" : ""}`} />
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            {catOpen && (
+              <>
+                <div className="fixed inset-0 z-30" onClick={() => setCatOpen(false)} />
+                <div className="absolute right-0 z-40 mt-1 max-h-80 w-64 overflow-y-auto rounded-md border border-border bg-popover p-1 shadow-lg" data-testid="po-category-menu">
+                  <div className="flex items-center justify-between px-2 py-1.5">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Pilih kategori</span>
+                    {cats.length > 0 && (
+                      <button type="button" onClick={() => setCats([])} className="text-xs text-muted-foreground hover:text-foreground">Reset</button>
+                    )}
+                  </div>
+                  {catList.length === 0 && <div className="px-2 py-3 text-xs text-muted-foreground">Belum ada kategori produk.</div>}
+                  {catList.map((c) => {
+                    const on = cats.includes(c);
+                    return (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => toggleCat(c)}
+                        className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-secondary ${on ? "font-medium" : ""}`}
+                        data-testid={`po-cat-${c}`}
+                      >
+                        <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${on ? "border-primary bg-primary text-primary-foreground" : "border-muted-foreground/40"}`}>
+                          {on && <Check className="h-3 w-3" />}
+                        </span>
+                        <span className="truncate">{c}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </div>
+
+          {cats.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1">
+              {cats.map((c) => (
+                <span key={c} className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                  {c}
+                  <button type="button" onClick={() => toggleCat(c)} aria-label={`Hapus ${c}`}><X className="h-3 w-3" /></button>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Daftar produk — satu-satunya area yang scroll */}
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3 lg:px-8">
+        <div className="overflow-x-auto rounded-lg border border-border">
+          <table className="w-full min-w-[760px] text-sm" data-testid="po-product-table">
+            <thead className="sticky top-0 z-10 bg-secondary text-xs uppercase text-muted-foreground">
+              <tr>
+                <th className="px-3 py-2 text-left">Produk</th>
+                <th className="px-3 py-2 text-left">Kategori</th>
+                <th className="px-3 py-2 text-right">Harga Pokok</th>
+                <th className="px-3 py-2 text-right">Stok</th>
+                <th className="w-28 px-3 py-2 text-center">PO</th>
+                <th className="px-3 py-2 text-right">Subtotal</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visible.map((p) => {
+                const n = Number(qty[p.id] || 0);
+                return (
+                  <tr key={p.id} className={`border-t border-border ${n > 0 ? "bg-primary/5" : ""}`} data-testid={`po-row-${p.id}`}>
+                    <td className="px-3 py-2">
+                      <div className="font-medium">{p.name}</div>
+                      {p.sku && <div className="text-[11px] text-muted-foreground">{p.sku}</div>}
+                    </td>
+                    <td className="px-3 py-2 text-xs text-muted-foreground">{(p.category_id && catName[p.category_id]) || "—"}</td>
+                    <td className="px-3 py-2 text-right">{rupiah(p.cost || 0)}</td>
+                    <td className={`px-3 py-2 text-right text-xs ${Number(p.stock) <= 0 ? "text-destructive" : "text-muted-foreground"}`}>{p.stock ?? 0}</td>
+                    <td className="px-3 py-2">
+                      <NumberInput value={n} onValueChange={(v) => setQtyFor(p.id, v)} className="h-8 text-center" data-testid={`po-qty-${p.id}`} />
+                    </td>
+                    <td className="px-3 py-2 text-right font-medium">{n > 0 ? rupiah(n * Number(p.cost || 0)) : "—"}</td>
+                  </tr>
+                );
+              })}
+              {visible.length === 0 && (
+                <tr><td colSpan={6} className="px-3 py-12 text-center text-muted-foreground">Tidak ada produk cocok.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
 
       {/* Preview ringkasan + cetak A5/A4 */}
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
@@ -259,7 +301,7 @@ export function PurchaseOrderBuilder({ open, onOpenChange, products = [], suppli
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </>
+    </div>
   );
 }
 
@@ -274,7 +316,6 @@ function printSummary({ supplierName, note, lines, totalCost }) {
   const html = `<!doctype html><html><head><meta charset="utf-8"><title>Purchase Order</title>
 <style>
   @page { size: A5 portrait; margin: 10mm; }
-  @page :first { size: A5 portrait; }
   body { font-family: Arial, Helvetica, sans-serif; color: #000; margin: 0; }
   h1 { font-size: 18pt; margin: 0 0 2mm; letter-spacing: 1px; }
   .meta { font-size: 9pt; margin-bottom: 4mm; }
