@@ -19,6 +19,7 @@ export default function Purchases() {
   const [list, setList] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
   const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState(null);
   const [supplierId, setSupplierId] = useState("");
@@ -33,6 +34,7 @@ export default function Purchases() {
     api.get("/purchases").then((r) => setList(r.data));
     api.get("/suppliers").then((r) => setSuppliers(r.data));
     api.get("/products").then((r) => setProducts(r.data));
+    api.get("/categories").then((r) => setCategories(r.data || []));
     api.get("/settings").then((r) => setSettings(r.data || {}));
   };
   useEffect(load, []);
@@ -153,6 +155,7 @@ export default function Purchases() {
         onOpenChange={setOpen}
         products={products}
         suppliers={suppliers}
+        categories={categories}
         onSave={saveFromBuilder}
         editPo={editId ? { supplier_id: supplierId, note, items } : null}
       />
