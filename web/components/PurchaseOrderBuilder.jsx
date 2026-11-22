@@ -16,7 +16,7 @@ import { Search, X, Check, Printer, FileText } from "lucide-react";
  *
  * Harga pokok diambil dari `product.cost` (modal), bukan harga jual.
  */
-export function PurchaseOrderBuilder({ open, onOpenChange, products = [], suppliers = [], onSave, editPo = null }) {
+export function PurchaseOrderBuilder({ open, onOpenChange, products = [], suppliers = [], categories = [], onSave, editPo = null }) {
   const [supplierId, setSupplierId] = useState(editPo?.supplier_id || "");
   const [note, setNote] = useState(editPo?.note || "");
   const [q, setQ] = useState("");
@@ -30,20 +30,32 @@ export function PurchaseOrderBuilder({ open, onOpenChange, products = [], suppli
   const [previewOpen, setPreviewOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const categories = useMemo(() => {
+  // Produk hanya menyimpan category_id, jadi nama kategori diambil dari daftar
+  // kategori (endpoint /categories) — sama seperti halaman Produk.
+  const catName = useMemo(() => {
+    const map = {};
+    (categories || []).forEach((c) => { map[c.id] = c.name; });
+    return map;
+  }, [categories]);
+
+  const categories_ = useMemo(() => {
     const set = new Set();
-    (products || []).forEach((p) => { if (p.category) set.add(p.category); });
+    (products || []).forEach((p) => {
+      const n = p.category_id ? catName[p.category_id] : "";
+      if (n) set.add(n);
+    });
     return Array.from(set).sort((a, b) => a.localeCompare(b));
-  }, [products]);
+  }, [products, catName]);
 
   const term = q.trim().toLowerCase();
   const visible = useMemo(() => {
     return (products || []).filter((p) => {
-      if (cats.length && !cats.includes(p.category)) return false;
+      const cname = p.category_id ? catName[p.category_id] || "" : "";
+      if (cats.length && !cats.includes(cname)) return false;
       if (!term) return true;
-      return `${p.name} ${p.sku || ""} ${p.category || ""}`.toLowerCase().includes(term);
+      return `${p.name} ${p.sku || ""} ${cname}`.toLowerCase().includes(term);
     });
-  }, [products, cats, term]);
+  }, [products, cats, term, catName]);
 
   const toggleCat = (c) => setCats((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
   const setQtyFor = (id, v) => setQty((prev) => ({ ...prev, [id]: Math.max(0, Number(v) || 0) }));
@@ -124,8 +136,8 @@ export function PurchaseOrderBuilder({ open, onOpenChange, products = [], suppli
                 )}
               </div>
               <div className="flex max-h-24 flex-wrap gap-1.5 overflow-y-auto rounded-md border border-border p-2">
-                {categories.length === 0 && <span className="text-xs text-muted-foreground">Belum ada kategori produk.</span>}
-                {categories.map((c) => {
+                {categories_.length === 0 && <span className="text-xs text-muted-foreground">Belum ada kategori produk.</span>}
+                {categories_.map((c) => {
                   const on = cats.includes(c);
                   return (
                     <button
@@ -169,7 +181,7 @@ export function PurchaseOrderBuilder({ open, onOpenChange, products = [], suppli
                           <div className="font-medium">{p.name}</div>
                           {p.sku && <div className="text-[11px] text-muted-foreground">{p.sku}</div>}
                         </td>
-                        <td className="px-3 py-2 text-xs text-muted-foreground">{p.category || "—"}</td>
+                        <td className="px-3 py-2 text-xs text-muted-foreground">{(p.category_id && catName[p.category_id]) || "—"}</td>
                         <td className="px-3 py-2 text-right">{rupiah(p.cost || 0)}</td>
                         <td className={`px-3 py-2 text-right text-xs ${Number(p.stock) <= 0 ? "text-destructive" : "text-muted-foreground"}`}>{p.stock ?? 0}</td>
                         <td className="px-3 py-2">
