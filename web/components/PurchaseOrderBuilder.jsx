@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { NumberInput } from "@/components/NumberInput";
 import { toast } from "sonner";
-import { Search, Check, Printer, FileText, ArrowLeft, ChevronDown, X } from "lucide-react";
+import { Search, Check, Printer, FileText, ArrowLeft, ChevronDown, X, Image as ImageIcon } from "lucide-react";
 
 /**
  * Halaman Purchase Order layar penuh.
@@ -231,6 +231,7 @@ export function PurchaseOrderBuilder({ open, onOpenChange, products = [], suppli
                 <th className="px-3 py-2 text-right">Harga Pokok</th>
                 <th className="px-3 py-2 text-right">Stok</th>
                 <th className="w-28 px-3 py-2 text-center">PO</th>
+                <th className="px-3 py-2 text-right">Total Stok</th>
                 <th className="px-3 py-2 text-right">Subtotal</th>
               </tr>
             </thead>
@@ -249,12 +250,15 @@ export function PurchaseOrderBuilder({ open, onOpenChange, products = [], suppli
                     <td className="px-3 py-2">
                       <NumberInput value={n} onValueChange={(v) => setQtyFor(p.id, v)} className="h-8 text-center" data-testid={`po-qty-${p.id}`} />
                     </td>
+                    <td className={`px-3 py-2 text-right font-medium ${n > 0 ? "text-primary" : "text-muted-foreground"}`} data-testid={`po-total-stock-${p.id}`}>
+                      {Number(p.stock || 0) + n}
+                    </td>
                     <td className="px-3 py-2 text-right font-medium">{n > 0 ? rupiah(n * Number(p.cost || 0)) : "—"}</td>
                   </tr>
                 );
               })}
               {visible.length === 0 && (
-                <tr><td colSpan={6} className="px-3 py-12 text-center text-muted-foreground">Tidak ada produk cocok.</td></tr>
+                <tr><td colSpan={7} className="px-3 py-12 text-center text-muted-foreground">Tidak ada produk cocok.</td></tr>
               )}
             </tbody>
           </table>
@@ -295,6 +299,9 @@ export function PurchaseOrderBuilder({ open, onOpenChange, products = [], suppli
             <Button variant="outline" className="gap-2" onClick={() => printSummary({ supplierName: suppliers.find((s) => s.id === supplierId)?.name, note, lines, totalCost })} data-testid="po-print-button">
               <Printer className="h-4 w-4" /> Cetak
             </Button>
+            <Button variant="outline" className="gap-2" onClick={() => makeImage({ supplierName: suppliers.find((s) => s.id === supplierId)?.name, note, lines })} data-testid="po-image-button">
+              <ImageIcon className="h-4 w-4" /> Buat Gambar
+            </Button>
             <Button onClick={submit} disabled={saving} data-testid="po-confirm-button">
               {saving ? "Memproses..." : editPo ? "Simpan Perubahan" : "Proses PO"}
             </Button>
@@ -303,6 +310,139 @@ export function PurchaseOrderBuilder({ open, onOpenChange, products = [], suppli
       </Dialog>
     </div>
   );
+}
+
+/**
+ * Buat gambar ringkasan PO untuk dikirim ke supplier.
+ *
+ * Sengaja TANPA harga: hanya nama produk, qty, dan ringkasan total item.
+ * Digambar langsung ke canvas (bukan html2canvas) supaya hasilnya tajam,
+ * ukurannya wajar untuk WhatsApp, dan tidak bergantung pada font eksternal.
+ */
+async function makeImage({ supplierName, note, lines }) {
+  const DPR = 2;
+  const W = 900;
+  const PAD = 40;
+  const ROW_H = 46;
+  const HEAD_H = 150;
+  const FOOT_H = note ? 130 : 90;
+  const H = HEAD_H + 44 + lines.length * ROW_H + FOOT_H;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = W * DPR;
+  canvas.height = H * DPR;
+  const ctx = canvas.getContext("2d");
+  ctx.scale(DPR, DPR);
+
+  // Latar putih bersih agar enak dibaca di chat.
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, W, H);
+
+  // Header
+  ctx.fillStyle = "#0f172a";
+  ctx.font = "bold 34px Arial, Helvetica, sans-serif";
+  ctx.textBaseline = "top";
+  ctx.fillText("PURCHASE ORDER", PAD, PAD);
+
+  ctx.fillStyle = "#64748b";
+  ctx.font = "16px Arial, Helvetica, sans-serif";
+  ctx.fillText("Daneswara Print", PAD, PAD + 44);
+
+  ctx.fillStyle = "#0f172a";
+  ctx.font = "bold 15px Arial, Helvetica, sans-serif";
+  ctx.fillText("SUPPLIER", PAD, PAD + 78);
+  ctx.font = "18px Arial, Helvetica, sans-serif";
+  ctx.fillText(supplierName || "-", PAD, PAD + 98);
+
+  const tanggal = new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" });
+  ctx.font = "bold 15px Arial, Helvetica, sans-serif";
+  ctx.textAlign = "right";
+  ctx.fillText("TANGGAL", W - PAD, PAD + 78);
+  ctx.font = "18px Arial, Helvetica, sans-serif";
+  ctx.fillText(tanggal, W - PAD, PAD + 98);
+  ctx.textAlign = "left";
+
+  // Garis pemisah
+  let y = HEAD_H;
+  ctx.strokeStyle = "#0f172a";
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(PAD, y); ctx.lineTo(W - PAD, y); ctx.stroke();
+
+  // Kepala tabel
+  y += 14;
+  ctx.fillStyle = "#64748b";
+  ctx.font = "bold 13px Arial, Helvetica, sans-serif";
+  ctx.fillText("PRODUK", PAD, y);
+  ctx.textAlign = "right";
+  ctx.fillText("QTY", W - PAD, y);
+  ctx.textAlign = "left";
+  y += 26;
+
+  // Baris produk
+  const totalQty = lines.reduce((s, l) => s + l.qty, 0);
+  lines.forEach((l, i) => {
+    if (i % 2 === 1) {
+      ctx.fillStyle = "#f8fafc";
+      ctx.fillRect(PAD - 8, y - 6, W - PAD * 2 + 16, ROW_H - 6);
+    }
+    ctx.fillStyle = "#0f172a";
+    ctx.font = "17px Arial, Helvetica, sans-serif";
+    const name = l.name.length > 52 ? `${l.name.slice(0, 51)}…` : l.name;
+    ctx.fillText(name, PAD, y + 6);
+    ctx.font = "bold 18px Arial, Helvetica, sans-serif";
+    ctx.textAlign = "right";
+    ctx.fillText(String(l.qty), W - PAD, y + 6);
+    ctx.textAlign = "left";
+    y += ROW_H;
+  });
+
+  // Ringkasan
+  y += 6;
+  ctx.strokeStyle = "#cbd5e1";
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(PAD, y); ctx.lineTo(W - PAD, y); ctx.stroke();
+  y += 18;
+
+  ctx.fillStyle = "#0f172a";
+  ctx.font = "bold 16px Arial, Helvetica, sans-serif";
+  ctx.fillText("RINGKASAN", PAD, y);
+  y += 28;
+  ctx.font = "16px Arial, Helvetica, sans-serif";
+  ctx.fillStyle = "#334155";
+  ctx.fillText(`Jumlah produk : ${lines.length}`, PAD, y);
+  y += 24;
+  ctx.fillText(`Total qty : ${totalQty} pcs`, PAD, y);
+
+  if (note) {
+    y += 30;
+    ctx.fillStyle = "#64748b";
+    ctx.font = "bold 13px Arial, Helvetica, sans-serif";
+    ctx.fillText("CATATAN", PAD, y);
+    y += 20;
+    ctx.fillStyle = "#334155";
+    ctx.font = "15px Arial, Helvetica, sans-serif";
+    const words = String(note).split(/\s+/);
+    let line = "";
+    const maxW = W - PAD * 2;
+    words.forEach((w) => {
+      const test = line ? `${line} ${w}` : w;
+      if (ctx.measureText(test).width > maxW) { ctx.fillText(line, PAD, y); y += 20; line = w; }
+      else line = test;
+    });
+    if (line) ctx.fillText(line, PAD, y);
+  }
+
+  // Unduh
+  const blob = await new Promise((res) => canvas.toBlob(res, "image/png"));
+  if (!blob) return;
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `PO-${(supplierName || "supplier").replace(/[^a-zA-Z0-9]+/g, "-")}-${Date.now()}.png`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
 }
 
 /**
