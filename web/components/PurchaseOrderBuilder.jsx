@@ -1,4 +1,4 @@
-import { useMemo, useState, Fragment } from "react";
+﻿import { useMemo, useState, Fragment } from "react";
 import { rupiah } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,7 +35,7 @@ export function PurchaseOrderBuilder({ open, onOpenChange, products = [], suppli
   const [saving, setSaving] = useState(false);
 
   // Produk hanya menyimpan category_id, jadi nama kategori diambil dari daftar
-  // kategori (endpoint /categories) — sama seperti halaman Produk.
+  // kategori (endpoint /categories) â€” sama seperti halaman Produk.
   const catName = useMemo(() => {
     const map = {};
     (categories || []).forEach((c) => { map[c.id] = c.name; });
@@ -127,7 +127,7 @@ export function PurchaseOrderBuilder({ open, onOpenChange, products = [], suppli
         </div>
       </div>
 
-      {/* Summary sticky — tetap terlihat saat daftar produk di-scroll */}
+      {/* Summary sticky â€” tetap terlihat saat daftar produk di-scroll */}
       <div className="sticky top-0 z-20 shrink-0 border-b border-border bg-card/95 px-4 py-3 backdrop-blur-xl lg:px-8" data-testid="po-summary-bar">
         <div className="flex flex-wrap items-end gap-x-6 gap-y-2">
           <div className="min-w-[180px] flex-1">
@@ -221,7 +221,7 @@ export function PurchaseOrderBuilder({ open, onOpenChange, products = [], suppli
         </div>
       </div>
 
-      {/* Daftar produk — satu-satunya area yang scroll */}
+      {/* Daftar produk â€” satu-satunya area yang scroll */}
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3 lg:px-8">
         <div className="overflow-x-auto rounded-lg border border-border">
           <table className="w-full min-w-[760px] text-sm" data-testid="po-product-table">
@@ -245,7 +245,7 @@ export function PurchaseOrderBuilder({ open, onOpenChange, products = [], suppli
                       <div className="font-medium">{p.name}</div>
                       {p.sku && <div className="text-[11px] text-muted-foreground">{p.sku}</div>}
                     </td>
-                    <td className="px-3 py-2 text-xs text-muted-foreground">{(p.category_id && catName[p.category_id]) || "—"}</td>
+                    <td className="px-3 py-2 text-xs text-muted-foreground">{(p.category_id && catName[p.category_id]) || "â€”"}</td>
                     <td className="px-3 py-2 text-right">{rupiah(p.cost || 0)}</td>
                     <td className={`px-3 py-2 text-right text-xs ${Number(p.stock) <= 0 ? "text-destructive" : "text-muted-foreground"}`}>{p.stock ?? 0}</td>
                     <td className="px-3 py-2">
@@ -254,7 +254,7 @@ export function PurchaseOrderBuilder({ open, onOpenChange, products = [], suppli
                     <td className={`px-3 py-2 text-right font-medium ${n > 0 ? "text-primary" : "text-muted-foreground"}`} data-testid={`po-total-stock-${p.id}`}>
                       {Number(p.stock || 0) + n}
                     </td>
-                    <td className="px-3 py-2 text-right font-medium">{n > 0 ? rupiah(n * Number(p.cost || 0)) : "—"}</td>
+                    <td className="px-3 py-2 text-right font-medium">{n > 0 ? rupiah(n * Number(p.cost || 0)) : "â€”"}</td>
                   </tr>
                 );
               })}
@@ -272,7 +272,7 @@ export function PurchaseOrderBuilder({ open, onOpenChange, products = [], suppli
           <DialogHeader><DialogTitle className="font-display">Ringkasan Purchase Order</DialogTitle></DialogHeader>
           <div className="space-y-4 text-sm">
             <div className="grid grid-cols-2 gap-2">
-              <div><span className="text-muted-foreground">Supplier</span><p className="font-medium">{suppliers.find((s) => s.id === supplierId)?.name || "—"}</p></div>
+              <div><span className="text-muted-foreground">Supplier</span><p className="font-medium">{suppliers.find((s) => s.id === supplierId)?.name || "â€”"}</p></div>
               <div><span className="text-muted-foreground">Tanggal</span><p>{new Date().toLocaleString("id-ID")}</p></div>
               {note && <div className="col-span-2"><span className="text-muted-foreground">Catatan</span><p>{note}</p></div>}
             </div>
@@ -335,18 +335,26 @@ export function PurchaseOrderBuilder({ open, onOpenChange, products = [], suppli
 async function makeImage({ supplierName, note, lines, catName }) {
   const groups = groupLines(lines, catName);
   const DPR = 2;
-  const W = 900;
-  const PAD = 44;
-  const ROW_H = 40;
-  const CAT_H = 46;
-  const HEAD_H = 168;
+  const W = 780;
+  const PAD = 34;
+  const ROW_H = 42;
+  const CAT_H = 44;
+  const TOTAL_H = 40;
+  const HEAD_H = 150;
+  const GAP = 22;
   const totalQty = lines.reduce((s, l) => s + l.qty, 0);
 
-  // Hitung tinggi total lebih dulu supaya canvas pas (tidak ada ruang kosong).
+  // Lebar kolom: Produk | Size | Qty
+  const COL_SIZE = 110;
+  const COL_QTY = 90;
+  const colSizeX = W - PAD - COL_QTY - COL_SIZE;
+  const colQtyX = W - PAD;
+
+  // Tinggi total dihitung lebih dulu supaya canvas pas tanpa ruang kosong.
   let bodyH = 0;
-  groups.forEach((g) => { bodyH += CAT_H + g.rows.length * ROW_H + 10; });
-  const noteLines = note ? wrapText(note, 62) : [];
-  const FOOT_H = 120 + (noteLines.length ? 30 + noteLines.length * 22 : 0);
+  groups.forEach((g) => { bodyH += CAT_H + g.rows.length * ROW_H + TOTAL_H + GAP; });
+  const noteLines = note ? wrapText(note, 58) : [];
+  const FOOT_H = 40 + (noteLines.length ? 26 + noteLines.length * 22 : 0);
   const H = HEAD_H + bodyH + FOOT_H;
 
   const canvas = document.createElement("canvas");
@@ -360,77 +368,94 @@ async function makeImage({ supplierName, note, lines, catName }) {
   ctx.fillRect(0, 0, W, H);
 
   // ---- Header ----
-  ctx.fillStyle = "#0f172a";
-  ctx.font = "bold 32px Arial, Helvetica, sans-serif";
+  ctx.fillStyle = "#000000";
+  ctx.font = "bold 34px Arial, Helvetica, sans-serif";
   ctx.fillText("PURCHASE ORDER", PAD, PAD);
 
-  ctx.fillStyle = "#64748b";
-  ctx.font = "15px Arial, Helvetica, sans-serif";
-  ctx.fillText("Daneswara Print", PAD, PAD + 42);
+  const tanggal = new Date().toLocaleString("id-ID", {
+    day: "2-digit", month: "2-digit", year: "numeric",
+    hour: "2-digit", minute: "2-digit", second: "2-digit",
+  }).replace(/\./g, ":");
 
-  const tanggal = new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" });
+  let y = PAD + 52;
+  ctx.font = "bold 17px Arial, Helvetica, sans-serif";
+  ctx.fillText("Supplier", PAD, y);
+  ctx.fillText(":", PAD + 96, y);
+  ctx.font = "17px Arial, Helvetica, sans-serif";
+  ctx.fillText(supplierName || "-", PAD + 116, y);
+
+  y += 26;
+  ctx.font = "bold 17px Arial, Helvetica, sans-serif";
+  ctx.fillText("Tanggal", PAD, y);
+  ctx.fillText(":", PAD + 96, y);
+  ctx.font = "17px Arial, Helvetica, sans-serif";
+  ctx.fillText(tanggal, PAD + 116, y);
+
+  // ---- Kepala tabel ----
+  y = HEAD_H - 34;
+  ctx.fillStyle = "#e8e8e8";
+  ctx.fillRect(PAD, y, W - PAD * 2, 34);
+  ctx.fillStyle = "#000000";
+  ctx.font = "bold 17px Arial, Helvetica, sans-serif";
+  ctx.fillText("Produk", PAD + 12, y + 8);
+  ctx.fillText("Size", colSizeX, y + 8);
   ctx.textAlign = "right";
-  ctx.fillStyle = "#64748b";
-  ctx.font = "bold 12px Arial, Helvetica, sans-serif";
-  ctx.fillText("TANGGAL", W - PAD, PAD + 4);
-  ctx.fillStyle = "#0f172a";
-  ctx.font = "16px Arial, Helvetica, sans-serif";
-  ctx.fillText(tanggal, W - PAD, PAD + 22);
+  ctx.fillText("Qty", colQtyX - 12, y + 8);
   ctx.textAlign = "left";
-
-  ctx.fillStyle = "#64748b";
-  ctx.font = "bold 12px Arial, Helvetica, sans-serif";
-  ctx.fillText("SUPPLIER", PAD, PAD + 78);
-  ctx.fillStyle = "#0f172a";
-  ctx.font = "bold 19px Arial, Helvetica, sans-serif";
-  ctx.fillText(supplierName || "-", PAD, PAD + 96);
-
-  let y = HEAD_H - 26;
-  ctx.strokeStyle = "#0f172a";
+  y += 34;
+  ctx.strokeStyle = "#000000";
   ctx.lineWidth = 2;
   ctx.beginPath(); ctx.moveTo(PAD, y); ctx.lineTo(W - PAD, y); ctx.stroke();
 
   // ---- Body: per kategori ----
-  y = HEAD_H;
   groups.forEach((g) => {
     // Judul kategori
-    ctx.fillStyle = "#f1f5f9";
-    ctx.fillRect(PAD - 10, y - 6, W - PAD * 2 + 20, CAT_H - 12);
-    ctx.fillStyle = "#0f172a";
-    ctx.font = "bold 15px Arial, Helvetica, sans-serif";
-    ctx.fillText(g.category.toUpperCase(), PAD, y + 4);
-    ctx.textAlign = "right";
-    ctx.fillStyle = "#475569";
-    ctx.font = "bold 14px Arial, Helvetica, sans-serif";
-    ctx.fillText(`${g.qty} pcs`, W - PAD, y + 4);
-    ctx.textAlign = "left";
+    ctx.fillStyle = "#e8e8e8";
+    ctx.fillRect(PAD, y, W - PAD * 2, CAT_H);
+    ctx.fillStyle = "#000000";
+    ctx.font = "bold 18px Arial, Helvetica, sans-serif";
+    ctx.fillText(g.category, PAD + 12, y + 12);
     y += CAT_H;
 
+    // Baris produk: nama tanpa ukuran, kolom Size terpisah
     g.rows.forEach((r) => {
-      ctx.fillStyle = "#0f172a";
-      ctx.font = "16px Arial, Helvetica, sans-serif";
-      const label = `${r.color}  ·  ${r.size}`;
-      ctx.fillText(label.length > 46 ? `${label.slice(0, 45)}…` : label, PAD + 6, y + 6);
-      ctx.font = "bold 17px Arial, Helvetica, sans-serif";
+      ctx.fillStyle = "#000000";
+      ctx.font = "17px Arial, Helvetica, sans-serif";
+      const baseName = String(r.name || "").replace(new RegExp(`\\s*${escapeRe(r.size)}\\s*$`, "i"), "").trim() || r.name;
+      const shown = baseName.length > 34 ? `${baseName.slice(0, 33)}â€¦` : baseName;
+      ctx.fillText(shown, PAD + 12, y + 11);
+      ctx.fillText(r.size, colSizeX, y + 11);
       ctx.textAlign = "right";
-      ctx.fillText(String(r.qty), W - PAD, y + 6);
+      ctx.fillText(String(r.qty), colQtyX - 12, y + 11);
       ctx.textAlign = "left";
       y += ROW_H;
+      ctx.strokeStyle = "#d4d4d4";
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(PAD, y); ctx.lineTo(W - PAD, y); ctx.stroke();
     });
-    y += 10;
+
+    // Total per kategori
+    ctx.fillStyle = "#e8e8e8";
+    ctx.fillRect(PAD, y, W - PAD * 2, TOTAL_H);
+    ctx.fillStyle = "#000000";
+    ctx.font = "bold 17px Arial, Helvetica, sans-serif";
+    ctx.fillText(`TOTAL PESANAN ${g.category.toUpperCase()}`, PAD + 12, y + 11);
+    ctx.textAlign = "right";
+    ctx.fillText(`${g.qty} pcs`, colQtyX - 12, y + 11);
+    ctx.textAlign = "left";
+    y += TOTAL_H + GAP;
   });
 
   // ---- Ringkasan ----
-  ctx.strokeStyle = "#cbd5e1";
+  ctx.strokeStyle = "#000000";
   ctx.lineWidth = 1;
   ctx.beginPath(); ctx.moveTo(PAD, y); ctx.lineTo(W - PAD, y); ctx.stroke();
-  y += 20;
+  y += 16;
 
-  ctx.fillStyle = "#0f172a";
-  ctx.font = "bold 15px Arial, Helvetica, sans-serif";
+  ctx.fillStyle = "#000000";
+  ctx.font = "bold 16px Arial, Helvetica, sans-serif";
   ctx.fillText("RINGKASAN", PAD, y);
-  y += 28;
-  ctx.fillStyle = "#334155";
+  y += 26;
   ctx.font = "16px Arial, Helvetica, sans-serif";
   ctx.fillText(`Jumlah produk : ${lines.length}`, PAD, y);
   ctx.textAlign = "right";
@@ -438,12 +463,12 @@ async function makeImage({ supplierName, note, lines, catName }) {
   ctx.textAlign = "left";
 
   if (noteLines.length) {
-    y += 34;
-    ctx.fillStyle = "#64748b";
-    ctx.font = "bold 12px Arial, Helvetica, sans-serif";
+    y += 30;
+    ctx.fillStyle = "#555555";
+    ctx.font = "bold 13px Arial, Helvetica, sans-serif";
     ctx.fillText("CATATAN", PAD, y);
     y += 20;
-    ctx.fillStyle = "#334155";
+    ctx.fillStyle = "#000000";
     ctx.font = "15px Arial, Helvetica, sans-serif";
     noteLines.forEach((ln) => { ctx.fillText(ln, PAD, y); y += 22; });
   }
@@ -459,6 +484,8 @@ async function makeImage({ supplierName, note, lines, catName }) {
   document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 5000);
 }
+
+const escapeRe = (s) => String(s || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 /** Bungkus teks jadi beberapa baris berdasarkan perkiraan lebar karakter. */
 function wrapText(text, maxChars) {
@@ -609,3 +636,4 @@ function groupLines(lines, catNameById) {
       };
     });
 }
+
