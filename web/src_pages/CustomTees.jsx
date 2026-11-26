@@ -1,5 +1,5 @@
 ﻿/**
- * Custom Tees â€” Desainer Kaos
+ * Custom Tees — Desainer Kaos
  * ---------------------------------------------------
  * Tahap 1 = layout statis. Tahap 2 (ini) mengaktifkan tool "Gambar Saya":
  *   - Customer bisa upload gambar sendiri (PNG / JPG).
@@ -75,7 +75,7 @@ export const viewLabel = (v) => VIEW_LABEL[v] || v;
    Tampilan pada desainer memakai nama Indonesia, sedangkan mockup di database
    disimpan dengan kode view (front/back/left/right). Kalau produk yang dipilih
    punya mockup sendiri (mis. Hoodie), gambar itulah yang dipakai kanvas &
-   preview â€” bukan lagi mockup kaos bawaan. */
+   preview — bukan lagi mockup kaos bawaan. */
 const VIEW_KEY = { "Depan": "front", "Belakang": "back", "Lengan Kiri": "left", "Lengan Kanan": "right" };
 
 /**
@@ -183,8 +183,8 @@ function totalPcs(sizeQty) {
 }
 function sizeRecapText(items) {
   const list = Array.isArray(items) ? items : [];
-  if (list.length === 0) return "â€”";
-  return list.map((it) => `${it.size} Ã— ${it.qty}`).join(", ");
+  if (list.length === 0) return "—";
+  return list.map((it) => `${it.size} × ${it.qty}`).join(", ");
 }
 
 const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
@@ -369,7 +369,7 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
   /* ---------- Undo / Redo ----------
      Riwayat sederhana: tumpukan snapshot object `design`. Setiap perubahan
      tercatat lewat satu useEffect, kecuali (a) perubahan yang berasal dari
-     Undo/Redo itu sendiri dan (b) selama gerakan geser/putar/ubah-ukuran â€”
+     Undo/Redo itu sendiri dan (b) selama gerakan geser/putar/ubah-ukuran —
      satu gerakan hanya dicatat sekali di akhir, supaya satu klik Undo
      membatalkan seluruh gerakan, bukan per piksel. */
   const HISTORY_MAX = 60;
@@ -509,14 +509,14 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
      stable canvas element (canvasRef). The canvas never unmounts or moves
      during an interaction, so once we capture the pointer to it every
      pointermove / pointerup / pointercancel for that exact pointer is
-     delivered to a single stable target â€” even while the dragged layer
+     delivered to a single stable target — even while the dragged layer
      re-renders, changes z-order, resizes, rotates, or slides out from under
      the finger. `gesture.current` is the single source of truth and is keyed
      by `pointerId`, which prevents stale/competing drag state and stops a
      second (multi-touch) pointer from cancelling or hijacking an active drag.
      After every interaction we return to a clean idle state WITHOUT touching
      `selectedId`, so the object stays selected and immediately draggable
-     again â€” no deselect/reselect workaround is ever required. */
+     again — no deselect/reselect workaround is ever required. */
   const centerOf = (l, rect) => ({
     x: rect.left + (l.cx / 100) * rect.width,
     y: rect.top + (l.cy / 100) * rect.height,
@@ -727,7 +727,7 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
   const totalObjects = VIEWS.reduce((a, v) => a + (design[v] || []).length, 0);
 
   /* =======================================================================
-     ALUR PESANAN (tambahan) â€” desain TIDAK pernah dihapus oleh alur ini.
+     ALUR PESANAN (tambahan) — desain TIDAK pernah dihapus oleh alur ini.
      "Cek Harga" menyimpan desain sebagai draft lalu membuka form customer.
      ======================================================================= */
   const designPayload = useCallback(() => {
@@ -761,13 +761,13 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
       return;
     }
     if (VIEWS.reduce((a, v) => a + (design[v] || []).length, 0) === 0) {
-      toast.error("Desainnya masih kosong â€” tambahkan teks, clipart, atau gambar dulu");
+      toast.error("Desainnya masih kosong — tambahkan teks, clipart, atau gambar dulu");
       return;
     }
     setCheckingPrice(true);
     try {
       const payload = designPayload();
-      // Harga tidak lagi ditampilkan ke customer â€” konfirmasi harga dilakukan
+      // Harga tidak lagi ditampilkan ke customer — konfirmasi harga dilakukan
       // oleh tim Customer Service setelah pesanan masuk.
       const { data } = await api.post("/public/custom-tees/drafts", payload);
       setDraftId(data?.id || null);
@@ -1245,7 +1245,7 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
             <Minus className="h-4 w-4" />
           </button>
           <span className="w-8 text-center text-xs font-semibold md:w-16 md:text-sm">
-            {selectedLayer ? `${Math.round(selectedLayer.wPct)}%` : "â€”"}
+            {selectedLayer ? `${Math.round(selectedLayer.wPct)}%` : "—"}
           </span>
           <button
             onClick={() => resizeSelected(5)}
@@ -1470,7 +1470,7 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
         />
       )}
 
-      {/* Daftar pesanan Custom Tees (admin) â€” tidak ada di halaman publik */}
+      {/* Daftar pesanan Custom Tees (admin) — tidak ada di halaman publik */}
       {!publicMode && (
         <OrdersModal
           open={ordersOpen}
@@ -1484,7 +1484,7 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
 /* =========================================================================
    PREVIEW gabungan: render read-only tiap sisi (mockup + tint + objek desain).
    Ukuran teks/curved memakai vh (sama seperti kanvas), lalu di-scale via CSS
-   transform agar pas dalam tile â€” hasil identik dengan kanvas.
+   transform agar pas dalam tile — hasil identik dengan kanvas.
    ========================================================================= */
 function PreviewStage({ view, color, layers, onReady, productKey }) {
   const white = (color?.hex || "#ffffff").toLowerCase() === "#ffffff";
@@ -1547,7 +1547,7 @@ function PreviewStage({ view, color, layers, onReady, productKey }) {
 }
 
 // Scales the read-only stage (mockup + tint + desain customer) to FIT inside its
-// parent cell using object-fit:contain semantics â€” whole shirt + sleeves visible,
+// parent cell using object-fit:contain semantics — whole shirt + sleeves visible,
 // never cropped. The stage is laid out at its NATURAL size (so the mockup image is
 // not clamped by max-width) and then transform-scaled into a clip box, keeping the
 // vh-based text/positions identical to the canvas.
@@ -1649,9 +1649,9 @@ function PreviewModal({ open, onClose, design, color, sizeItems, onCheckPrice, c
         {/* Header */}
         <div className="flex shrink-0 items-start justify-between gap-3 border-b border-zinc-100 px-4 py-3 sm:px-5 sm:py-4">
           <div>
-            <h2 className="text-base font-bold text-zinc-900 sm:text-lg">Preview Desain â€” Semua Sisi</h2>
+            <h2 className="text-base font-bold text-zinc-900 sm:text-lg">Preview Desain — Semua Sisi</h2>
             <p className="text-[12px] text-zinc-500">
-              {total} objek desain Â· warna kaos {color?.label || "Putih"}
+              {total} objek desain · warna kaos {color?.label || "Putih"}
             </p>
           </div>
           <button
@@ -1703,7 +1703,7 @@ function PreviewModal({ open, onClose, design, color, sizeItems, onCheckPrice, c
           <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">Rekap Ukuran</span>
           {(sizeItems || []).length === 0 ? (
             <span className="text-[12px] font-medium text-amber-600">
-              Belum ada ukuran dipilih â€” pilih ukuran & isi jumlah di panel Produk.
+              Belum ada ukuran dipilih — pilih ukuran & isi jumlah di panel Produk.
             </span>
           ) : (
             <>
@@ -1713,7 +1713,7 @@ function PreviewModal({ open, onClose, design, color, sizeItems, onCheckPrice, c
                   data-testid={`preview-recap-${it.size}`}
                   className="rounded-full bg-zinc-900 px-2.5 py-0.5 text-[11px] font-bold text-white"
                 >
-                  {it.size} Ã— {it.qty}
+                  {it.size} × {it.qty}
                 </span>
               ))}
               <span className="text-[12px] font-bold text-zinc-700" data-testid="preview-recap-total">
@@ -1937,7 +1937,7 @@ function OrderFormModal({ open, onClose, design, color, sizeItems, product, onSu
                           <span className="font-semibold text-zinc-900">{it.qty} pcs</span>
                         </div>
                       ))}
-                      {(sizeItems || []).length === 0 && <span className="text-zinc-400">â€”</span>}
+                      {(sizeItems || []).length === 0 && <span className="text-zinc-400">—</span>}
                     </div>
                   </div>
                   <div className="rounded-xl border border-zinc-200 p-3">
@@ -2065,7 +2065,7 @@ function CsNoticeCard() {
 function SummaryRow({ label, value, testid }) {  return (
     <div className="rounded-xl border border-zinc-200 p-3">
       <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">{label}</div>
-      <div className="mt-0.5 text-sm font-semibold text-zinc-900" data-testid={testid}>{value || "â€”"}</div>
+      <div className="mt-0.5 text-sm font-semibold text-zinc-900" data-testid={testid}>{value || "—"}</div>
     </div>
   );
 }
@@ -2197,7 +2197,7 @@ function OrdersModal({ open, onClose, onCountChange }) {
         <div className="min-h-0 flex-1 overflow-auto p-4">
           {loading || detailLoading ? (
             <div className="flex h-full items-center justify-center text-sm text-zinc-500">
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Memuatâ€¦
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Memuat…
             </div>
           ) : detail ? (
             <div className="grid gap-4 lg:grid-cols-2" data-testid="order-detail">
@@ -2221,7 +2221,7 @@ function OrdersModal({ open, onClose, onCountChange }) {
                         />
                       }
                     />
-                    <Info label="Email" value={detail.customer_email || "â€”"} testid="detail-email" />
+                    <Info label="Email" value={detail.customer_email || "—"} testid="detail-email" />
                     <Info label="Produk" value={detail.product_title} testid="detail-product" />
                     <Info label="Ukuran & Jumlah" value={sizeRecapText(detail.size_items)} testid="detail-size" />
                     <Info label="Total" value={`${detail.qty || 1} pcs`} testid="detail-qty" />
@@ -2255,15 +2255,15 @@ function OrdersModal({ open, onClose, onCountChange }) {
                     const layers = Array.isArray(views[v]) ? views[v] : [];
                     return (
                       <div key={v} className="mt-2">
-                        <div className="text-sm font-semibold">{v} Â· {layers.length} objek</div>
+                        <div className="text-sm font-semibold">{v} · {layers.length} objek</div>
                         {layers.length > 0 && (
                           <ul className="mt-1 space-y-1 text-[12px] text-zinc-600">
                             {layers.map((l, i) => (
                               <li key={l.id || i} data-testid={`detail-layer-${v.toLowerCase().replace(/\s+/g, "-")}-${i}`}>
                                 {l.type === "text"
-                                  ? `Teks "${l.text}" Â· font ${String(l.font || "").split(",")[0]} Â· warna ${l.color}`
+                                  ? `Teks "${l.text}" · font ${String(l.font || "").split(",")[0]} · warna ${l.color}`
                                   : `Gambar ${l.name || "objek"}`}
-                                {" Â· "}pos {Math.round(l.cx)}%/{Math.round(l.cy)}% Â· ukuran {Math.round(l.wPct)}% Â· rotasi {Math.round(l.rot || 0)}Â°
+                                {" · "}pos {Math.round(l.cx)}%/{Math.round(l.cy)}% · ukuran {Math.round(l.wPct)}% · rotasi {Math.round(l.rot || 0)}Â°
                               </li>
                             ))}
                           </ul>
@@ -2314,7 +2314,7 @@ function OrdersModal({ open, onClose, onCountChange }) {
                     <td className="px-2 py-2 text-zinc-600">{fmtDateTime(r.submitted_at || r.created_at)}</td>
                     <td className="px-2 py-2">{r.customer_name}</td>
                     <td className="px-2 py-2 text-zinc-600">{r.customer_phone}</td>
-                    <td className="px-2 py-2 text-zinc-600">{r.customer_email || "â€”"}</td>
+                    <td className="px-2 py-2 text-zinc-600">{r.customer_email || "—"}</td>
                     <td className="px-2 py-2 text-zinc-600">{r.product_title}</td>
                     <td className="px-2 py-2">{sizeRecapText(r.size_items)}</td>
                     <td className="px-2 py-2 font-semibold">{r.qty || 1} pcs</td>
@@ -2373,7 +2373,7 @@ function Info({ label, value, testid, action }) {
         <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">{label}</div>
         {action}
       </div>
-      <div className="font-semibold text-zinc-900" data-testid={testid}>{value || "â€”"}</div>
+      <div className="font-semibold text-zinc-900" data-testid={testid}>{value || "—"}</div>
     </div>
   );
 }
@@ -2421,7 +2421,7 @@ function CopyButton({ text, label, testid }) {
 }
 
 function fmtDateTime(iso) {
-  if (!iso) return "â€”";
+  if (!iso) return "—";
   try {
     return new Date(iso).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" });
   } catch {
@@ -2524,7 +2524,7 @@ function ProductPanel({
       </button>
       {(products || []).length > 1 && (
         <p className="mt-1.5 text-[11px] text-zinc-500">
-          Tersedia {products.length} jenis kaos â€” klik kartu produk di atas untuk melihat semuanya.
+          Tersedia {products.length} jenis kaos — klik kartu produk di atas untuk melihat semuanya.
         </p>
       )}
 
@@ -2686,7 +2686,7 @@ function ProductPanel({
                 data-testid={`size-recap-${it.size}`}
                 className="rounded-full bg-zinc-900 px-2.5 py-0.5 text-[11px] font-bold text-white"
               >
-                {it.size} Ã— {it.qty}
+                {it.size} × {it.qty}
               </span>
             ))}
           </div>
@@ -2763,7 +2763,7 @@ function ProductPanel({
 function DetailRow({ label, value }) {  return (
     <div className="flex justify-between gap-3 border-b border-zinc-200 pb-1 last:border-0">
       <span className="font-semibold uppercase tracking-wide text-zinc-400">{label}</span>
-      <span className="text-right text-zinc-800">{value || "â€”"}</span>
+      <span className="text-right text-zinc-800">{value || "—"}</span>
     </div>
   );
 }
@@ -2854,8 +2854,8 @@ function ProductPickerModal({ open, onClose, products, loading, activeId, onPick
                         </div>
                       )}
                       <div className="mt-1 text-[11px] text-zinc-500">
-                        {(p.colors || []).length} warna Â· {(p.size_chart || []).length} ukuran
-                        {p.size_region ? ` Â· ${p.size_region}` : ""}
+                        {(p.colors || []).length} warna · {(p.size_chart || []).length} ukuran
+                        {p.size_region ? ` · ${p.size_region}` : ""}
                       </div>
                       <div className="mt-1.5 flex flex-wrap gap-1">
                         {(p.colors || []).slice(0, 8).map((c) => (
@@ -3086,7 +3086,7 @@ function FontManagerModal({ open, onClose, onChanged }) {
         <div className="flex items-center justify-between border-b border-zinc-200 px-5 py-4">
           <div>
             <h3 className="text-base font-bold">Kelola Font</h3>
-            <p className="text-xs text-zinc-500">Tambah font dari Google Fonts (tanpa unduh berkas) atau unggah berkas sendiri â€” langsung bisa dipakai pelanggan di desainer kaos.</p>
+            <p className="text-xs text-zinc-500">Tambah font dari Google Fonts (tanpa unduh berkas) atau unggah berkas sendiri — langsung bisa dipakai pelanggan di desainer kaos.</p>
           </div>
           <button
             onClick={onClose}
@@ -3125,13 +3125,13 @@ function FontManagerModal({ open, onClose, onChanged }) {
             <div className="mt-4" data-testid="font-google-panel">
               <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3.5">
                 <div className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
-                  Google Fonts â€” Tanpa Unduh Berkas
+                  Google Fonts — Tanpa Unduh Berkas
                 </div>
                 <ul className="mt-2 space-y-1 text-[11px] leading-relaxed text-zinc-600">
-                  <li>â€¢ Seluruh katalog Google Fonts{googleCatalogTotal ? ` (${googleCatalogTotal.toLocaleString("id-ID")} font)` : ""} bisa dicari di sini.</li>
-                  <li>â€¢ Font dimuat langsung dari CDN Google, tidak ada berkas yang perlu diunduh atau diunggah.</li>
-                  <li>â€¢ Ketebalan Regular (400) dan Bold (700) diambil otomatis bila tersedia.</li>
-                  <li>â€¢ Gratis dipakai untuk keperluan komersial (lisensi OFL/Apache).</li>
+                  <li>• Seluruh katalog Google Fonts{googleCatalogTotal ? ` (${googleCatalogTotal.toLocaleString("id-ID")} font)` : ""} bisa dicari di sini.</li>
+                  <li>• Font dimuat langsung dari CDN Google, tidak ada berkas yang perlu diunduh atau diunggah.</li>
+                  <li>• Ketebalan Regular (400) dan Bold (700) diambil otomatis bila tersedia.</li>
+                  <li>• Gratis dipakai untuk keperluan komersial (lisensi OFL/Apache).</li>
                 </ul>
                 {googleSource === "fallback" && (
                   <p className="mt-2 rounded-lg bg-amber-50 p-2 text-[11px] text-amber-700" data-testid="font-google-offline">
@@ -3194,7 +3194,7 @@ function FontManagerModal({ open, onClose, onChanged }) {
               {!catalogLoading && (
                 <div className="mt-2 text-[11px] text-zinc-500" data-testid="font-google-count">
                   {googleTotal
-                    ? `${googleTotal.toLocaleString("id-ID")} font ditemukan â€” menampilkan ${catalog.length}`
+                    ? `${googleTotal.toLocaleString("id-ID")} font ditemukan — menampilkan ${catalog.length}`
                     : "Tidak ada font yang cocok"}
                 </div>
               )}
@@ -3205,7 +3205,7 @@ function FontManagerModal({ open, onClose, onChanged }) {
                 </div>
               ) : catalog.length === 0 ? (
                 <p className="mt-3 rounded-xl border border-dashed border-zinc-300 p-6 text-center text-[13px] text-zinc-500" data-testid="font-google-empty">
-                  Tidak ada font yang cocok. Tekan <strong>Tambahkan</strong> untuk memakai nama yang kamu ketik â€”
+                  Tidak ada font yang cocok. Tekan <strong>Tambahkan</strong> untuk memakai nama yang kamu ketik —
                   nama itu akan diperiksa dulu ke Google Fonts.
                 </p>
               ) : (
@@ -3280,10 +3280,10 @@ function FontManagerModal({ open, onClose, onChanged }) {
               ))}
             </div>
             <ul className="mt-3 space-y-1 border-t border-zinc-200 pt-2.5 text-[11px] leading-relaxed text-zinc-600">
-              <li>â€¢ Ukuran berkas maksimal <strong>3 MB</strong>.</li>
-              <li>â€¢ Satu berkas = satu ketebalan. Unggah terpisah untuk Regular dan Bold.</li>
-              <li>â€¢ Pakai font yang lisensinya mengizinkan penggunaan komersial.</li>
-              <li>â€¢ Cukup subset huruf Latin supaya berkasnya tetap ringan.</li>
+              <li>• Ukuran berkas maksimal <strong>3 MB</strong>.</li>
+              <li>• Satu berkas = satu ketebalan. Unggah terpisah untuk Regular dan Bold.</li>
+              <li>• Pakai font yang lisensinya mengizinkan penggunaan komersial.</li>
+              <li>• Cukup subset huruf Latin supaya berkasnya tetap ringan.</li>
             </ul>
           </div>
 
@@ -3380,7 +3380,7 @@ function FontManagerModal({ open, onClose, onChanged }) {
                       </div>
                       <div className="text-[11px] text-zinc-400">
                         {f.source === "google"
-                          ? "Dimuat langsung dari CDN Google â€” tanpa berkas"
+                          ? "Dimuat langsung dari CDN Google — tanpa berkas"
                           : `${Math.max(1, Math.round((f.file_size || 0) / 1024))} KB`}
                       </div>
                     </div>
@@ -3462,7 +3462,7 @@ function SizeGuideModal({ open, onClose, product }) {
             </table>
           )}
           <p className="mt-3 text-[11px] leading-relaxed text-zinc-500">
-            Ukuran diambil dengan kaos dalam posisi rata. Toleransi 1â€“2 cm karena proses jahit manual.
+            Ukuran diambil dengan kaos dalam posisi rata. Toleransi 1–2 cm karena proses jahit manual.
           </p>
         </div>
       </div>
@@ -3620,7 +3620,7 @@ function ImagePanel({
 }
 
 /* =========================================================================
-   Teks melengkung (arch) â€” dirender via SVG <textPath> mengikuti busur lingkaran.
+   Teks melengkung (arch) — dirender via SVG <textPath> mengikuti busur lingkaran.
    curve > 0 : melengkung ke atas (âˆ©, seperti pelangi / teks atas logo)
    curve < 0 : melengkung ke bawah (âˆª, seperti teks bawah logo)
    Ukuran mengikuti wPct (skala relatif kaos) sama seperti teks lurus.
@@ -3733,7 +3733,7 @@ function CurvedText({ testId, text, curve, color, font, bold, italic, wPct }) {
    PANEL: Teks (tambah tulisan + atur font, ukuran, warna, gaya)
    ========================================================================= */
 /**
- * Pemilih font dengan pencarian â€” dipakai admin maupun pelanggan.
+ * Pemilih font dengan pencarian — dipakai admin maupun pelanggan.
  * Menggantikan <select> biasa supaya daftar font yang panjang tetap gampang dicari.
  */
 function FontPicker({ value, options, onChange, canManageFonts = false, onManageFonts }) {
@@ -4093,7 +4093,7 @@ function TextPanel({
                 onClick={() => updateSelectedText({ curve: 0 })}
                 data-testid="text-curve-straight"
                 className="rounded-md border border-zinc-300 py-1.5 text-[11px] font-semibold text-zinc-700 hover:bg-zinc-50"
-              >Lurus â€”</button>
+              >Lurus —</button>
               <button
                 onClick={() => updateSelectedText({ curve: -120 })}
                 data-testid="text-curve-bottom"
@@ -4195,7 +4195,7 @@ function ClipartPanel({ addClipart }) {
         className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-zinc-300 px-3 py-2.5 text-sm font-semibold text-zinc-700 hover:border-zinc-500 hover:bg-zinc-50 disabled:opacity-60"
       >
         {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-        {uploading ? "Memproses sheetâ€¦" : "Upload Sheet Clip Art"}
+        {uploading ? "Memproses sheet…" : "Upload Sheet Clip Art"}
       </button>
       <p className="mt-1.5 text-[10px] leading-tight text-zinc-400">
         Unggah 1 gambar berisi banyak clip art (latar terang). Sistem memisahkan tiap gambar otomatis jadi PNG transparan.
@@ -4207,7 +4207,7 @@ function ClipartPanel({ addClipart }) {
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Cari clip artâ€¦"
+          placeholder="Cari clip art…"
           data-testid="clipart-search"
           className="w-full bg-transparent text-sm text-zinc-900 outline-none placeholder:text-zinc-400"
         />
@@ -4233,7 +4233,7 @@ function ClipartPanel({ addClipart }) {
       <div className="mt-3">
         {loading ? (
           <div className="flex items-center justify-center gap-2 py-10 text-sm text-zinc-500">
-            <Loader2 className="h-4 w-4 animate-spin" /> Memuatâ€¦
+            <Loader2 className="h-4 w-4 animate-spin" /> Memuat…
           </div>
         ) : filtered.length === 0 ? (
           <p className="rounded-lg bg-zinc-50 px-3 py-6 text-center text-[12px] text-zinc-500">
@@ -4245,7 +4245,7 @@ function ClipartPanel({ addClipart }) {
               <button
                 key={it.id}
                 onClick={() => addClipart(it)}
-                title={`${it.name} Â· ${it.category}`}
+                title={`${it.name} · ${it.category}`}
                 data-testid={`clipart-item-${it.id}`}
                 className="group flex aspect-square items-center justify-center rounded-lg border border-zinc-200 bg-white p-1.5 transition hover:border-zinc-900 hover:shadow-sm"
               >
@@ -4266,7 +4266,7 @@ function ClipartPanel({ addClipart }) {
 }
 
 /* =========================================================================
-   PANEL: Layer (atur urutan / tumpuk objek desain â€” z-order)
+   PANEL: Layer (atur urutan / tumpuk objek desain — z-order)
    Urutan tampil = paling depan di atas. (akhir array = depan)
    ========================================================================= */
 function LayerPanel({ layers, selectedId, setSelectedId, moveLayer, deleteLayer }) {
