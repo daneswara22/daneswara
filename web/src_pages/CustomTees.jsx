@@ -875,6 +875,17 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
   };
   const toolModalOpen = activeTool !== "product";
 
+  // Saat popup Upload dibuka, langsung tampilkan pemilih berkas supaya
+  // pelanggan tidak perlu klik dua kali. Dijalankan sekali per pembukaan.
+  const uploadPickerOpened = useRef(false);
+  useEffect(() => {
+    if (activeTool !== "upload") { uploadPickerOpened.current = false; return; }
+    if (uploadPickerOpened.current) return;
+    uploadPickerOpened.current = true;
+    const t = setTimeout(() => { try { fileInputRef.current?.click(); } catch (e) { /* ignore */ } }, 250);
+    return () => clearTimeout(t);
+  }, [activeTool]);
+
   return (
     <div className="flex h-screen w-full overflow-hidden bg-zinc-100 text-zinc-900" style={{ height: "100dvh" }}>      {/* input file tersembunyi untuk upload */}
       <input
@@ -998,19 +1009,25 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
         {/* -------- Tool rail -------- */}
         <nav className="hidden w-[92px] shrink-0 flex-col items-center gap-1 border-r border-zinc-200 bg-white py-3 md:flex">
           {TOOLS.map((t) => {
-            const active = activeTool === t.key;
+            // Product selalu aktif karena panel kiri selalu menampilkan Produk.
+            // Alat lain ditandai aktif saat popup-nya terbuka.
+            const active = t.key === "product" ? activeTool === "product" : activeTool === t.key;
             return (
               <button
                 key={t.key}
                 onClick={() => setActiveTool(t.key)}
                 data-testid={`tool-${t.key}`}
-                className={`flex w-[88px] flex-col items-center gap-1 rounded-xl px-1 py-2.5 text-center transition ${
+                aria-pressed={active}
+                className={`relative flex w-[88px] flex-col items-center gap-1 rounded-xl px-1 py-2.5 text-center transition ${
                   active ? "bg-zinc-900 text-white" : "text-zinc-600 hover:bg-zinc-100"
                 }`}
               >
                 <t.icon className="h-5 w-5" />
                 <span className="text-[12px] font-bold leading-tight">{t.label}</span>
                 <span className={`text-[10px] leading-tight ${active ? "text-zinc-300" : "text-zinc-500"}`}>{t.sub}</span>
+                {t.key === "product" && activeTool !== "product" && (
+                  <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-blue-500" aria-hidden="true" />
+                )}
               </button>
             );
           })}
@@ -1353,15 +1370,16 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
 
       {/* Popup alat (desktop): Upload / Text / Clip Art / Layers.
           Panel Produk tetap terlihat di kiri, jadi detail produk, ukuran,
-          dan warna tidak hilang saat berpindah alat. */}
+          dan warna tidak hilang saat berpindah alat. Popup digeser ke kiri
+          agar kanvas tetap terlihat. */}
       {toolModalOpen && (
         <div
-          className="fixed inset-0 z-[55] hidden items-center justify-center bg-black/50 p-4 lg:flex"
+          className="fixed inset-0 z-[55] hidden items-center justify-start bg-black/40 p-4 pl-[400px] lg:flex"
           onClick={() => setActiveTool("product")}
           data-testid="tool-modal"
         >
           <div
-            className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+            className="flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between bg-zinc-900 px-4 py-3">
@@ -1381,13 +1399,21 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
             <div className="min-h-0 flex-1 overflow-y-auto p-4">
               {toolPanel}
             </div>
-            <div className="border-t border-zinc-200 p-3">
+            <div className="flex gap-2 border-t border-zinc-200 p-3">
               <button
                 type="button"
                 onClick={() => setActiveTool("product")}
-                className="w-full rounded-xl bg-zinc-900 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-zinc-800"
+                className="flex-1 rounded-xl border border-zinc-300 px-4 py-2.5 text-sm font-bold text-zinc-700 transition hover:bg-zinc-50"
               >
                 Tutup
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTool("product")}
+                data-testid="tool-modal-done"
+                className="flex-1 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-blue-700"
+              >
+                Selesai
               </button>
             </div>
           </div>
@@ -2441,7 +2467,17 @@ function ProductPanel({
   return (
     <>
       <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-base font-bold">Produk</h2>
+        <div className="flex items-center gap-2">
+          <h2 className="text-base font-bold">Produk</h2>
+          <button
+            type="button"
+            onClick={() => setDetailOpen(true)}
+            data-testid="custom-product-detail-button"
+            className="flex items-center gap-1 rounded-full border border-zinc-300 px-2 py-0.5 text-[11px] font-semibold text-zinc-600 transition hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700"
+          >
+            <InfoIcon className="h-3 w-3" /> Detail
+          </button>
+        </div>
         <button
           onClick={onOpenPicker}
           data-testid="custom-change-product"
@@ -2492,18 +2528,9 @@ function ProductPanel({
         </p>
       )}
 
-      {/* Detail Produk: tombol yang membuka popup */}
-      <button
-        type="button"
-        onClick={() => setDetailOpen(true)}
-        data-testid="custom-product-detail-button"
-        className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700 active:scale-[0.99]"
-      >
-        <InfoIcon className="h-4 w-4" /> Detail Produk
-      </button>
-
-      {/* Tampilan Produk — dipindah dari panel kanan, diberi jarak dari tombol produk */}
-      <div className="mt-7">
+      {/* Tampilan Produk — sekaligus status desain (badge jumlah objek).
+          Blok "Status Desain" terpisah dihapus karena isinya sama. */}
+      <div className="mt-5">
         <h3 className="mb-2.5 text-sm font-bold">Tampilan Produk</h3>
         <div className="grid grid-cols-2 gap-2">
           {VIEWS.map((v) => {
@@ -2514,6 +2541,7 @@ function ProductPanel({
                 key={v}
                 onClick={() => { setView(v); setSelectedId(null); }}
                 data-testid={`custom-view-${v}`}
+                title={count > 0 ? `${count} objek` : "Kosong"}
                 className={`flex items-center gap-2 rounded-xl border px-2.5 py-2 text-[12px] transition ${
                   active
                     ? "border-blue-600 bg-blue-50 font-bold text-blue-700 shadow-sm"
@@ -2522,33 +2550,62 @@ function ProductPanel({
               >
                 <ViewThumb view={v} color={color} productKey={product?.product_key} />
                 <span className="flex-1 truncate text-left">{viewLabel(v)}</span>
-                {count > 0 && (
-                  <span className={`rounded-full px-1.5 text-[10px] font-bold text-white ${active ? "bg-blue-600" : "bg-zinc-900"}`}>{count}</span>
-                )}
+                <span
+                  className={`rounded-full px-1.5 text-[10px] font-bold ${
+                    count > 0
+                      ? active ? "bg-blue-600 text-white" : "bg-emerald-500 text-white"
+                      : "bg-zinc-200 text-zinc-500"
+                  }`}
+                >
+                  {count > 0 ? count : "–"}
+                </span>
               </button>
             );
           })}
         </div>
       </div>
 
-      {/* Status Desain */}
-      <div className="mt-6">
-        <h3 className="mb-2.5 text-sm font-bold">Status Desain</h3>
-        <div className="flex flex-col gap-2">
-          {VIEWS.map((v) => {
-            const count = (design[v] || []).length;
-            return (
-              <div key={v} className="flex items-center justify-between rounded-lg bg-zinc-50 px-2.5 py-1.5 text-[12px]">
-                <span className="flex items-center gap-2 text-zinc-700">
-                  <Check className={`h-4 w-4 ${count > 0 ? "text-emerald-500" : "text-zinc-300"}`} /> {viewLabel(v)}
-                </span>
-                <span className={`text-[11px] font-semibold ${count > 0 ? "text-emerald-600" : "text-zinc-400"}`}>
-                  {count > 0 ? `${count} objek` : "Kosong"}
-                </span>
-              </div>
-            );
-          })}
+      {/* Warna dinaikkan: lebih sering diubah daripada ukuran */}
+      <div className="mt-5 flex items-center justify-between">
+        <h3 className="text-sm font-bold">Warna Produk</h3>
+        <span className="text-xs font-semibold text-zinc-400" data-testid="custom-color-count">
+          {swatches.length} varian
+        </span>
+      </div>
+      <div className="mt-2 flex items-center gap-3 rounded-xl border border-blue-500 p-2.5">
+        <span
+          className="h-8 w-8 rounded-full border border-zinc-300 shadow-inner transition-colors"
+          style={{ backgroundColor: color.hex }}
+          data-testid="active-color-swatch"
+        />
+        <div className="leading-tight">
+          <div className="text-sm font-semibold" data-testid="active-color-name">{color.name}</div>
+          <div className="text-[11px] uppercase text-zinc-400" data-testid="active-color-hex">{color.hex}</div>
         </div>
+      </div>
+
+      <div className="mt-3 grid grid-cols-7 gap-2" data-testid="custom-swatches">
+        {swatches.map((c) => {
+          const active = c.hex.toLowerCase() === String(color?.hex || "").toLowerCase();
+          const light = c.hex.toLowerCase() === "#ffffff";
+          return (
+            <button
+              key={c.hex}
+              onClick={() => setColor(c)}
+              title={`${c.name} (${c.hex})`}
+              aria-label={`Pilih warna ${c.name}`}
+              data-testid={`swatch-${c.name.toLowerCase().replace(/\s+/g, "-")}`}
+              className={`relative aspect-square rounded-full border transition ${
+                active ? "ring-2 ring-zinc-900 ring-offset-1" : "border-zinc-200 hover:scale-110"
+              } ${light ? "border-zinc-300" : ""}`}
+              style={{ backgroundColor: c.hex }}
+            >
+              {active && (
+                <Check className="absolute inset-0 m-auto h-3.5 w-3.5" style={{ color: light ? "#111" : "#fff" }} />
+              )}
+            </button>
+          );
+        })}
       </div>
 
       <div className="mt-5 flex items-center justify-between">
@@ -2635,48 +2692,6 @@ function ProductPanel({
           </div>
         </div>
       )}
-
-      <div className="mt-5 flex items-center justify-between">
-        <h3 className="text-sm font-bold">Warna Produk</h3>
-        <span className="text-xs font-semibold text-zinc-400" data-testid="custom-color-count">
-          {swatches.length} varian
-        </span>
-      </div>
-      <div className="mt-2 flex items-center gap-3 rounded-xl border border-blue-500 p-2.5">
-        <span
-          className="h-8 w-8 rounded-full border border-zinc-300 shadow-inner transition-colors"
-          style={{ backgroundColor: color.hex }}
-          data-testid="active-color-swatch"
-        />
-        <div className="leading-tight">
-          <div className="text-sm font-semibold" data-testid="active-color-name">{color.name}</div>
-          <div className="text-[11px] uppercase text-zinc-400" data-testid="active-color-hex">{color.hex}</div>
-        </div>
-      </div>
-
-      <div className="mt-3 grid grid-cols-7 gap-2" data-testid="custom-swatches">
-        {swatches.map((c) => {
-          const active = c.hex.toLowerCase() === String(color?.hex || "").toLowerCase();
-          const light = c.hex.toLowerCase() === "#ffffff";
-          return (
-            <button
-              key={c.hex}
-              onClick={() => setColor(c)}
-              title={`${c.name} (${c.hex})`}
-              aria-label={`Pilih warna ${c.name}`}
-              data-testid={`swatch-${c.name.toLowerCase().replace(/\s+/g, "-")}`}
-              className={`relative aspect-square rounded-full border transition ${
-                active ? "ring-2 ring-zinc-900 ring-offset-1" : "border-zinc-200 hover:scale-110"
-              } ${light ? "border-zinc-300" : ""}`}
-              style={{ backgroundColor: c.hex }}
-            >
-              {active && (
-                <Check className="absolute inset-0 m-auto h-3.5 w-3.5" style={{ color: light ? "#111" : "#fff" }} />
-              )}
-            </button>
-          );
-        })}
-      </div>
 
       {/* Popup Detail Produk */}
       {detailOpen && (
