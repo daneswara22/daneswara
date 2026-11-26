@@ -839,7 +839,14 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
       moveLayer={moveLayer}
       deleteLayer={deleteLayer}
     />
-  ) : activeTool === "product" ? (
+  ) : (
+    <ComingSoon tool={activeTool} onUpload={triggerUpload} setActiveTool={setActiveTool} />
+  );
+
+  /* Panel Produk selalu tampil di kolom kiri. Alat lain (Upload, Text,
+     Clip Art, Layers) muncul sebagai popup di atas kanvas, sehingga detail
+     produk, ukuran, dan warna tidak pernah hilang saat berpindah alat. */
+  const productPanel = (
     <ProductPanel
       color={color}
       setColor={setColor}
@@ -857,9 +864,16 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
       design={design}
       setSelectedId={setSelectedId}
     />
-  ) : (
-    <ComingSoon tool={activeTool} onUpload={triggerUpload} setActiveTool={setActiveTool} />
   );
+
+  // Judul popup per alat.
+  const TOOL_TITLES = {
+    upload: "Upload Image",
+    text: "Text",
+    clipart: "Clip Art",
+    layers: "Layers",
+  };
+  const toolModalOpen = activeTool !== "product";
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-zinc-100 text-zinc-900" style={{ height: "100dvh" }}>      {/* input file tersembunyi untuk upload */}
@@ -976,9 +990,9 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
 
       {/* ============================ BODY ============================ */}
       <div className="flex min-h-0 flex-1">
-        {/* -------- Left panel (konten sesuai tool aktif) -------- */}
+        {/* -------- Left panel: selalu Produk (detail, ukuran, warna) -------- */}
         <aside className="hidden w-[300px] shrink-0 flex-col overflow-y-auto border-r border-zinc-200 bg-white p-4 lg:flex">
-          {toolPanel}
+          {productPanel}
         </aside>
 
         {/* -------- Tool rail -------- */}
@@ -1332,6 +1346,49 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto p-4">
               {toolPanel}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Popup alat (desktop): Upload / Text / Clip Art / Layers.
+          Panel Produk tetap terlihat di kiri, jadi detail produk, ukuran,
+          dan warna tidak hilang saat berpindah alat. */}
+      {toolModalOpen && (
+        <div
+          className="fixed inset-0 z-[55] hidden items-center justify-center bg-black/50 p-4 lg:flex"
+          onClick={() => setActiveTool("product")}
+          data-testid="tool-modal"
+        >
+          <div
+            className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between bg-zinc-900 px-4 py-3">
+              <h3 className="text-base font-bold text-white" data-testid="tool-modal-title">
+                {TOOL_TITLES[activeTool] || "Tool"}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setActiveTool("product")}
+                aria-label="Tutup panel alat"
+                data-testid="tool-modal-close"
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-white/15 text-white transition hover:bg-white/25"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto p-4">
+              {toolPanel}
+            </div>
+            <div className="border-t border-zinc-200 p-3">
+              <button
+                type="button"
+                onClick={() => setActiveTool("product")}
+                className="w-full rounded-xl bg-zinc-900 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-zinc-800"
+              >
+                Tutup
+              </button>
             </div>
           </div>
         </div>
