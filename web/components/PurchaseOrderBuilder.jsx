@@ -35,7 +35,7 @@ export function PurchaseOrderBuilder({ open, onOpenChange, products = [], suppli
   const [saving, setSaving] = useState(false);
 
   // Produk hanya menyimpan category_id, jadi nama kategori diambil dari daftar
-  // kategori (endpoint /categories) â€” sama seperti halaman Produk.
+  // kategori (endpoint /categories) — sama seperti halaman Produk.
   const catName = useMemo(() => {
     const map = {};
     (categories || []).forEach((c) => { map[c.id] = c.name; });
@@ -127,7 +127,7 @@ export function PurchaseOrderBuilder({ open, onOpenChange, products = [], suppli
         </div>
       </div>
 
-      {/* Summary sticky â€” tetap terlihat saat daftar produk di-scroll */}
+      {/* Summary sticky — tetap terlihat saat daftar produk di-scroll */}
       <div className="sticky top-0 z-20 shrink-0 border-b border-border bg-card/95 px-4 py-3 backdrop-blur-xl lg:px-8" data-testid="po-summary-bar">
         <div className="flex flex-wrap items-end gap-x-6 gap-y-2">
           <div className="min-w-[180px] flex-1">
@@ -221,7 +221,7 @@ export function PurchaseOrderBuilder({ open, onOpenChange, products = [], suppli
         </div>
       </div>
 
-      {/* Daftar produk â€” satu-satunya area yang scroll */}
+      {/* Daftar produk — satu-satunya area yang scroll */}
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3 lg:px-8">
         <div className="overflow-x-auto rounded-lg border border-border">
           <table className="w-full min-w-[760px] text-sm" data-testid="po-product-table">
@@ -245,7 +245,7 @@ export function PurchaseOrderBuilder({ open, onOpenChange, products = [], suppli
                       <div className="font-medium">{p.name}</div>
                       {p.sku && <div className="text-[11px] text-muted-foreground">{p.sku}</div>}
                     </td>
-                    <td className="px-3 py-2 text-xs text-muted-foreground">{(p.category_id && catName[p.category_id]) || "â€”"}</td>
+                    <td className="px-3 py-2 text-xs text-muted-foreground">{(p.category_id && catName[p.category_id]) || "—"}</td>
                     <td className="px-3 py-2 text-right">{rupiah(p.cost || 0)}</td>
                     <td className={`px-3 py-2 text-right text-xs ${Number(p.stock) <= 0 ? "text-destructive" : "text-muted-foreground"}`}>{p.stock ?? 0}</td>
                     <td className="px-3 py-2">
@@ -254,7 +254,7 @@ export function PurchaseOrderBuilder({ open, onOpenChange, products = [], suppli
                     <td className={`px-3 py-2 text-right font-medium ${n > 0 ? "text-primary" : "text-muted-foreground"}`} data-testid={`po-total-stock-${p.id}`}>
                       {Number(p.stock || 0) + n}
                     </td>
-                    <td className="px-3 py-2 text-right font-medium">{n > 0 ? rupiah(n * Number(p.cost || 0)) : "â€”"}</td>
+                    <td className="px-3 py-2 text-right font-medium">{n > 0 ? rupiah(n * Number(p.cost || 0)) : "—"}</td>
                   </tr>
                 );
               })}
@@ -272,7 +272,7 @@ export function PurchaseOrderBuilder({ open, onOpenChange, products = [], suppli
           <DialogHeader><DialogTitle className="font-display">Ringkasan Purchase Order</DialogTitle></DialogHeader>
           <div className="space-y-4 text-sm">
             <div className="grid grid-cols-2 gap-2">
-              <div><span className="text-muted-foreground">Supplier</span><p className="font-medium">{suppliers.find((s) => s.id === supplierId)?.name || "â€”"}</p></div>
+              <div><span className="text-muted-foreground">Supplier</span><p className="font-medium">{suppliers.find((s) => s.id === supplierId)?.name || "—"}</p></div>
               <div><span className="text-muted-foreground">Tanggal</span><p>{new Date().toLocaleString("id-ID")}</p></div>
               {note && <div className="col-span-2"><span className="text-muted-foreground">Catatan</span><p>{note}</p></div>}
             </div>
@@ -422,7 +422,7 @@ async function makeImage({ supplierName, note, lines, catName }) {
       ctx.fillStyle = "#000000";
       ctx.font = "17px Arial, Helvetica, sans-serif";
       const baseName = String(r.name || "").replace(new RegExp(`\\s*${escapeRe(r.size)}\\s*$`, "i"), "").trim() || r.name;
-      const shown = baseName.length > 34 ? `${baseName.slice(0, 33)}â€¦` : baseName;
+      const shown = baseName.length > 34 ? `${baseName.slice(0, 33)}…` : baseName;
       ctx.fillText(shown, PAD + 12, y + 11);
       ctx.fillText(r.size, colSizeX, y + 11);
       ctx.textAlign = "right";

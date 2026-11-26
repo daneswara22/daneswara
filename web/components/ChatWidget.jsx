@@ -69,8 +69,10 @@ export default function ChatWidget() {
   // tombolnya dinaikkan lagi. Di halaman publik lain tetap kanan bawah.
   const pathname = usePathname() || '';
   const onDesigner = pathname.startsWith('/custom');
-  const buttonPos = onDesigner ? 'bottom-[136px] left-3 md:bottom-[84px] md:left-4' : 'bottom-5 right-5';
-  const panelPos = onDesigner ? 'bottom-[196px] left-3 md:bottom-[152px] md:left-4' : 'bottom-24 right-4';
+  // Di halaman desainer tombol chat diletakkan di pojok kanan bawah agar tidak
+  // menutupi panel Produk di kiri. Panel chat ikut di kanan.
+  const buttonPos = onDesigner ? 'bottom-[136px] right-3 md:bottom-[84px] md:right-4' : 'bottom-5 right-5';
+  const panelPos = onDesigner ? 'bottom-[196px] right-3 md:bottom-[152px] md:right-4' : 'bottom-24 right-4';
   const buttonShape = onDesigner ? 'h-12 w-12 justify-center' : 'h-14 px-4';
 
   // Ingat kode tiket di perangkat ini.
