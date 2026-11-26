@@ -18,7 +18,7 @@ import {
   Minus, Plus, RotateCcw, RotateCw, ArrowRight, Trash2, X, Move, Copy,
   Bold, Italic, AlignLeft, AlignCenter, AlignRight, Search, Loader2,
   ArrowUp, ArrowDown, ChevronsUp, ChevronsDown, ClipboardList, Send, CheckCircle2,
-  Home, LayoutDashboard, MessageCircle, BadgeCheck, Headset,
+  Home, LayoutDashboard, MessageCircle, BadgeCheck, Headset, Info as InfoIcon,
 } from "lucide-react";
 
 /* ---------- gambar mockup kaos (WebP ringan) per tampilan ---------- */
@@ -852,6 +852,10 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
       swatches={swatches}
       onOpenPicker={() => setPickerOpen(true)}
       onOpenSizeGuide={() => setSizeGuideOpen(true)}
+      view={view}
+      setView={setView}
+      design={design}
+      setSelectedId={setSelectedId}
     />
   ) : (
     <ComingSoon tool={activeTool} onUpload={triggerUpload} setActiveTool={setActiveTool} />
@@ -1193,54 +1197,8 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
           </div>
         </main>
 
-        {/* -------- Right view panel -------- */}
-        <aside className="hidden w-[248px] shrink-0 flex-col gap-6 overflow-y-auto border-l border-zinc-200 bg-white p-4 xl:flex">
-          <div>
-            <h3 className="mb-3 text-sm font-bold">Tampilan Produk</h3>
-            <div className="flex flex-col gap-2">
-              {VIEWS.map((v) => {
-                const count = (design[v] || []).length;
-                return (
-                  <button
-                    key={v}
-                    onClick={() => { setView(v); setSelectedId(null); }}
-                    className={`flex items-center gap-3 rounded-xl border p-2.5 text-sm transition ${
-                      view === v ? "border-zinc-900 bg-zinc-50 font-semibold" : "border-zinc-200 hover:border-zinc-400"
-                    }`}
-                  >
-                    <ViewThumb view={v} color={color} productKey={product?.product_key} />
-                    <span className="flex-1 text-left">{viewLabel(v)}</span>
-                    {count > 0 && (
-                      <span className="rounded-full bg-zinc-900 px-1.5 text-[10px] font-bold text-white">{count}</span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div>
-            <h3 className="mb-3 text-sm font-bold">Status Desain</h3>
-            <div className="flex flex-col gap-2.5">
-              {VIEWS.map((v) => {
-                const count = (design[v] || []).length;
-                return (
-                  <div key={v} className="flex items-center justify-between text-sm">
-                    <span className="flex items-center gap-2 text-zinc-700">
-                      <Check className={`h-4 w-4 ${count > 0 ? "text-emerald-500" : "text-zinc-300"}`} /> {viewLabel(v)}
-                    </span>
-                    <span className={`text-xs font-semibold ${count > 0 ? "text-emerald-600" : "text-zinc-400"}`}>
-                      {count > 0 ? `${count} objek` : "Kosong"}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Detail Produk - selalu terbuka, di bawah Status Desain (Lengan Kanan) */}
-          <ProductDetailCard product={product} />
-        </aside>
+        {/* Panel kanan dihapus: menu Tampilan Produk & Status Desain dipindah
+            ke panel Produk (kiri) agar kanvas dapat ruang lebih luas. */}
       </div>
 
       {/* ============================ BOTTOM BAR ============================ */}
@@ -1374,11 +1332,6 @@ export default function CustomTees({ publicMode = false, canManageFonts: canMana
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto p-4">
               {toolPanel}
-              {activeTool === "product" && (
-                <div className="mt-5">
-                  <ProductDetailCard product={product} />
-                </div>
-              )}
             </div>
           </div>
         </div>
@@ -2400,7 +2353,9 @@ function ProductPanel({
   color, setColor, sizeQty, setSizeQty,
   product, products, productsLoading, sizes, swatches,
   onOpenPicker, onOpenSizeGuide,
+  view, setView, design, setSelectedId,
 }) {
+  const [detailOpen, setDetailOpen] = useState(false);
   const isSizeSelected = (s) => Object.prototype.hasOwnProperty.call(sizeQty || {}, s);
   const selectedSizes = selectedSizeItems(sizeQty);
   const totalQty = totalPcs(sizeQty);
@@ -2479,6 +2434,65 @@ function ProductPanel({
           Tersedia {products.length} jenis kaos â€” klik kartu produk di atas untuk melihat semuanya.
         </p>
       )}
+
+      {/* Detail Produk: tombol yang membuka popup */}
+      <button
+        type="button"
+        onClick={() => setDetailOpen(true)}
+        data-testid="custom-product-detail-button"
+        className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700 active:scale-[0.99]"
+      >
+        <InfoIcon className="h-4 w-4" /> Detail Produk
+      </button>
+
+      {/* Tampilan Produk — dipindah dari panel kanan, diberi jarak dari tombol produk */}
+      <div className="mt-7">
+        <h3 className="mb-2.5 text-sm font-bold">Tampilan Produk</h3>
+        <div className="grid grid-cols-2 gap-2">
+          {VIEWS.map((v) => {
+            const count = (design[v] || []).length;
+            const active = view === v;
+            return (
+              <button
+                key={v}
+                onClick={() => { setView(v); setSelectedId(null); }}
+                data-testid={`custom-view-${v}`}
+                className={`flex items-center gap-2 rounded-xl border px-2.5 py-2 text-[12px] transition ${
+                  active
+                    ? "border-blue-600 bg-blue-50 font-bold text-blue-700 shadow-sm"
+                    : "border-zinc-200 text-zinc-600 hover:border-blue-300 hover:bg-zinc-50"
+                }`}
+              >
+                <ViewThumb view={v} color={color} productKey={product?.product_key} />
+                <span className="flex-1 truncate text-left">{viewLabel(v)}</span>
+                {count > 0 && (
+                  <span className={`rounded-full px-1.5 text-[10px] font-bold text-white ${active ? "bg-blue-600" : "bg-zinc-900"}`}>{count}</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Status Desain */}
+      <div className="mt-6">
+        <h3 className="mb-2.5 text-sm font-bold">Status Desain</h3>
+        <div className="flex flex-col gap-2">
+          {VIEWS.map((v) => {
+            const count = (design[v] || []).length;
+            return (
+              <div key={v} className="flex items-center justify-between rounded-lg bg-zinc-50 px-2.5 py-1.5 text-[12px]">
+                <span className="flex items-center gap-2 text-zinc-700">
+                  <Check className={`h-4 w-4 ${count > 0 ? "text-emerald-500" : "text-zinc-300"}`} /> {viewLabel(v)}
+                </span>
+                <span className={`text-[11px] font-semibold ${count > 0 ? "text-emerald-600" : "text-zinc-400"}`}>
+                  {count > 0 ? `${count} objek` : "Kosong"}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
 
       <div className="mt-5 flex items-center justify-between">
         <h3 className="text-sm font-bold">Ukuran</h3>
@@ -2606,33 +2620,73 @@ function ProductPanel({
           );
         })}
       </div>
+
+      {/* Popup Detail Produk */}
+      {detailOpen && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setDetailOpen(false)}
+          data-testid="custom-product-detail-modal"
+        >
+          <div
+            className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between bg-blue-600 px-4 py-3">
+              <h3 className="text-base font-bold text-white">Detail Produk</h3>
+              <button
+                type="button"
+                onClick={() => setDetailOpen(false)}
+                aria-label="Tutup detail produk"
+                data-testid="custom-product-detail-close"
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-white/15 text-white transition hover:bg-white/25"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="max-h-[70vh] overflow-y-auto p-4">
+              <div className="mb-3 flex items-center gap-3 rounded-xl border border-blue-200 bg-blue-50/60 p-3">
+                {product?.thumbnail_url ? (
+                  <img src={product.thumbnail_url} alt={product?.title || "Produk"} className="h-14 w-14 shrink-0 rounded-lg border border-blue-200 object-contain" />
+                ) : (
+                  <TintedThumb src={MOCKUPS["Depan"]} mask={MOCKUP_MASKS["Depan"]} color={color.hex} alt="Produk" size={56} inner={42} />
+                )}
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-bold">{product?.title || FALLBACK_PRODUCT.title}</div>
+                  <div className="truncate text-[11px] text-zinc-500">{product?.subtitle || product?.material || FALLBACK_PRODUCT.subtitle}</div>
+                  {Number(product?.price) > 0 && (
+                    <div className="mt-0.5 text-[12px] font-bold text-blue-700">Mulai Rp {Number(product.price).toLocaleString("id-ID")} / pcs</div>
+                  )}
+                </div>
+              </div>
+              <div className="space-y-1.5 rounded-xl border border-zinc-200 p-3 text-[12px]" data-testid="custom-product-detail">
+                <DetailRow label="Suplier" value={product?.supplier} />
+                <DetailRow label="Size" value={product?.size_region} />
+                <DetailRow label="Model" value={product?.model} />
+                <DetailRow label="Bahan" value={product?.material} />
+                {product?.description && (
+                  <p className="pt-1 leading-relaxed text-zinc-600">{product.description}</p>
+                )}
+              </div>
+            </div>
+            <div className="border-t border-zinc-200 p-3">
+              <button
+                type="button"
+                onClick={() => setDetailOpen(false)}
+                className="w-full rounded-xl bg-zinc-900 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-zinc-800"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
 
-/* Kartu "Detail Produk" (selalu terbuka). Dipakai di kolom kanan pada layar
-   lebar dan di dalam lembar geser "Produk" pada HP. */
-function ProductDetailCard({ product }) {
-  return (
-    <div data-testid="custom-product-detail-panel">
-      <div className="mb-2 rounded-xl bg-blue-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm">
-        Detail Produk
-      </div>
-      <div
-        className="space-y-1.5 rounded-xl border border-blue-200 bg-blue-50/60 p-3 text-[12px]"
-        data-testid="custom-product-detail"
-      >
-        <DetailRow label="Suplier" value={product?.supplier} />
-        <DetailRow label="Size" value={product?.size_region} />
-        <DetailRow label="Model" value={product?.model} />
-        <DetailRow label="Bahan" value={product?.material} />
-        {product?.description && (
-          <p className="pt-1 leading-relaxed text-zinc-600">{product.description}</p>
-        )}
-      </div>
-    </div>
-  );
-}
+/* Detail Produk kini tampil sebagai popup dari tombol di panel Produk
+   (lihat ProductPanel). Kartu lama dihapus agar tidak ada duplikasi. */
 
 function DetailRow({ label, value }) {  return (
     <div className="flex justify-between gap-3 border-b border-zinc-200 pb-1 last:border-0">
