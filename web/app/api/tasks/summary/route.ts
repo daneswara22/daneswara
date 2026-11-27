@@ -15,15 +15,18 @@ export const GET = handle(async (req: NextRequest) => {
   const tid = user.tenant_id;
   const now = new Date();
 
-  const [active, available, mine, completed, overdue] = await Promise.all([
+  const [active, available, mine, completed, completedAll, overdue] = await Promise.all([
     prisma.order_tasks.count({ where: { tenant_id: tid, status: { not: 'COMPLETED' } } }),
     prisma.order_tasks.count({ where: { tenant_id: tid, status: 'AVAILABLE' } }),
     prisma.order_tasks.count({ where: { tenant_id: tid, assigned_user_id: user.id, status: { not: 'COMPLETED' } } }),
+    // Diselesaikan oleh user yang sedang login.
+    prisma.order_tasks.count({ where: { tenant_id: tid, assigned_user_id: user.id, status: 'COMPLETED' } }),
+    // Diselesaikan oleh seluruh user (gabungan semua PIC).
     prisma.order_tasks.count({ where: { tenant_id: tid, status: 'COMPLETED' } }),
     prisma.order_tasks.count({
       where: { tenant_id: tid, status: { not: 'COMPLETED' }, deadline: { lt: now } },
     }),
   ]);
 
-  return { active, available, mine, completed, overdue };
+  return { active, available, mine, completed, completed_all: completedAll, overdue };
 });
