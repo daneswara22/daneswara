@@ -83,7 +83,7 @@ export default function TaskToDo() {
   const [perPage, setPerPage] = useState(20);
 
   const [data, setData] = useState({ items: [], total: 0, pages: 1 });
-  const [summary, setSummary] = useState({ active: 0, available: 0, mine: 0, completed: 0, overdue: 0 });
+  const [summary, setSummary] = useState({ active: 0, available: 0, mine: 0, completed: 0, completed_all: 0, overdue: 0 });
   const [pics, setPics] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -280,15 +280,16 @@ export default function TaskToDo() {
       </div>
 
       {/* Ringkasan */}
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5" data-testid="task-summary">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6" data-testid="task-summary">
         {[
-          { label: 'Active', value: summary.active, icon: ClipboardList, cls: 'text-blue-600' },
-          { label: 'Available', value: summary.available, icon: UserPlus, cls: 'text-slate-600' },
-          { label: 'My Tasks', value: summary.mine, icon: Clock, cls: 'text-amber-600' },
-          { label: 'Completed', value: summary.completed, icon: CheckCircle2, cls: 'text-emerald-600' },
-          { label: 'Overdue', value: summary.overdue, icon: AlertTriangle, cls: 'text-red-600' },
+          { label: 'Active', value: summary.active, icon: ClipboardList, cls: 'text-blue-600', hint: 'Semua task yang belum selesai' },
+          { label: 'Available', value: summary.available, icon: UserPlus, cls: 'text-slate-600', hint: 'Task yang belum diambil siapa pun' },
+          { label: 'My Tasks', value: summary.mine, icon: Clock, cls: 'text-amber-600', hint: 'Task yang ditugaskan ke Anda dan belum selesai' },
+          { label: 'Completed', value: summary.completed, icon: CheckCircle2, cls: 'text-emerald-600', hint: 'Task yang Anda selesaikan' },
+          { label: 'Completed All', value: summary.completed_all ?? 0, icon: CheckCircle2, cls: 'text-teal-600', hint: 'Task yang diselesaikan seluruh user' },
+          { label: 'Overdue', value: summary.overdue, icon: AlertTriangle, cls: 'text-red-600', hint: 'Task belum selesai yang sudah lewat deadline' },
         ].map((s) => (
-          <div key={s.label} className="rounded-lg border border-border bg-card p-3" data-testid={`summary-${s.label.toLowerCase().replace(/\s+/g, '-')}`}>
+          <div key={s.label} className="rounded-lg border border-border bg-card p-3" title={s.hint} data-testid={`summary-${s.label.toLowerCase().replace(/\s+/g, '-')}`}>
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <s.icon className={`h-3.5 w-3.5 ${s.cls}`} /> {s.label}
             </div>
